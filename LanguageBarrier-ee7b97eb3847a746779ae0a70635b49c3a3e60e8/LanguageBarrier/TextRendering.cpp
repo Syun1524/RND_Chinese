@@ -65,12 +65,18 @@ void TextRendering::Init(void* widthData, void* widthData2,
 
   filteredCharMap.reserve(fullCharMap.length());
   initFT(32);
+  // allow overriding exclusion of CJK unified ideographs via config
+  bool forceIncludeHan = false;
+  try {
+    forceIncludeHan = lb::config["patch"].value<bool>("forceIncludeHan", false);
+  } catch (...) { /* ignore */ }
+
   for (int i = 0; i < fullCharMap.length(); i++) {
     int glyph_index = FT_Get_Char_Index(this->ftFace, fullCharMap[i]);
 
+    bool isHan = (fullCharMap[i] >= 0x4E00 && fullCharMap[i] <= 0x9faf);
     if (glyph_index &&
-        (!(fullCharMap[i] >= 0x4E00 && fullCharMap[i] <= 0x9faf) ||
-         language == JP) &&
+        ((!isHan) || language == JP || forceIncludeHan) &&
         filteredCharMap.find(fullCharMap[i]) == currentCharMap->npos)
       filteredCharMap.push_back(fullCharMap[i]);
   }
