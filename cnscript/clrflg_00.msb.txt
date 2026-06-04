@@ -1,0 +1,27 @@
+[color index="A01F0000"]【隐藏的故事】
+[color index="800000"]已解锁。
+[color index="800000"]你现在可以从主界面
+[color index="A01F0000"]访问【EXTRA】
+[color index="800000"]菜单。
+[color index="800000"]【SOUND LIBRARY】中
+[color index="A01F0000"]新的曲目
+[color index="800000"]已追加。
+[color index="800000"]【MOVIE LIBRARY】中
+[color index="A01F0000"]新的影片
+[color index="800000"]已追加。
+[color index="A01F0000"]【HINT】
+[color index="A01F0000"]【[color index="820000"]YES[color index="A01F0000"]-[color index="810000"]NO[color index="A01F0000"]心理测试】[color index="800000"]
+[color index="800000"]的結果请注意
+[color index="A01F0000"]【HINT】
+[color index="A01F0000"]【[color index="810000"]妄[color index="820000"]想[color index="A01F0000"]扳机】[color index="800000"]已触发
+[color index="800000"]尽情妄想吧
+[color index="A0FD0000"][[color index="A0FF0000"]Magnetopause Attenuator[color index="A0FD0000"]][color index="A0FE0000"]Cleared
+[color index="A0FD0000"][[color index="A0FF0000"]Plasmapause Resistor[color index="A0FD0000"]][color index="A0FE0000"]Cleared
+[color index="A0FD0000"][[color index="A0FF0000"]Thermopause Emulator[color index="A0FD0000"]][color index="A0FE0000"]Cleared
+[color index="A0FD0000"][[color index="A0FF0000"]Mesopause Converter[color index="A0FD0000"]][color index="A0FE0000"]Cleared
+[color index="A0FD0000"][[color index="A0FF0000"]Exopause Thyristor[color index="A0FD0000"]][color index="A0FE0000"]Cleared
+[color index="A0FD0000"][[color index="A0FF0000"]Ionopause Thermistor[color index="A0FD0000"]][color index="A0FE0000"]Cleared
+[color index="A0FD0000"][[color index="A0FF0000"]Heliopause Processor[color index="A0FD0000"]][color index="A0FE0000"]Cleared
+[color index="A01F0000"]【NOTICE】
+[color index="A01F0000"]【[color index="820000"]YES[color index="A01F0000"]-[color index="810000"]NO[color index="A01F0000"]心理测试】[color index="800000"]
+[color index="800000"]的题目已更新

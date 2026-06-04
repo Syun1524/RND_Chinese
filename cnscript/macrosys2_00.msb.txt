@@ -1,0 +1,29 @@
+FESTIVAL PHASE1  -TropopauseInverter-
+FESTIVAL PHASE 1 -Tropopause Inverter-
+FESTIVAL PHASE2  -StratopauseCapacitor-
+FESTIVAL PHASE 2 -Stratopause Capacitor-
+PHASE AKIHO  -MagnetopauseAttenuator-
+PHASE AKIHO -Magnetopause Attenuator-
+PHASE FRAU  -PlasmapauseResistor-
+PHASE FRAU -Plasmapause Resistor-
+PHASE JUNNA  -ThermopauseEmulator-
+PHASE JUNNA -Thermopause Emulator-
+PHASE AIRI  -MesopauseConverter-
+PHASE AIRI -Mesopause Converter-
+PHASE SUBARU  -ExopauseThyristor-
+PHASE SUBARU -Exopause Thyristor-
+PHASE NAE  -IonopauseThermistor-
+PHASE NAE -Ionopause Thermistor-
+LAST PHASE  -HeliopauseProcessor-
+LAST PHASE -Heliopause Processor-
+―――――――――――――――――――
+―――――――――――――――――――
+
+使用【deluoode map】来选择目的地
+
+
+使用【口袋电脑扳机】来
+使用【虚拟哥】来寻找AR标记
+使用【deluoode map】来移动到其他地点
+
+種子島。[%p]

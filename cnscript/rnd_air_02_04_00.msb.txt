@@ -1,0 +1,8 @@
+[name]至[line]「嗯——」[%p]
+从祭典回来的我，因为有件在意的事，一直在网上拼命搜集情报。[%p]
+而结果就是――。[%p]
+[name]至[line]「果然……是这么回事啊」[%p]
+我得出了一个结论。[%p]
+虽然可能让人难以置信，但如果拥有[ruby-base][ruby-center-per-char]那个[ruby-text-start]••[ruby-text-end]的话，或许是有可能的。[%p]
+最简单快捷的方法，就是把[ruby-base][ruby-center-per-char]那个[ruby-text-start]••[ruby-text-end]给毁掉就是了……。[%p]
+[name]至[line]「嘛，挺有意思的，就再这样保持一会儿吧」[%p]
