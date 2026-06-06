@@ -1,0 +1,1 @@
+[name]同時通訳G[line]“世界ランキングでも上位に入る、‘[ruby-base]Piz daint[ruby-text-start]ピーツ・ダイント[ruby-text-end]’……これは、スイスにあるスーパーコンピュータですが、何者かの手による、えー、不正なアクセスがあったと――”[%p]

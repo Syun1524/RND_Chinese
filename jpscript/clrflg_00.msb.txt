@@ -1,0 +1,27 @@
+[color index="A01F0000"]【秘匿された物語】
+[color index="800000"]が解放されました。
+[color index="800000"]タイトルメニューの
+[color index="A01F0000"]【EXTRA】
+[color index="800000"]が利用可能になりました。
+[color index="800000"]【SOUND LIBRARY】に
+[color index="A01F0000"]新しい曲
+[color index="800000"]が追加されました。
+[color index="800000"]【MOVIE LIBRARY】に
+[color index="A01F0000"]新しいムービー
+[color index="800000"]が追加されました。
+[color index="A01F0000"]【HINT】
+[color index="A01F0000"]【[color index="820000"]YES[color index="A01F0000"]-[color index="810000"]NO[color index="A01F0000"]心理テスト】[color index="800000"]
+[color index="800000"]の結果に注意しよう
+[color index="A01F0000"]【HINT】
+[color index="A01F0000"]【[color index="810000"]妄[color index="820000"]想[color index="A01F0000"]トリガー】[color index="800000"]を引いて
+[color index="800000"]いろいろ妄想しよう
+[color index="A0FD0000"]【[color index="A0FF0000"]うちらの夢と勇気と友情の証![color index="A0FD0000"]】[color index="A0FE0000"]クリア
+[color index="A0FD0000"]【[color index="A0FF0000"]ひとりなのは慣れてたはずなのに[color index="A0FD0000"]】[color index="A0FE0000"]クリア
+[color index="A0FD0000"]【[color index="A0FF0000"]心も体も……強くなりたいですっ[color index="A0FD0000"]】[color index="A0FE0000"]クリア
+[color index="A0FD0000"]【[color index="A0FF0000"]あんな未来が待っていたんでしょうか?[color index="A0FD0000"]】[color index="A0FE0000"]クリア
+[color index="A0FD0000"]【[color index="A0FF0000"]もう一度、理解しようとしなきゃいけないんだ[color index="A0FD0000"]】[color index="A0FE0000"]クリア
+[color index="A0FD0000"]【[color index="A0FF0000"]私の居場所は、ここですから[color index="A0FD0000"]】[color index="A0FE0000"]クリア
+[color index="A0FD0000"]【[color index="A0FF0000"]俺たちは未来に生きるんだ[color index="A0FD0000"]】[color index="A0FE0000"]クリア
+[color index="A01F0000"]【NOTICE】
+[color index="A01F0000"]【[color index="820000"]YES[color index="A01F0000"]-[color index="810000"]NO[color index="A01F0000"]心理テスト】[color index="800000"]
+[color index="800000"]の設問が更新されました

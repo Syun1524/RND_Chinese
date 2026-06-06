@@ -1,0 +1,8 @@
+[name]至[line]“んー”[%p]
+祭りから帰って来た僕は、気になることがあって、ひたすらネットの中で情報を漁っていた。[%p]
+そしてその結果――。[%p]
+[name]至[line]“やっぱ……そういうことかね”[%p]
+ひとつの結論に至った。[%p]
+にわかには信じられないことかもしれないけど、[ruby-base][ruby-center-per-char]アレ[ruby-text-start]••[ruby-text-end]があれば可能なことかもしれない。[%p]
+手っ取り早いのは、[ruby-base][ruby-center-per-char]アレ[ruby-text-start]••[ruby-text-end]をぶっ壊すことだけど……。[%p]
+[name]至[line]“ま、面白いし、もうちょっとこのままいましょうかね”[%p]
