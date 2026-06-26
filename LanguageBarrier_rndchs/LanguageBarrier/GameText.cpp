@@ -1,6 +1,7 @@
 ﻿#include "GameText.h"
 #include <fstream>
 #include <list>
+#include <map>
 #include <sstream>
 #include <vector>
 #include <intrin.h>
@@ -53,6 +54,11 @@ typedef struct __declspec(align(4)) {
   int displayWidth;
   int displayHeight;
 } LinkMetrics_t;
+
+struct DialogueRubyBaseGlyph {
+  float x;
+  float advance;
+};
 
 #define DEF_DIALOGUE_PAGE(name, size, opacityType) \
   typedef struct {                                 \
@@ -1204,30 +1210,93 @@ int __cdecl dialogueLayoutRelatedHook(int unk0, int* unk1, int* unk2, int unk3,
       return gameExeDrawDialogueReal(fontNumber, pageNumber, opacity, xOffset, \
                                      yOffset);                                 \
                                                                                \
-    bool newline = true;                                                       \
-    float displayStartX =                                                      \
-        (page->charDisplayX[0] + xOffset) * COORDS_MULTIPLIER;                 \
+    std::map<int, float> nextXByLine;                                          \
+    std::vector<DialogueRubyBaseGlyph> currentBaseRun;                         \
+    std::vector<float> rubyRunPositions;                                       \
+    int lastBaseY = 0;                                                         \
+    int rubyRunY = 0;                                                          \
+    int rubyRunEnd = -1;                                                       \
+    int rubyRunPositionIndex = 0;                                              \
+    bool hasBaseY = false;                                                     \
+    float displayStartX = 0.0f;                                                \
     float displayStartY =                                                      \
         (page->charDisplayY[0] + yOffset) * COORDS_MULTIPLIER;                 \
     for (int i = 0; i < page->pageLength; i++) {                               \
       if (fontNumber == page->fontNumber[i]) {                                 \
         int glyphSize = page->glyphDisplayHeight[i];                           \
-        if (i == 0 ||                                                          \
-            i > 0 && page->charDisplayY[i] != page->charDisplayY[i - 1]) {     \
-          newline = true;                                                      \
-        } else                                                                 \
-          newline = false;                                                     \
-                                                                               \
-        if (newline == false) {                                                \
-          __int16 fontSize = page->glyphDisplayHeight[i] * 1.5f;               \
-                                                                               \
-          uint32_t currentChar =                                               \
-              page->glyphCol[i - 1] +                                          \
-              page->glyphRow[i - 1] * TextRendering::Get().GLYPHS_PER_ROW;     \
-          auto glyphInfo = TextRendering::Get()                                \
-                               .getFont(fontSize, false)                       \
-                               ->getGlyphInfo(currentChar, Regular);           \
-          displayStartX += glyphInfo->advance;                                 \
+        int currentY = page->charDisplayY[i];                                  \
+        bool isRubyRun = i <= rubyRunEnd && currentY == rubyRunY;              \
+        if (!isRubyRun && hasBaseY && currentY < lastBaseY &&                  \
+            !currentBaseRun.empty()) {                                         \
+          int rubyEnd = i;                                                     \
+          while (rubyEnd < page->pageLength &&                                 \
+                 fontNumber == page->fontNumber[rubyEnd] &&                   \
+                 page->charDisplayY[rubyEnd] == currentY) {                   \
+            rubyEnd++;                                                         \
+          }                                                                    \
+          int rubyCount = rubyEnd - i;                                         \
+          int baseStart = currentBaseRun.size() > (size_t)rubyCount            \
+                              ? (int)currentBaseRun.size() - rubyCount         \
+                              : 0;                                             \
+          rubyRunPositions.clear();                                            \
+          rubyRunPositions.reserve(rubyCount);                                 \
+          if ((int)currentBaseRun.size() - baseStart == rubyCount) {           \
+            for (int j = 0; j < rubyCount; j++) {                              \
+              uint32_t rubyChar = page->glyphCol[i + j] +                     \
+                                  page->glyphRow[i + j] *                     \
+                                      TextRendering::Get().GLYPHS_PER_ROW;     \
+              auto rubyGlyph = TextRendering::Get()                            \
+                                   .getFont(page->glyphDisplayHeight[i + j] *  \
+                                                1.5f,                          \
+                                            false)                             \
+                                   ->getGlyphInfo(rubyChar, Regular);          \
+              auto& baseGlyph = currentBaseRun[baseStart + j];                \
+              rubyRunPositions.push_back(                                      \
+                  baseGlyph.x + (baseGlyph.advance - rubyGlyph->advance) /     \
+                                    2.0f);                                     \
+            }                                                                  \
+          } else {                                                             \
+            float baseStartX = currentBaseRun[baseStart].x;                    \
+            float baseEndX = currentBaseRun.back().x +                         \
+                             currentBaseRun.back().advance;                    \
+            float rubyWidth = 0.0f;                                            \
+            for (int j = 0; j < rubyCount; j++) {                              \
+              uint32_t rubyChar = page->glyphCol[i + j] +                     \
+                                  page->glyphRow[i + j] *                     \
+                                      TextRendering::Get().GLYPHS_PER_ROW;     \
+              auto rubyGlyph = TextRendering::Get()                            \
+                                   .getFont(page->glyphDisplayHeight[i + j] *  \
+                                                1.5f,                          \
+                                            false)                             \
+                                   ->getGlyphInfo(rubyChar, Regular);          \
+              rubyWidth += rubyGlyph->advance;                                 \
+            }                                                                  \
+            float rubyX = baseStartX + (baseEndX - baseStartX - rubyWidth) /    \
+                                       2.0f;                                   \
+            for (int j = 0; j < rubyCount; j++) {                              \
+              uint32_t rubyChar = page->glyphCol[i + j] +                     \
+                                  page->glyphRow[i + j] *                     \
+                                      TextRendering::Get().GLYPHS_PER_ROW;     \
+              auto rubyGlyph = TextRendering::Get()                            \
+                                   .getFont(page->glyphDisplayHeight[i + j] *  \
+                                                1.5f,                          \
+                                            false)                             \
+                                   ->getGlyphInfo(rubyChar, Regular);          \
+              rubyRunPositions.push_back(rubyX);                               \
+              rubyX += rubyGlyph->advance;                                     \
+            }                                                                  \
+          }                                                                    \
+          rubyRunY = currentY;                                                  \
+          rubyRunEnd = rubyEnd - 1;                                            \
+          rubyRunPositionIndex = 0;                                            \
+          isRubyRun = true;                                                    \
+        }                                                                      \
+        auto nextX = nextXByLine.find(currentY);                               \
+        if (isRubyRun &&                                                       \
+            rubyRunPositionIndex < (int)rubyRunPositions.size()) {             \
+          displayStartX = rubyRunPositions[rubyRunPositionIndex++];            \
+        } else if (nextX != nextXByLine.end()) {                               \
+          displayStartX = nextX->second;                                       \
         } else {                                                               \
           displayStartX =                                                      \
               (page->charDisplayX[i] + xOffset) * COORDS_MULTIPLIER;           \
@@ -1287,6 +1356,18 @@ int __cdecl dialogueLayoutRelatedHook(int unk0, int* unk1, int* unk2, int unk3,
                 round(displayStartX + glyphInfo->left),                        \
                 round(yOffset + displayStartY + fontSize - glyphInfo->top),    \
                 page->charColor[i], _opacity, 4);                              \
+          nextXByLine[currentY] = displayStartX + glyphInfo->advance;          \
+          if (!isRubyRun) {                                                    \
+            if (!hasBaseY || currentY != lastBaseY) {                          \
+              currentBaseRun.clear();                                          \
+              lastBaseY = currentY;                                            \
+              hasBaseY = true;                                                 \
+            }                                                                  \
+            DialogueRubyBaseGlyph baseGlyph;                                   \
+            baseGlyph.x = displayStartX;                                       \
+            baseGlyph.advance = (float)glyphInfo->advance;                     \
+            currentBaseRun.push_back(baseGlyph);                               \
+          }                                                                    \
           page->field_20 = (displayStartX + glyphInfo->advance) / 1.5f;        \
         }                                                                      \
       }                                                                        \
@@ -1326,12 +1407,20 @@ void semiTokeniseSc3String(char* sc3string, std::list<StringWord_t>& words,
   int sc3evalResult;
   StringWord_t word = {sc3string, NULL, 0, false, false};
   const auto& fontData = TextRendering::Get().enabled
-                             ? TextRendering::Get().getFont(baseGlyphSize, true)
-                             : nullptr;
+                              ? TextRendering::Get().getFont(baseGlyphSize, true)
+                              : nullptr;
+  bool insideRubyText = false;
 
   char c;
   while (sc3string != NULL) {
     c = *sc3string;
+    if ((uint8_t)c == 0x80 && sc3string[1] >= 9 && sc3string[1] <= 11) {
+      if (sc3string[1] == 10) insideRubyText = true;
+      if (sc3string[1] == 11) insideRubyText = false;
+      sc3string += 2;
+      continue;
+    }
+
     switch (c) {
       case -1:
         word.end = sc3string - 1;
@@ -1355,6 +1444,10 @@ void semiTokeniseSc3String(char* sc3string, std::list<StringWord_t>& words,
         break;
       default:
         int glyphId = (uint8_t)sc3string[1] + ((c & 0x7f) << 8);
+        if (insideRubyText) {
+          sc3string += 2;
+          break;
+        }
         uint16_t glyphWidth = 0;
         if (!TextRendering::Get().enabled) {
           glyphWidth = (baseGlyphSize * widths[glyphId]) / FONT_CELL_WIDTH;
@@ -1692,6 +1785,18 @@ struct BacklogSize {
   uint8_t d;
 };
 
+struct BacklogRubyBaseGlyph {
+  float x;
+  float advance;
+};
+
+struct BacklogRubyTextGlyph {
+  int index;
+  uint16_t glyph;
+  int color;
+  float advance;
+};
+
 void __cdecl DrawBacklogContentHookRND(int textureId, int maskTextureId,
                                        int startX, int startY,
                                        unsigned int maskY, int maskHeight,
@@ -1791,9 +1896,93 @@ void __cdecl DrawBacklogContentHookRND(int textureId, int maskTextureId,
             maxXX = 0;
             v32 = 0;
             v25 = 10000;
+            bool insideRubyBase = false;
+            bool insideRubyText = false;
+            bool haveComputedX = false;
+            int lastDrawableY = 0x7FFFFFFF;
+            float nextXPosition = 0.0f;
+            std::vector<BacklogRubyBaseGlyph> rubyBaseGlyphs;
+            std::vector<BacklogRubyTextGlyph> rubyTextGlyphs;
+            auto drawRubyText = [&]() {
+              if (rubyBaseGlyphs.empty() || rubyTextGlyphs.empty()) return;
+
+              std::vector<float> rubyXPositions;
+              rubyXPositions.reserve(rubyTextGlyphs.size());
+
+              if (rubyBaseGlyphs.size() == rubyTextGlyphs.size()) {
+                for (size_t i = 0; i < rubyTextGlyphs.size(); i++) {
+                  rubyXPositions.push_back(
+                      rubyBaseGlyphs[i].x +
+                      (rubyBaseGlyphs[i].advance - rubyTextGlyphs[i].advance) /
+                          2.0f);
+                }
+              } else {
+                float baseStart = rubyBaseGlyphs.front().x;
+                float baseEnd = rubyBaseGlyphs.back().x +
+                                rubyBaseGlyphs.back().advance;
+                float rubyWidth = 0.0f;
+                for (auto& glyph : rubyTextGlyphs) rubyWidth += glyph.advance;
+
+                float rubyX = baseStart + (baseEnd - baseStart - rubyWidth) /
+                                             2.0f;
+                for (auto& glyph : rubyTextGlyphs) {
+                  rubyXPositions.push_back(rubyX);
+                  rubyX += glyph.advance;
+                }
+              }
+
+              for (size_t i = 0; i < rubyTextGlyphs.size(); i++) {
+                auto& ruby = rubyTextGlyphs[i];
+                auto rubyGlyphSize = BacklogTextSize[4 * ruby.index + 3] * 1.5f;
+                TextRendering::Get().replaceFontSurface(rubyGlyphSize);
+                auto glyphInfo = TextRendering::Get()
+                                     .getFont(rubyGlyphSize, false)
+                                     ->getGlyphInfo(ruby.glyph, Regular);
+                int dummy1, dummy2;
+                int v35 = startY + BacklogDispLinePosY[v8] - *BacklogDispPos;
+                v35 *= 1.5f;
+                v35 += 24 * rubyGlyphSize / 48.0;
+
+                if (glyphInfo->width && glyphInfo->rows) {
+                  gameExeSg0DrawGlyph2(
+                      TextRendering::Get().FONT_TEXTURE_ID, maskTextureId,
+                      glyphInfo->x, glyphInfo->y, glyphInfo->width,
+                      glyphInfo->rows, 32 * 2,
+                      round(BacklogTextPos[2 * ruby.index + 1] * 1.5f + v35 +
+                            rubyGlyphSize / 2.0f - glyphInfo->top) -
+                          13,
+                      round(rubyXPositions[i] + glyphInfo->left),
+                      round(BacklogTextPos[2 * ruby.index + 1] * 1.5f + v35 +
+                            rubyGlyphSize / 2.0f - glyphInfo->top),
+                      round(rubyXPositions[i] + glyphInfo->left +
+                            glyphInfo->width),
+                      round(BacklogTextPos[2 * ruby.index + 1] * 1.5f +
+                            glyphInfo->rows + rubyGlyphSize / 2.0f -
+                            glyphInfo->top + v35),
+                      ruby.color, opacity, &dummy1, &dummy2);
+                }
+              }
+            };
             do {
               v15 = BacklogText[strIndex];
-              if ((v15 & 0x8000u) == 0) {
+              if ((v15 & 0x8000u) == 0 && insideRubyText) {
+                int rubyColorIndex = BacklogTextCo[strIndex];
+                int rubyMainColor = MesFontColor[2 * rubyColorIndex];
+                int rubyAltColor = MesFontColor[2 * rubyColorIndex + 1];
+                int rubyColor = rubyMainColor == 0xFFFFFF ? rubyAltColor
+                                                          : rubyMainColor;
+                auto rubyGlyphSize = BacklogTextSize[4 * strIndex + 3] * 1.5f;
+                auto rubyGlyphInfo = TextRendering::Get()
+                                         .getFont(rubyGlyphSize, false)
+                                         ->getGlyphInfo(BacklogText[strIndex],
+                                                        Regular);
+                BacklogRubyTextGlyph rubyGlyph;
+                rubyGlyph.index = strIndex;
+                rubyGlyph.glyph = (uint16_t)BacklogText[strIndex];
+                rubyGlyph.color = rubyColor;
+                rubyGlyph.advance = (float)rubyGlyphInfo->advance;
+                rubyTextGlyphs.push_back(rubyGlyph);
+              } else if ((v15 & 0x8000u) == 0) {
                 v18 = BacklogTextCo[strIndex];
                 v19 = MesFontColor[2 * v18];
                 color = MesFontColor[2 * v18 + 1];
@@ -1813,20 +2002,13 @@ void __cdecl DrawBacklogContentHookRND(int textureId, int maskTextureId,
                     (BacklogSize*)&BacklogTextSize[4 * strIndex];
                 auto glyphSize = BacklogTextSize[4 * strIndex + 3] * 1.5f;
 
-                if (strIndex == 0 ||
-                    strIndex > 0 &&
-                        BacklogTextPos[2 * (strIndex) + 1] !=
-                            BacklogTextPos[2 * (strIndex - 1) + 1]) {
+                if (lastDrawableY == 0x7FFFFFFF ||
+                    BacklogTextPos[2 * strIndex + 1] != lastDrawableY) {
                   newline = true;
                 }
 
-                if (newline == false &&
-                    (BacklogText[strIndex - 1] & 0x8000) == 0) {
-                  auto glyphInfo =
-                      TextRendering::Get()
-                          .getFont(glyphSize, false)
-                          ->getGlyphInfo(BacklogText[strIndex - 1], Regular);
-                  xPosition += glyphInfo->advance;
+                if (newline == false && haveComputedX) {
+                  xPosition = nextXPosition;
                 } else {
                   xPosition = (startX * 1.5f + BacklogTextPos[2 * strIndex]);
                   newline = false;
@@ -1837,6 +2019,15 @@ void __cdecl DrawBacklogContentHookRND(int textureId, int maskTextureId,
                     TextRendering::Get()
                         .getFont(glyphSize, false)
                         ->getGlyphInfo(BacklogText[strIndex], Regular);
+                nextXPosition = xPosition + glyphInfo->advance;
+                haveComputedX = true;
+                lastDrawableY = BacklogTextPos[2 * strIndex + 1];
+                if (insideRubyBase) {
+                  BacklogRubyBaseGlyph baseGlyph;
+                  baseGlyph.x = xPosition;
+                  baseGlyph.advance = (float)glyphInfo->advance;
+                  rubyBaseGlyphs.push_back(baseGlyph);
+                }
                 int dummy1, dummy2;
                 int v35 = startY + BacklogDispLinePosY[v8] - *BacklogDispPos;
                 v35 *= 1.5f;
@@ -1893,15 +2084,32 @@ void __cdecl DrawBacklogContentHookRND(int textureId, int maskTextureId,
                 }
                 if (v27 == 1 && v10 == 0xFFFF) v10 = v33;
               } else {
-                v16 = v15 & 0x7FFF;
-                if (v16 == 1) {
-                  v13 = 1;
-                  v24 = 1;
+                if ((v15 & 0x8000u) != 0) {
+                  v16 = v15 & 0x7FFF;
+                  if (v16 == 9) {
+                    insideRubyBase = true;
+                    insideRubyText = false;
+                    rubyBaseGlyphs.clear();
+                    rubyTextGlyphs.clear();
+                  } else if (v16 == 10) {
+                    insideRubyText = true;
+                  } else if (v16 == 11) {
+                    drawRubyText();
+                    insideRubyBase = false;
+                    insideRubyText = false;
+                    rubyBaseGlyphs.clear();
+                    rubyTextGlyphs.clear();
+                  } else {
+                    if (v16 == 1) {
+                      v13 = 1;
+                      v24 = 1;
+                    }
+                    v17 = 0;
+                    if (v16 != 2) v17 = v13;
+                    v13 = v17;
+                    v27 = v17;
+                  }
                 }
-                v17 = 0;
-                if (v16 != 2) v17 = v13;
-                v13 = v17;
-                v27 = v17;
               }
               v21 = strIndex + 1;
               strIndex = 0;
@@ -2313,6 +2521,7 @@ void processSc3TokenList(int xOffset, int yOffset, int lineLength,
   int prevLineLength = 0;
   int spaceCost = 0;
   int ellipsisCost = 0;
+  bool insideRubyText = false;
 
   if (TextRendering::Get().enabled) {
     spaceCost = TextRendering::Get()
@@ -2376,6 +2585,13 @@ void processSc3TokenList(int xOffset, int yOffset, int lineLength,
                           : it->start;
     while (sc3string <= it->end) {
       c = *sc3string;
+      if ((uint8_t)c == 0x80 && sc3string[1] >= 9 && sc3string[1] <= 11) {
+        if (sc3string[1] == 10) insideRubyText = true;
+        if (sc3string[1] == 11) insideRubyText = false;
+        sc3string += 2;
+        continue;
+      }
+
       switch (c) {
         case -1:
           goto afterWord;
@@ -2405,6 +2621,10 @@ void processSc3TokenList(int xOffset, int yOffset, int lineLength,
           break;
         default:
           int glyphId = (uint8_t)sc3string[1] + ((c & 0x7f) << 8);
+          if (insideRubyText) {
+            sc3string += 2;
+            break;
+          }
           if (TextRendering::Get().enabled) {
             if (result->lines < lineCount - 1 ||
                 (result->lines == lineCount - 1 &&
@@ -2534,6 +2754,7 @@ int __cdecl getSc3StringDisplayWidthHook(char* sc3string,
   int i = 0;
   signed char c;
   FontData* fontData;
+  bool insideRubyText = false;
   if (UseNewTextSystem)
     fontData = TextRendering::Get().getFont(baseGlyphSize, true);
   while (i <= maxCharacters && (c = *sc3string) != -1) {
@@ -2541,19 +2762,26 @@ int __cdecl getSc3StringDisplayWidthHook(char* sc3string,
       sc3.pc = sc3string + 1;
       gameExeSc3Eval(&sc3, &sc3evalResult);
       sc3string = (char*)sc3.pc;
+    } else if ((uint8_t)c == 0x80 && sc3string[1] >= 9 &&
+               sc3string[1] <= 11) {
+      if (sc3string[1] == 10) insideRubyText = true;
+      if (sc3string[1] == 11) insideRubyText = false;
+      sc3string += 2;
     } else if (c < 0) {
       int glyphId = (uint8_t)sc3string[1] + ((c & 0x7f) << 8);
-      if (UseNewTextSystem) {
-        if (TextRendering::Get().enabled) {
-          int adv = fontData->getGlyphInfo(glyphId, Regular)->advance;
-          result += adv;
+      if (!insideRubyText) {
+        if (UseNewTextSystem) {
+          if (TextRendering::Get().enabled) {
+            int adv = fontData->getGlyphInfo(glyphId, Regular)->advance;
+            result += adv;
+          } else {
+            result += TextRendering::Get().originalWidth[glyphId];
+          }
         } else {
-          result += TextRendering::Get().originalWidth[glyphId];
+          result += (baseGlyphSize * widths[glyphId]) / FONT_CELL_WIDTH;
         }
-      } else {
-        result += (baseGlyphSize * widths[glyphId]) / FONT_CELL_WIDTH;
+        i++;
       }
-      i++;
       sc3string += 2;
     }
   }
