@@ -1,0 +1,316 @@
+{
+ "c001": [
+  {
+   "variant": "010",
+   "fileId": 466
+  },
+  {
+   "variant": "050",
+   "fileId": 467
+  },
+  {
+   "variant": "060",
+   "fileId": 468
+  },
+  {
+   "variant": "070",
+   "fileId": 469
+  }
+ ],
+ "c002": [
+  {
+   "variant": "010",
+   "fileId": 470
+  },
+  {
+   "variant": "030",
+   "fileId": 471
+  },
+  {
+   "variant": "070",
+   "fileId": 472
+  },
+  {
+   "variant": "090",
+   "fileId": 473
+  },
+  {
+   "variant": "100",
+   "fileId": 474
+  },
+  {
+   "variant": "110",
+   "fileId": 475
+  },
+  {
+   "variant": "120",
+   "fileId": 476
+  },
+  {
+   "variant": "130",
+   "fileId": 477
+  },
+  {
+   "variant": "140",
+   "fileId": 478
+  },
+  {
+   "variant": "150",
+   "fileId": 479
+  }
+ ],
+ "c003": [
+  {
+   "variant": "010",
+   "fileId": 480
+  },
+  {
+   "variant": "050",
+   "fileId": 481
+  },
+  {
+   "variant": "060",
+   "fileId": 482
+  },
+  {
+   "variant": "070",
+   "fileId": 483
+  },
+  {
+   "variant": "080",
+   "fileId": 484
+  },
+  {
+   "variant": "090",
+   "fileId": 485
+  },
+  {
+   "variant": "100",
+   "fileId": 486
+  },
+  {
+   "variant": "110",
+   "fileId": 487
+  }
+ ],
+ "c004": [
+  {
+   "variant": "010",
+   "fileId": 488
+  },
+  {
+   "variant": "050",
+   "fileId": 489
+  },
+  {
+   "variant": "060",
+   "fileId": 490
+  },
+  {
+   "variant": "070",
+   "fileId": 491
+  },
+  {
+   "variant": "080",
+   "fileId": 492
+  },
+  {
+   "variant": "090",
+   "fileId": 493
+  },
+  {
+   "variant": "100",
+   "fileId": 494
+  },
+  {
+   "variant": "110",
+   "fileId": 495
+  },
+  {
+   "variant": "120",
+   "fileId": 496
+  },
+  {
+   "variant": "130",
+   "fileId": 497
+  }
+ ],
+ "c005": [
+  {
+   "variant": "030",
+   "fileId": 498
+  },
+  {
+   "variant": "050",
+   "fileId": 499
+  },
+  {
+   "variant": "060",
+   "fileId": 500
+  },
+  {
+   "variant": "070",
+   "fileId": 501
+  },
+  {
+   "variant": "080",
+   "fileId": 502
+  },
+  {
+   "variant": "090",
+   "fileId": 503
+  }
+ ],
+ "c006": [
+  {
+   "variant": "010",
+   "fileId": 504
+  },
+  {
+   "variant": "030",
+   "fileId": 505
+  },
+  {
+   "variant": "050",
+   "fileId": 506
+  },
+  {
+   "variant": "060",
+   "fileId": 507
+  },
+  {
+   "variant": "080",
+   "fileId": 508
+  },
+  {
+   "variant": "090",
+   "fileId": 509
+  }
+ ],
+ "c007": [
+  {
+   "variant": "050",
+   "fileId": 510
+  }
+ ],
+ "c008": [
+  {
+   "variant": "010",
+   "fileId": 511
+  },
+  {
+   "variant": "030",
+   "fileId": 512
+  },
+  {
+   "variant": "040",
+   "fileId": 513
+  }
+ ],
+ "c009": [
+  {
+   "variant": "010",
+   "fileId": 514
+  }
+ ],
+ "c010": [
+  {
+   "variant": "020",
+   "fileId": 515
+  }
+ ],
+ "c011": [
+  {
+   "variant": "020",
+   "fileId": 516
+  }
+ ],
+ "c012": [
+  {
+   "variant": "010",
+   "fileId": 517
+  },
+  {
+   "variant": "020",
+   "fileId": 518
+  }
+ ],
+ "c013": [
+  {
+   "variant": "010",
+   "fileId": 519
+  }
+ ],
+ "c014": [
+  {
+   "variant": "010",
+   "fileId": 520
+  }
+ ],
+ "c015": [
+  {
+   "variant": "010",
+   "fileId": 521
+  }
+ ],
+ "c016": [
+  {
+   "variant": "010",
+   "fileId": 522
+  }
+ ],
+ "c017": [
+  {
+   "variant": "010",
+   "fileId": 523
+  },
+  {
+   "variant": "040",
+   "fileId": 524
+  },
+  {
+   "variant": "050",
+   "fileId": 525
+  },
+  {
+   "variant": "060",
+   "fileId": 526
+  },
+  {
+   "variant": "070",
+   "fileId": 527
+  }
+ ],
+ "c018": [
+  {
+   "variant": "010",
+   "fileId": 528
+  },
+  {
+   "variant": "020",
+   "fileId": 529
+  }
+ ],
+ "c019": [
+  {
+   "variant": "010",
+   "fileId": 530
+  },
+  {
+   "variant": "020",
+   "fileId": 531
+  },
+  {
+   "variant": "030",
+   "fileId": 532
+  },
+  {
+   "variant": "040",
+   "fileId": 533
+  },
+  {
+   "variant": "050",
+   "fileId": 534
+  }
+ ]
+}

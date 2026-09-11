@@ -88,3 +88,7 @@ desktop.ini
 临时/
 备份/
 recent*/
+
+# Rust 构建标记文件（每个 target/ 都会重新生成，不需要入库）
+.rustc_info.json
+CACHEDIR.TAG
