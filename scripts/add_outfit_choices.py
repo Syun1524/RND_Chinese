@@ -1,32 +1,36 @@
 # -*- coding: utf-8 -*-
-"""Generate `zzOutfitOverride` into patchdef.json so any single outfit can be forced.
+"""Generate per-character outfit overrides into patchdef.json.
 
-LanguageBarrier's `settings` block understands two types: `bool` and `choice`.
-A `choice` merges its selected entry straight into `config["patch"]` (Config.cpp:47-53),
-so a choice carrying `{"fileIdRemap": {...}}` reaches `mgsFileOpenHook` untouched.
-That means the whole outfit-verification feature needs **no LanguageBarrier changes at
-all** — patchdef just has to enumerate the choices.
+LanguageBarrier's `settings` block understands two types, `bool` and `choice`, and both
+merge their payload straight into `config["patch"]` (Config.cpp:39-55). The outfit
+verification feature needs to pin **several characters at once** in a single run, which a
+`choice` cannot express (one choice = one key), so it uses one *bool* per
+character×variant:
 
-Layout of one choice (verifying outfit V of character C):
+    "zz_c002_100": { "type": "bool", "setters": { "fileIdRemap": { "model": {
+        "470":474, "471":474, ..., "474":474 } } }
 
-    "zzOutfitOverride": {
-      "type": "choice",
-      "choices": {
-        "off": {},
-        "c002_100": { "fileIdRemap": { "model": { "470":474, "471":474, ... } } }
-      }
-    }
+The tool writes only the `true` keys it needs into config.json, so any subset of
+characters can be pinned simultaneously — that is what makes a batch verification run
+(see several characters' outfits in one launch) possible.
 
-i.e. every other variant of C is remapped onto V, exactly like the swimsuit patch does.
+`fileIdRemap` is read unconditionally by `mgsFileOpenHook` (Game.cpp:748-768) and returns
+before `fileRedirection` is consulted, so these overrides work with or without the
+swimsuit patch enabled.
 
-Ordering note: settings are applied in the order nlohmann::json iterates them, which is
-std::map order = lexicographic. "zzOutfitOverride" therefore merges *after*
-"swimsuitPatch", which makes the two compose the useful way round: swimsuit for the whole
-cast, with one character pinned to an outfit you are checking. Renaming this key to
-anything sorting before "swimsuitPatch" would silently break that.
+Two hard constraints, both silent failures if broken:
+
+1. Every variant of the character must be remapped **including the target itself**.
+   `swimsuitPatch` points all of a character's variants at the swimsuit model, and
+   `json_merge` is a recursive overwrite that cannot delete keys — so leaving the target
+   out means the outfit you asked for gets overwritten back to the swimsuit.
+2. The key prefix must sort **after** `"swimsuitPatch"` (settings iterate in std::map =
+   lexicographic order). `"zz_"` guarantees that; a name sorting earlier is merged first
+   and then overwritten, again silently.
 
 Idempotent. Rewrites patchdef.json in place (UTF-8 no BOM, CRLF, indent=2) after backing
-it up to patchdef.json.bak_outfitfit_<stamp>.
+up to patchdef.json.bak_outfitfit_<stamp>. Also drops the older single-`choice`
+`zzOutfitOverride` block if present.
 """
 import argparse
 import io
@@ -39,7 +43,8 @@ from datetime import datetime
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 
-KEY = "zzOutfitOverride"
+PREFIX = "zz_"            # 必须排在 swimsuitPatch 之后（字典序）
+LEGACY_KEY = "zzOutfitOverride"
 
 
 def main():
@@ -48,7 +53,7 @@ def main():
         ROOT, "成品ing", "补丁包", "languagebarrier", "patchdef.json"))
     ap.add_argument("--mapping", default=os.path.join(ROOT, "成品ing", "服装映射表.json"))
     ap.add_argument("--names", default=None,
-                    help="可选：服装名称表 JSON，形如 {\"c002_100\": \"泳装\"}")
+                    help="可选：服装名称表 JSON，形如 {\"c002_100\": \"泳装\"}（仅用于显示）")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
@@ -57,33 +62,38 @@ def main():
     if args.names and os.path.exists(args.names):
         names = json.load(io.open(args.names, encoding="utf-8"))
 
-    choices = {"off": {}}
-    listing = []
+    raw = io.open(args.patchdef, encoding="utf-8-sig").read()
+    doc = json.loads(raw)
+    settings = doc.setdefault("settings", {})
+
+    # 清掉旧机制与上次生成的键，保证幂等
+    for k in [k for k in settings if k == LEGACY_KEY or k.startswith(PREFIX)]:
+        del settings[k]
+
+    added = 0
+    table = []
     for ch in sorted(mapping):
         entries = sorted(mapping[ch], key=lambda e: e["variant"])
         if len(entries) < 2:
-            continue                       # 单变体角色没什么可核验的
+            continue                     # 单变体角色没有别的服装可切
         for target in entries:
             tv = target["variant"]
-            # 必须把【目标变体自己也映射到自己】。swimsuitPatch 会把本角色的每个变体
-            # （含目标本身）都指向泳装模型，而 zzOutfitOverride 排在它后面合并
-            # （json_merge 是递归覆盖，删不掉键），所以漏掉自身映射的话，
-            # 想核对的那套会被泳装覆盖回泳装。
+            # 该角色【全部】变体（含目标自身）→ 目标
             remap = {str(o["fileId"]): target["fileId"] for o in entries}
-            cid = "%s_%s" % (ch, tv)
-            choices[cid] = {"fileIdRemap": {"model": remap}}
-            listing.append((cid, ch, tv, target["fileId"], len(remap),
-                            names.get(cid, "")))
+            key = "%s%s_%s" % (PREFIX, ch, tv)
+            settings[key] = {"type": "bool",
+                             "setters": {"fileIdRemap": {"model": remap}}}
+            added += 1
+            table.append((key, ch, tv, target["fileId"], len(remap),
+                          names.get("%s_%s" % (ch, tv), "")))
 
-    raw = io.open(args.patchdef, encoding="utf-8-sig").read()
-    doc = json.loads(raw)
-    doc.setdefault("settings", {})[KEY] = {"type": "choice", "choices": choices}
-
-    print("核验项：%d 个变体（覆盖 %d 个多变体角色）"
-          % (len(listing), len({c for _, c, _, _, _, _ in listing})))
-    print("角色   变体   fileId  重定向条数")
-    for cid, ch, tv, fid, n, nm in listing:
-        print("  %-12s %-5s %7d %6d   %s" % (cid, tv, fid, n, nm))
+    print("已生成 %d 个角色×服装开关（%d 个多变体角色）"
+          % (added, len({c for _, c, _, _, _, _ in table})))
+    print("键名形如 %s<角色>_<变体>，全部排在 swimsuitPatch 之后" % PREFIX)
+    print()
+    print("角色   变体   fileId  重定向条数  名称")
+    for key, ch, tv, fid, n, nm in table:
+        print("  %-14s %-5s %7d %6d      %s" % (key, tv, fid, n, nm))
 
     if args.dry_run:
         print("\n[dry-run] patchdef.json 未改动")
@@ -91,10 +101,8 @@ def main():
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     shutil.copy2(args.patchdef, "%s.bak_outfitfit_%s" % (args.patchdef, stamp))
-
     out = json.dumps(doc, ensure_ascii=False, indent=2).replace("\n", "\r\n")
-    with io.open(args.patchdef, "w", encoding="utf-8", newline="") as f:
-        f.write(out)
+    io.open(args.patchdef, "w", encoding="utf-8", newline="").write(out)
     print("\n已写入 %s（备份 .bak_outfitfit_%s）" % (args.patchdef, stamp))
 
 

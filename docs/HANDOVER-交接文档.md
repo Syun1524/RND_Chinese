@@ -445,39 +445,34 @@ Pillow 可直接 `Image.open(BytesIO(blob))` 解出。
 每个变体只有 **3~10 张贴图是它独有的**（其余十几张是全变体共用的脸/眼睛/身体），
 **那些独有贴图就是服装本体** —— 这是离线辨认的可行路径。
 
-### 13.4 核对机制：`zzOutfitOverride`（不改 LB 源码）
+### 13.4 核对机制：每角色一个 bool（不改 LB 源码）
 
-`Config.cpp` 的 `choice` 类型会把选中项**深合并**进 `config["patch"]`
-（Config.cpp:47-53），所以把 61 个变体各做成一个 choice 即可，
-**LanguageBarrier 不需要任何改动**：
+`Config.cpp` 的 `bool`/`choice` 两种类型都会把 payload **深合并**进 `config["patch"]`
+（Config.cpp:39-55），所以整件事 **LanguageBarrier 零改动**。
+实现用**每个角色×变体一个 bool**：
 
 ```
-settings.zzOutfitOverride = {
-  "type": "choice",
-  "choices": {
-    "off": {},
-    "c002_100": { "fileIdRemap": { "model": { "470":474, ..., "474":474 } } }
-  }
-}
+"zz_c002_100": { "type": "bool", "setters": { "fileIdRemap": { "model": {
+    "470":474, "471":474, ..., "474":474 } } }
 ```
-即"把该角色**全部**变体（含目标自身）指向目标变体"。
 
-两个**必须遵守**的约束：
+**为什么不是单个 choice**：`choice` 一次只能表达一个键（一个选择 = 一个角色的重定向），
+而核对需要**同时固定多个角色**（一次进游戏看多个，把 61 次启动压到十几次）。
+bool 方案只把选中的键写进 config.json，任意多个角色可同时生效。
 
-1. **目标必须也映射到自己**。`swimsuitPatch` 会把本角色每个变体（含目标本身）都指向泳装，
-   而 `json_merge` 是**递归覆盖、删不掉键**，所以漏掉自身映射 → 想核对的那套被泳装覆盖回去。
-2. **键名必须以 `zz` 开头**（保证字典序排在 `swimsuitPatch` 之后 → 核对胜出）。
-   改成排在前面的名字会**静默失效**。
+两条**必须遵守**的约束（都会**静默失效**）：
 
-### 13.5 两个程序的分工
+1. **每个变体都要映射，包括目标自身**。`swimsuitPatch` 把该角色每个变体（含目标本身）
+   都指向泳装，而 `json_merge` 是**递归覆盖、删不掉键** —— 漏掉自身映射的那套会被覆盖回泳装。
+2. **键名必须以 `zz_` 开头**（settings 按 std::map = 字典序迭代，保证排在 `swimsuitPatch`
+   之后 → 核对胜出）。改成排在前面的名字会先合并、再被泳装覆盖。
 
-| 程序 | 用途 | 是否随补丁发布 |
-|---|---|---|
-| `RNDZhLauncher.exe` | 玩家用：5 个开关 + 影片字幕 + 开始游戏 | 是（在补丁包内） |
-| `RNDZhOutfitTool.exe` | 开发者用：只做逐套核对，61 项，`◀`/`▶` 导航 | **否**（部署到游戏根目录） |
+`fileIdRemap` 由 `mgsFileOpenHook` **无条件**读取（Game.cpp:748-768），命中即 `return`
+（不会落到 `fileRedirection`），所以**核对不依赖泳装模式**：开着时其它角色是泳装，
+关着时其它角色是原版默认服，两种都能核对。
 
-两者写同一个 `config.json`，但**互不干扰**：启动器保存时把未知键原样保留，
-不会抹掉工具写的 `zzOutfitOverride`。
+（早期版本用单个 `choice` `zzOutfitOverride`，一次只能核对一个角色，已被 bool 方案取代；
+`add_outfit_choices.py` 会自动清掉该残留键。）
 
 ### 13.6 工具与素材
 

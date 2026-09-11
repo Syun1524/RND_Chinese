@@ -16,6 +16,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 MAXV = 12   # c002/c004 top out at 10 variants; keep headroom
 
+# 角色名线索：来自 motion 文件名（`c003_070_frau@rnd_dance_5.lka`），不是猜的。
+# 只用于在工具里标一下"这是谁"，方便对剧情找角色。
+NAME_HINT = {
+    "c002": "akiho",
+    "c003": "frau",
+    "c004": "junna",
+    "c013": "kou",
+    "c018": "daru",
+}
+
 
 def main():
     mapping = json.load(io.open(os.path.join(ROOT, "成品ing", "服装映射表.json"),
@@ -29,11 +39,12 @@ def main():
     L.append("// 自动生成，勿手改 —— 由 scripts/gen_outfit_table.py 从")
     L.append("// 成品ing/服装映射表.json 生成。改映射请改 json 后重跑该脚本。")
     L.append("//")
-    L.append("// 用途：启动器「换装核对」下拉框。choice id = \"c002_100\" 形式，对应")
-    L.append("// patchdef.json -> settings.zzOutfitOverride.choices[<id>]。")
+    L.append("// 用途：换装核对工具（RNDZhOutfitTool）的角色×服装表。")
+    L.append("// 每行对应 patchdef.json -> settings.zz_<角色>_<变体>（bool），")
+    L.append("// 工具按选择把对应的键写成 true 进 config.json。")
     L.append("#pragma once")
     L.append("")
-    L.append("struct OutfitChar { const wchar_t* id; int count;")
+    L.append("struct OutfitChar { const wchar_t* id; const wchar_t* hint; int count;")
     L.append("                    const wchar_t* variant[%d]; int fileId[%d]; };" % (MAXV, MAXV))
     L.append("")
     L.append("static const OutfitChar OUTFIT_CHARS[] = {")
@@ -41,14 +52,21 @@ def main():
         es = sorted(mapping[ch], key=lambda e: e["variant"])
         vs = ", ".join('L"%s"' % e["variant"] for e in es)
         fs = ", ".join(str(e["fileId"]) for e in es)
-        L.append("  { L\"%s\", %2d, { %s }, { %s } }," % (ch, len(es), vs, fs))
+        hint = NAME_HINT.get(ch, "")
+        L.append("  { L\"%s\", L\"%s\", %2d, { %s }, { %s } },"
+                 % (ch, hint, len(es), vs, fs))
     L.append("};")
     L.append("static const int OUTFIT_CHAR_COUNT = %d;" % len(chs))
     L.append("")
     multi = sum(len(mapping[c]) for c in chs if len(mapping[c]) > 1)
-    L.append("// 需要核对的项数 = %d（%d 个角色）。单变体角色无其它服装可切，不列入。"
-             % (multi, sum(1 for c in chs if len(mapping[c]) > 1)))
+    L.append("// 多变体角色数（= 核对面板里显示的行数）")
+    L.append("static const int OUTFIT_MULTI_COUNT = %d;"
+             % sum(1 for c in chs if len(mapping[c]) > 1))
+    L.append("// 需核对的项数合计（多变体角色全部变体之和）")
     L.append("static const int OUTFIT_VERIFY_COUNT = %d;" % multi)
+    L.append("// 最多变体数（决定「全体对齐第 k 套」的 k 上限）")
+    L.append("static const int OUTFIT_MAX_VARIANTS = %d;"
+             % max(len(mapping[c]) for c in chs))
 
     out = os.path.join(ROOT, "launcher", "outfit_table.h")
     io.open(out, "w", encoding="utf-8", newline="\n").write("\n".join(L) + "\n")

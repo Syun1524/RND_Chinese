@@ -1,18 +1,21 @@
 // RNDZhOutfitTool — ROBOTICS;NOTES DaSH 换装核对工具（开发用，不随补丁发布）
 //
-// 为什么单独一个程序：游戏本身没有换装菜单，服装名也不在任何可解包的数据里
-// （.lkm 是纯二进制网格 + 内嵌贴图，无名称；.scx 是压缩脚本，不引用变体名）。
-// 要把角色穿的每一套认出来，只能把该角色的全部变体都指向其中一套、进游戏肉眼看。
-// 这件事只有开发者做一次，玩家不需要，所以从 RNDZhLauncher 里拆出来单独成 exe。
+// 为什么需要它：游戏本身没有换装菜单，服装名也不在任何可解包的数据里
+// （.lkm 是纯网格 + 内嵌贴图，无名称；.scx 是压缩脚本，不引用变体名）。
+// 要把每套服装认出来，只能把角色的变体都指向其中一套、进游戏肉眼看。
 //
 // 用法：把本 exe 放到游戏根目录（和 Game.exe 同级）运行 —— 它要写 LB 的配置、
-// 还要能拉起 Game.exe。逐套核对：选角色 → 选服装（或按「下一套 ▶」顺序遍历）
-// → 开始游戏 → 看外观 → 退出 → 下一套。结果填 成品ing/服装核对/服装名称表.json。
+// 还要能拉起 Game.exe。
 //
-// 原理：把选择写进 %LOCALAPPDATA%\Committee of Zero\RNDSteam\config.json 的
-// zzOutfitOverride（"c002_100" 形式，"off" 为关闭）。对应 patchdef.json 里
-// settings.zzOutfitOverride.choices[<id>]，内含该角色【全部变体 → 目标变体】的
-// fileIdRemap。必须先把「泳装／换装模式」打开，否则游戏用的是原版默认服。
+// 批量核对：面板给**每个角色一行**，各选一套。一次进游戏就能同时看多个角色，
+// 所以整轮核对只需十几次启动，而不是每套一次。
+//
+// 机制：每行写一个 bool 开关到 %LOCALAPPDATA%\Committee of Zero\RNDSteam\config.json，
+// 形如 "zz_c002_100": true —— 对应 patchdef.json -> settings.zz_c002_100，
+// 内含该角色【全部变体（含目标自身）→ 目标变体】的 fileIdRemap。
+// 只写选中的那几个键，其余留空，所以任意多个角色能同时生效。
+// 核对不依赖「泳装／换装模式」：mgsFileOpenHook 读 fileIdRemap 是无条件的，
+// 且命中即 return（不会落到 fileRedirection）。
 //
 // 编译：build_outfit_tool.bat
 
@@ -38,8 +41,13 @@
 
 using namespace Gdiplus;
 
-static const int WIN_W = 760, WIN_H = 400;
-static const wchar_t* VERIFY_KEY = L"zzOutfitOverride";
+static const wchar_t* PREFIX = L"zz_";
+
+// ── 布局 ──
+static const int WIN_W = 760;
+static const int WIN_H = 520;      // 基准高度；下拉展开时按需加高
+static const int ROWS_PER_COL = 6;
+static const int ITEM_H = 28;
 
 static const Color
   C_BG     (255, 24, 27, 34),
@@ -51,21 +59,16 @@ static const Color
   C_MUTED  (255, 104, 113, 128),
   C_ACCENT (255, 64, 150, 255),
   C_WARN   (255, 226, 150, 70),
+  C_OK     (255, 120, 220, 150),
+  C_SEL    (255, 92, 106, 128),
   C_WHITE  (255, 255, 255, 255);
 
-// ── 核对项扁平列表（只收多变体角色；单变体角色没别的服装可切）──
-struct VerifyItem { int ch; int var; };
-static std::vector<VerifyItem> g_items;
-static std::vector<int> g_pick;     // 角色下拉框里列出的角色索引
-static int g_pos = 0;               // 在 g_items 里的位置
-
-struct State {
-  int  vChar = 0;      // 索引 -> OUTFIT_CHARS
-  int  vVar  = 0;
-  int  comboOpen = -1; // -1 / 0 角色 / 1 服装
-  int  hot = -1, press = -1;
-} st;
-
+// 每行一个角色；g_sel = -1 表示「不动」（该角色不参与本次核对）
+static std::vector<int> g_rows;                 // 显示的角色索引（只含多变体角色）
+static int g_sel[OUTFIT_CHAR_COUNT];
+static int g_openKey = -1;                      // -1 关；0..N-1 行下拉；2000 预设下拉
+static int g_presetK = 1;                       // 「全体对齐第 k 套」
+static int g_hot = -1, g_press = -1;
 static HWND g_hwnd;
 static FontFamily* g_ff = nullptr;
 static std::wstring g_dir;
@@ -101,7 +104,8 @@ static std::wstring ConfigPath() {
   p += L"\\Committee of Zero\\RNDSteam";
   return p;
 }
-// 读出 config.json 里所有顶层键，原样保留（尤其 swimsuitPatch —— 不开它核对没意义）
+
+// 读 config.json 的顶层平铺键值（值取原始文本，原样保留未知键）
 static std::map<std::wstring, std::wstring> LoadFlatJson(const std::wstring& path) {
   std::map<std::wstring, std::wstring> m;
   std::ifstream f(path, std::ios::binary);
@@ -134,21 +138,15 @@ static std::map<std::wstring, std::wstring> LoadFlatJson(const std::wstring& pat
   return m;
 }
 
-static std::wstring ChoiceId() {
-  if (st.vChar < 0 || st.vChar >= OUTFIT_CHAR_COUNT) return L"off";
-  const OutfitChar& c = OUTFIT_CHARS[st.vChar];
-  if (st.vVar < 0 || st.vVar >= c.count) return L"off";
-  return std::wstring(c.id) + L"_" + c.variant[st.vVar];
+static int SelectedCount() {
+  int n = 0;
+  for (int ci : g_rows) if (g_sel[ci] >= 0) n++;
+  return n;
 }
 
-static bool SwimsuitOn() {
-  auto m = LoadFlatJson(ConfigPath() + L"\\config.json");
-  auto it = m.find(L"swimsuitPatch");
-  return it != m.end() && it->second.find(L"true") != std::wstring::npos;
-}
-
-// 写回 config.json：整份重写，未知键原样带上（我们只动 zzOutfitOverride）
-static void SaveChoice() {
+// 写 config.json：丢弃旧的 zz_* 键，只为当前选中的角色写 true。
+// 其余键（含玩家启动器写的开关）原样保留。
+static void SaveSelection() {
   std::wstring dir = ConfigPath();
   SHCreateDirectoryExW(nullptr, dir.c_str(), nullptr);
   std::wstring path = dir + L"\\config.json";
@@ -164,52 +162,49 @@ static void SaveChoice() {
   };
   emit(L"__schema_version", L"5");
   for (auto& kv : old) {
-    if (kv.first == L"__schema_version" || kv.first == VERIFY_KEY || kv.first.empty()) continue;
+    if (kv.first == L"__schema_version" || kv.first.empty()) continue;
+    if (kv.first.rfind(PREFIX, 0) == 0) continue;          // 上次的核对选择全丢
+    if (kv.first == L"zzOutfitOverride") continue;         // 旧单选机制残留
     emit(kv.first, kv.second);
   }
-  std::wstring id = ChoiceId();
-  emit(VERIFY_KEY, L"\"" + id + L"\"");
+  int n = 0;
+  for (int ci = 0; ci < OUTFIT_CHAR_COUNT; ci++) {
+    if (g_sel[ci] < 0) continue;
+    const OutfitChar& c = OUTFIT_CHARS[ci];
+    if (g_sel[ci] >= c.count) continue;
+    emit(std::wstring(PREFIX) + c.id + L"_" + c.variant[g_sel[ci]], L"true");
+    n++;
+  }
   out << L"\n}";
 
   std::string u8 = WideToUtf8(out.str());
   std::ofstream f(path, std::ios::binary | std::ios::trunc);
   f.write(u8.data(), u8.size());
+  (void)n;
 }
 
-static void LoadChoice() {
+static void LoadSelection() {
+  for (int i = 0; i < OUTFIT_CHAR_COUNT; i++) g_sel[i] = -1;
   auto m = LoadFlatJson(ConfigPath() + L"\\config.json");
-  auto it = m.find(VERIFY_KEY);
-  if (it == m.end()) return;
-  std::wstring id = it->second;
-  while (!id.empty() && (id.front() == L'"' || id.front() == L' ')) id.erase(id.begin());
-  while (!id.empty() && (id.back() == L'"' || id.back() == L' ' || id.back() == L'\r')) id.pop_back();
-  size_t us = id.find(L'_');
-  if (us == std::wstring::npos) return;
-  std::wstring ch = id.substr(0, us), vv = id.substr(us + 1);
-  for (int i = 0; i < OUTFIT_CHAR_COUNT; i++) {
-    if (ch != OUTFIT_CHARS[i].id) continue;
-    for (int k = 0; k < OUTFIT_CHARS[i].count; k++)
-      if (vv == OUTFIT_CHARS[i].variant[k]) { st.vChar = i; st.vVar = k; return; }
+  for (auto& kv : m) {
+    if (kv.first.rfind(PREFIX, 0) != 0) continue;
+    if (kv.second.find(L"true") == std::wstring::npos) continue;
+    std::wstring key = kv.first.substr(3);              // "c002_100"
+    size_t us = key.find(L'_');
+    if (us == std::wstring::npos) continue;
+    std::wstring ch = key.substr(0, us), vv = key.substr(us + 1);
+    for (int i = 0; i < OUTFIT_CHAR_COUNT; i++) {
+      if (ch != OUTFIT_CHARS[i].id) continue;
+      for (int k = 0; k < OUTFIT_CHARS[i].count; k++)
+        if (vv == OUTFIT_CHARS[i].variant[k]) { g_sel[i] = k; break; }
+    }
   }
 }
 
-static void BuildItems() {
-  g_items.clear(); g_pick.clear();
-  for (int i = 0; i < OUTFIT_CHAR_COUNT; i++) {
-    if (OUTFIT_CHARS[i].count < 2) continue;
-    g_pick.push_back(i);
-    for (int k = 0; k < OUTFIT_CHARS[i].count; k++) g_items.push_back({ i, k });
-  }
-}
-static void SyncPos() {
-  g_pos = 0;
-  for (size_t i = 0; i < g_items.size(); i++)
-    if (g_items[i].ch == st.vChar && g_items[i].var == st.vVar) { g_pos = (int)i; return; }
-}
-static void Move(int dir) {
-  int n = (int)g_items.size(); if (!n) return;
-  g_pos = ((g_pos + dir) % n + n) % n;
-  st.vChar = g_items[g_pos].ch; st.vVar = g_items[g_pos].var;
+static void BuildRows() {
+  g_rows.clear();
+  for (int i = 0; i < OUTFIT_CHAR_COUNT; i++)
+    if (OUTFIT_CHARS[i].count > 1) g_rows.push_back(i);
 }
 
 // ── 绘制 ──
@@ -244,35 +239,73 @@ static void DrawTxt(Graphics& g, const wchar_t* s, Font* f, const Color& c, floa
   sf.SetLineAlignment(StringAlignmentNear);
   g.DrawString(s, -1, f, RectF(x, y, 0, 0), &sf, &b);
 }
-static void DrawCombo(Graphics& g, const RectF& r, const wchar_t* v, bool hot) {
-  FillRR(g, r, 7, C_HILITE);
-  StrokeRR(g, r, 7, hot ? C_DIM : C_LINE, 1.f);
-  DrawTxt(g, v, F(15), C_TEXT, r.X + 12, r.Y + 8);
-  float cx = r.GetRight() - 16, cy = r.Y + 18;
+static void DrawCombo(Graphics& g, const RectF& r, const wchar_t* v, bool hot, bool on) {
+  FillRR(g, r, 6, C_HILITE);
+  StrokeRR(g, r, 6, hot ? C_DIM : (on ? C_ACCENT : C_LINE), on ? 1.6f : 1.f);
+  DrawTxt(g, v, F(14), on ? C_TEXT : C_DIM, r.X + 10, r.Y + 7);
+  float cx = r.GetRight() - 14, cy = r.Y + 16;
   SolidBrush db(C_DIM); PointF tri[3] = { {cx-5,cy-2},{cx+5,cy-2},{cx,cy+3} };
   g.FillPolygon(&db, tri, 3);
 }
 static void DrawBtn(Graphics& g, const RectF& r, const wchar_t* t, bool hot) {
-  FillRR(g, r, 7, hot ? C_ACCENT : C_HILITE);
-  StrokeRR(g, r, 7, hot ? C_ACCENT : C_LINE, 1.f);
+  FillRR(g, r, 6, hot ? C_ACCENT : C_HILITE);
+  StrokeRR(g, r, 6, hot ? C_ACCENT : C_LINE, 1.f);
   SolidBrush b(C_TEXT); StringFormat sf;
   sf.SetAlignment(StringAlignmentCenter); sf.SetLineAlignment(StringAlignmentCenter);
-  g.DrawString(t, -1, F(15,true), r, &sf, &b);
+  g.DrawString(t, -1, F(14,true), r, &sf, &b);
 }
 
-// 一行排下：角色 [..] 服装 [..] ◀ 下一套▶
-// 注意留出标签宽度 —— 标签是单独绘制的，若坐标压到前一个下拉框上会叠字。
-static RectF CharRect() { return RectF( 64.f, 92.f, 150.f, 36.f); }  // 64..214
-static RectF VarRect()  { return RectF(274.f, 92.f, 155.f, 36.f); }  // 274..429
-static RectF PrevRect() { return RectF(445.f, 92.f,  42.f, 36.f); }  // 445..487
-static RectF NextRect() { return RectF(495.f, 92.f, 104.f, 36.f); }  // 495..599
-static RectF StartRect(){ return RectF(300.f, 300.f, 160.f, 46.f); }
-// 下拉向上展开（贴窗口底部，往下弹会被裁）
-static RectF ItemRect(const RectF& base, int k, int n) {
-  float bottom = base.Y - 2.f - (float)(n - 1 - k) * 32.f;
-  return RectF(base.X, bottom - 32.f, base.Width, 32.f);
+// ── 几何 ──
+static RectF RowRect(int r) {
+  int col = r / ROWS_PER_COL, row = r % ROWS_PER_COL;
+  return RectF(20.f + col * 372.f, 150.f + row * 44.f, 344.f, 44.f);
+}
+static RectF RowComboRect(int r) {
+  RectF rr = RowRect(r);
+  return RectF(rr.X + 104.f, rr.Y + 6.f, 196.f, 32.f);
+}
+static RectF PresetComboRect() { return RectF(116.f, 96.f, 74.f, 32.f); }
+static RectF ClearRect()       { return RectF(240.f, 96.f, 110.f, 32.f); }
+static RectF StartRect() {
+  RECT rc; GetClientRect(g_hwnd, &rc);
+  return RectF(300.f, 452.f, 160.f, 46.f);
+}
+// 下拉项。一律向下展开；窗口不够高时由 FitWindowFor 加高。
+// （早先版本按"向上展开"算，控件在窗口上部直接算出负 y，列表跑到窗口外点不到。）
+static RectF ItemRect(const RectF& combo, int k) {
+  return RectF(combo.X, combo.GetBottom() + 2.f + k * (float)ITEM_H,
+               combo.Width, (float)ITEM_H);
+}
+static float ListBottom(const RectF& combo, int n) {
+  return combo.GetBottom() + 2.f + n * (float)ITEM_H + 8.f;
 }
 
+static int RowItemCount(int r) { return 1 + OUTFIT_CHARS[g_rows[r]].count; }  // +1 = 不动
+
+// 展开的下拉所需高度（取当前打开的那个算）
+static int NeededHeight() {
+  if (g_openKey < 0) return WIN_H;
+  if (g_openKey == 2000) {
+    float b = ListBottom(PresetComboRect(), OUTFIT_MAX_VARIANTS) + 4.f;
+    return b > WIN_H ? (int)b : WIN_H;
+  }
+  float b = ListBottom(RowComboRect(g_openKey), RowItemCount(g_openKey)) + 4.f;
+  return b > WIN_H ? (int)b : WIN_H;
+}
+
+static void FitWindowFor(HWND h) {
+  int want = NeededHeight();
+  RECT rc; GetClientRect(h, &rc);
+  if (rc.bottom == want) return;
+  RECT wr; GetWindowRect(h, &wr);
+  DWORD style = (DWORD)GetWindowLongPtrW(h, GWL_STYLE);
+  RECT r{ 0, 0, WIN_W, want };
+  AdjustWindowRect(&r, style, FALSE);
+  SetWindowPos(h, nullptr, wr.left, wr.top, r.right - r.left, r.bottom - r.top,
+               SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
+// ── 绘制 ──
 static void Paint(HDC hdc) {
   RECT rc; GetClientRect(g_hwnd, &rc);
   HDC mem = CreateCompatibleDC(hdc);
@@ -283,74 +316,99 @@ static void Paint(HDC hdc) {
     gr.SetSmoothingMode(SmoothingModeAntiAlias);
     gr.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
     SolidBrush bg(C_BG); gr.FillRectangle(&bg, 0, 0, rc.right, rc.bottom);
-    SolidBrush pan(C_PANEL); gr.FillRectangle(&pan, 0, 0, rc.right, 60);
+    SolidBrush pan(C_PANEL); gr.FillRectangle(&pan, 0, 0, rc.right, 52);
 
-    DrawTxt(gr, L"换装核对（开发工具）", F(17,true), C_TEXT, 20, 20);
+    DrawTxt(gr, L"换装核对（开发工具）", F(17,true), C_TEXT, 20, 14);
+    DrawTxt(gr, L"给每个角色选一套服装 —— 一次进游戏可以同时看多个角色。选「不动」= 该角色不参与本次核对。",
+            F(12), C_MUTED, 20, 56);
 
-    const OutfitChar& c = OUTFIT_CHARS[st.vChar];
+    // 全体预设。注意语义是「各角色的第 k 个变体」而非「变体号 k」——
+    // 各角色变体编号不一致（c001 从 010 起，c005 从 030 起），
+    // 所以第 1 套 = c001_010 但 = c005_030，行内下拉会显示实际选中的编号。
+    DrawTxt(gr, L"全体：各角色第", F(14), C_DIM, 20, 102);
+    std::wstring pk = std::to_wstring(g_presetK);
+    DrawCombo(gr, PresetComboRect(), pk.c_str(), g_hot == 2000, false);
+    DrawTxt(gr, L"套", F(14), C_DIM, 196, 102);
+    DrawBtn(gr, ClearRect(), L"全部清除", g_hot == 3000);
 
-    DrawTxt(gr, L"角色", F(14), C_DIM, 20, 102);
-    DrawCombo(gr, CharRect(), c.id, st.hot == 500);
-    DrawTxt(gr, L"服装", F(14), C_DIM, 230, 102);
-    std::wstring vl = c.variant[st.vVar];
-    vl += L"   #";
-    vl += std::to_wstring(c.fileId[st.vVar]);
-    DrawCombo(gr, VarRect(), vl.c_str(), st.hot == 510);
-    DrawBtn(gr, PrevRect(), L"◀", st.hot == 700);
-    DrawBtn(gr, NextRect(), L"下一套 ▶", st.hot == 701);
+    // 角色行
+    for (int r = 0; r < (int)g_rows.size(); r++) {
+      int ci = g_rows[r];
+      const OutfitChar& c = OUTFIT_CHARS[ci];
+      RectF rr = RowRect(r), cb = RowComboRect(r);
+      bool on = g_sel[ci] >= 0;
+      DrawTxt(gr, c.id, F(14,true), on ? C_TEXT : C_DIM, rr.X + 2, rr.Y + 4);
+      if (c.hint[0]) DrawTxt(gr, c.hint, F(11), C_MUTED, rr.X + 2, rr.Y + 23);
+      std::wstring cnt = std::to_wstring(c.count);
+      cnt += L" 套";
+      DrawTxt(gr, cnt.c_str(), F(11), C_MUTED, rr.X + 60, rr.Y + 23);
 
-    // 进度
-    std::wstring prog = L"第 ";
-    prog += std::to_wstring(g_pos + 1);
-    prog += L" / ";
-    prog += std::to_wstring((int)g_items.size());
-    prog += L" 套";
-    DrawTxt(gr, prog.c_str(), F(22,true), C_WARN, 20, 172);
-    DrawTxt(gr, (L"当前 " + ChoiceId()).c_str(), F(13), C_MUTED, 20, 206);
-
-    // 核对【不依赖】「泳装／换装模式」。机制上看 zzOutfitOverride 自带 fileIdRemap，
-    // 而 mgsFileOpenHook 读 config["patch"]["fileIdRemap"] 是【无条件】的
-    // （且命中就直接 return，不会落到 fileRedirection）。所以开着/关着都能核对：
-    //   开着  -> 被核对角色穿选中的那套，其它角色穿泳装
-    //   关着  -> 被核对角色穿选中的那套，其它角色穿原版默认服
-    // 两种都可用，关着时画面更干净。
-    DrawTxt(gr, L"点「开始游戏」进游戏看这套长什么样，退出后点「下一套 ▶」继续。",
-            F(13), C_TEXT, 20, 236);
-    if (SwimsuitOn()) {
-      DrawTxt(gr, L"（「泳装／换装模式」已开：其它角色会是泳装，被核对角色是选中的这一套。）",
-              F(12), C_MUTED, 20, 262);
-    } else {
-      DrawTxt(gr, L"（「泳装／换装模式」未开：其它角色是原版默认服，被核对角色是选中的这一套。不影响核对。）",
-              F(12), C_MUTED, 20, 262);
+      std::wstring val;
+      if (!on) val = L"不动";
+      else {
+        val = c.variant[g_sel[ci]];
+        val += L"   #";
+        val += std::to_wstring(c.fileId[g_sel[ci]]);
+      }
+      DrawCombo(gr, cb, val.c_str(), g_hot == r, on);
     }
-    DrawTxt(gr, L"认出来的名字填进 成品ing/服装核对/服装名称表.json。",
-            F(12), C_MUTED, 20, 284);
 
-    DrawBtn(gr, StartRect(), L"开始游戏", st.hot == 800);
-
-    // 展开的下拉项
-    if (st.comboOpen == 0) {
-      for (int k = 0; k < (int)g_pick.size(); k++) {
-        int ci = g_pick[k];
-        RectF ir = ItemRect(CharRect(), k, (int)g_pick.size());
-        bool sel = (ci == st.vChar);
-        FillRR(gr, ir, 6, (st.hot == 520 + k) ? C_ACCENT : (sel ? C_HILITE : C_PANEL));
-        std::wstring lab = OUTFIT_CHARS[ci].id;
-        lab += L"　";
-        lab += std::to_wstring(OUTFIT_CHARS[ci].count);
-        lab += L" 套";
-        DrawTxt(gr, lab.c_str(), F(15), C_TEXT, ir.X + 12, ir.Y + 7);
+    // 状态 + 开始
+    int n = SelectedCount();
+    std::wstring st;
+    if (n == 0) st = L"尚未选择任何角色（全部「不动」= 游戏按原样显示）。";
+    else {
+      st = L"已固定 ";
+      st += std::to_wstring(n);
+      st += L" 个角色的服装：";
+      int shown = 0;
+      for (int ci : g_rows) {
+        if (g_sel[ci] < 0) continue;
+        if (shown == 4) { st += L" …"; break; }
+        if (shown) st += L"、";
+        st += OUTFIT_CHARS[ci].id;
+        st += L"=";
+        st += OUTFIT_CHARS[ci].variant[g_sel[ci]];
+        shown++;
       }
     }
-    if (st.comboOpen == 1) {
-      for (int k = 0; k < c.count; k++) {
-        RectF ir = ItemRect(VarRect(), k, c.count);
-        bool sel = (k == st.vVar);
-        FillRR(gr, ir, 6, (st.hot == 600 + k) ? C_ACCENT : (sel ? C_HILITE : C_PANEL));
-        std::wstring lab = c.variant[k];
-        lab += L"   #";
-        lab += std::to_wstring(c.fileId[k]);
-        DrawTxt(gr, lab.c_str(), F(15), C_TEXT, ir.X + 12, ir.Y + 7);
+    DrawTxt(gr, st.c_str(), F(13), n ? C_OK : C_MUTED, 20, 424);
+    DrawTxt(gr, L"进游戏看这几个角色穿什么，退出后改上一行的选择再进。认出的名字填 成品ing/服装核对/服装名称表.json。",
+            F(11), C_MUTED, 20, 444);
+    DrawBtn(gr, StartRect(), L"开始游戏", g_hot == 4000);
+
+    // ── 展开的下拉（画在最上层）──
+    if (g_openKey == 2000) {
+      RectF cb = PresetComboRect();
+      int nk = OUTFIT_MAX_VARIANTS;
+      for (int k = 0; k < nk; k++) {
+        RectF ir = ItemRect(cb, k);
+        int kv = k + 1;
+        bool sel = (kv == g_presetK);
+        FillRR(gr, ir, 5, (g_hot == 2100 + k) ? C_ACCENT : (sel ? C_SEL : C_PANEL));
+        std::wstring lab = L"各角色第 ";
+        lab += std::to_wstring(kv);
+        lab += L" 套";
+        DrawTxt(gr, lab.c_str(), F(14), C_TEXT, ir.X + 10, ir.Y + 6);
+      }
+    } else if (g_openKey >= 0 && g_openKey < (int)g_rows.size()) {
+      int ci = g_rows[g_openKey];
+      const OutfitChar& c = OUTFIT_CHARS[ci];
+      RectF cb = RowComboRect(g_openKey);
+      int n = RowItemCount(g_openKey);
+      for (int k = 0; k < n; k++) {
+        RectF ir = ItemRect(cb, k);
+        bool sel = (k == 0) ? (g_sel[ci] < 0) : (g_sel[ci] == k - 1);
+        FillRR(gr, ir, 5, (g_hot == 100 + k) ? C_ACCENT : (sel ? C_SEL : C_PANEL));
+        std::wstring lab;
+        if (k == 0) lab = L"不动";
+        else {
+          lab = c.variant[k-1];
+          lab += L"   (fileId ";
+          lab += std::to_wstring(c.fileId[k-1]);
+          lab += L")";
+        }
+        DrawTxt(gr, lab.c_str(), F(14), C_TEXT, ir.X + 10, ir.Y + 6);
       }
     }
   }
@@ -385,7 +443,7 @@ static const wchar_t* DetectLang() {
   return buf;
 }
 static void Launch() {
-  SaveChoice();
+  SaveSelection();
   std::wstring cmd = L"Game.exe roboticsnotesd " + std::wstring(DetectLang());
   STARTUPINFOW si{}; si.cb = sizeof(si);
   PROCESS_INFORMATION pi{};
@@ -399,59 +457,82 @@ static void Launch() {
 }
 
 // ── 交互 ──
+enum { ID_PRESET = 2000, ID_ITEM_PRESET = 2100, ID_CLEAR = 3000, ID_START = 4000,
+       ID_ITEM_ROW = 100 };
+
 static int Hit(int x, int y) {
   auto in = [&](const RectF& r) {
     return x >= r.X && x <= r.GetRight() && y >= r.Y && y <= r.GetBottom();
   };
-  if (st.comboOpen == 0) for (int k = 0; k < (int)g_pick.size(); k++)
-    if (in(ItemRect(CharRect(), k, (int)g_pick.size()))) return 520 + k;
-  if (st.comboOpen == 1 && st.vChar < OUTFIT_CHAR_COUNT)
-    for (int k = 0; k < OUTFIT_CHARS[st.vChar].count; k++)
-      if (in(ItemRect(VarRect(), k, OUTFIT_CHARS[st.vChar].count))) return 600 + k;
-  if (in(CharRect())) return 500;
-  if (in(VarRect())) return 510;
-  if (in(PrevRect())) return 700;
-  if (in(NextRect())) return 701;
-  if (in(StartRect())) return 800;
+  // 展开的列表优先（画在最上层）
+  if (g_openKey == 2000) {
+    for (int k = 0; k < OUTFIT_MAX_VARIANTS; k++)
+      if (in(ItemRect(PresetComboRect(), k))) return ID_ITEM_PRESET + k;
+  } else if (g_openKey >= 0 && g_openKey < (int)g_rows.size()) {
+    for (int k = 0; k < RowItemCount(g_openKey); k++)
+      if (in(ItemRect(RowComboRect(g_openKey), k))) return ID_ITEM_ROW + k;
+  }
+  if (in(StartRect())) return ID_START;
+  if (in(PresetComboRect())) return ID_PRESET;
+  if (in(ClearRect())) return ID_CLEAR;
+  for (int r = 0; r < (int)g_rows.size(); r++)
+    if (in(RowComboRect(r))) return r;
   return -1;
+}
+
+static void CloseList() {
+  if (g_openKey >= 0) { g_openKey = -1; FitWindowFor(g_hwnd); }
 }
 
 static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
   switch (m) {
   case WM_MOUSEMOVE: {
     int id = Hit(GET_X_LPARAM(l), GET_Y_LPARAM(l));
-    if (id != st.hot) { st.hot = id; InvalidateRect(h, nullptr, FALSE); }
+    if (id != g_hot) { g_hot = id; InvalidateRect(h, nullptr, FALSE); }
     TRACKMOUSEEVENT t{ sizeof(t) }; t.dwFlags = TME_LEAVE; t.hwndTrack = h;
     TrackMouseEvent(&t);
     return 0;
   }
-  case WM_MOUSELEAVE: st.hot = -1; InvalidateRect(h, nullptr, FALSE); return 0;
-  case WM_LBUTTONDOWN: { st.press = Hit(GET_X_LPARAM(l), GET_Y_LPARAM(l)); return 0; }
+  case WM_MOUSELEAVE: g_hot = -1; InvalidateRect(h, nullptr, FALSE); return 0;
+  case WM_LBUTTONDOWN: { g_press = Hit(GET_X_LPARAM(l), GET_Y_LPARAM(l)); return 0; }
   case WM_LBUTTONUP: {
     int id = Hit(GET_X_LPARAM(l), GET_Y_LPARAM(l));
-    if (id == st.press) {
-      if (id == 500) { st.comboOpen = (st.comboOpen == 0) ? -1 : 0; InvalidateRect(h, nullptr, FALSE); }
-      else if (id == 510) { st.comboOpen = (st.comboOpen == 1) ? -1 : 1; InvalidateRect(h, nullptr, FALSE); }
-      else if (id == 700) { Move(-1); st.comboOpen = -1; SaveChoice(); InvalidateRect(h, nullptr, FALSE); }
-      else if (id == 701) { Move(+1); st.comboOpen = -1; SaveChoice(); InvalidateRect(h, nullptr, FALSE); }
-      else if (id == 800) { Launch(); }
-      else if (id >= 520 && id < 520 + (int)g_pick.size()) {
-        st.vChar = g_pick[id - 520];
-        if (st.vVar >= OUTFIT_CHARS[st.vChar].count) st.vVar = 0;
-        SyncPos(); st.comboOpen = -1; SaveChoice(); InvalidateRect(h, nullptr, FALSE);
+    if (id == g_press) {
+      if (id == ID_PRESET) {
+        g_openKey = (g_openKey == 2000) ? -1 : 2000;
+        FitWindowFor(h); InvalidateRect(h, nullptr, FALSE);
       }
-      else if (id >= 600 && st.vChar < OUTFIT_CHAR_COUNT &&
-               id < 600 + OUTFIT_CHARS[st.vChar].count) {
-        st.vVar = id - 600; SyncPos();
-        st.comboOpen = -1; SaveChoice(); InvalidateRect(h, nullptr, FALSE);
+      else if (id >= ID_ITEM_PRESET && id < ID_ITEM_PRESET + OUTFIT_MAX_VARIANTS) {
+        int k = (id - ID_ITEM_PRESET) + 1;          // 1-based
+        g_presetK = k;
+        for (int ci : g_rows)                        // 变体不够的角色设为「不动」（已核完）
+          g_sel[ci] = (OUTFIT_CHARS[ci].count >= k) ? (k - 1) : -1;
+        CloseList(); SaveSelection(); InvalidateRect(h, nullptr, FALSE);
       }
-    } else if (st.comboOpen >= 0 && id == -1) { st.comboOpen = -1; InvalidateRect(h, nullptr, FALSE); }
-    st.press = -1; return 0;
+      else if (id == ID_CLEAR) {
+        for (int i = 0; i < OUTFIT_CHAR_COUNT; i++) g_sel[i] = -1;
+        CloseList(); SaveSelection(); InvalidateRect(h, nullptr, FALSE);
+      }
+      else if (id >= 0 && id < (int)g_rows.size()) {
+        g_openKey = (g_openKey == id) ? -1 : id;
+        FitWindowFor(h); InvalidateRect(h, nullptr, FALSE);
+      }
+      else if (id >= ID_ITEM_ROW && g_openKey >= 0 && g_openKey < (int)g_rows.size() &&
+               id < ID_ITEM_ROW + RowItemCount(g_openKey)) {
+        int k = id - ID_ITEM_ROW;
+        g_sel[g_rows[g_openKey]] = (k == 0) ? -1 : (k - 1);
+        CloseList(); SaveSelection(); InvalidateRect(h, nullptr, FALSE);
+      }
+      else if (id == ID_START) { Launch(); }
+    } else if (g_openKey >= 0 && id == -1) {
+      CloseList(); InvalidateRect(h, nullptr, FALSE);
+    }
+    g_press = -1; return 0;
   }
   case WM_PAINT: { PAINTSTRUCT ps; HDC dc = BeginPaint(h, &ps); Paint(dc); EndPaint(h, &ps); return 0; }
   case WM_ERASEBKGND: return 1;
   case WM_KEYDOWN: if (w == VK_ESCAPE) PostMessageW(h, WM_CLOSE, 0, 0); return 0;
-  case WM_CLOSE: SaveChoice(); DestroyWindow(h); return 0;
+  case WM_CLOSE: SaveSelection(); DestroyWindow(h); return 0;
   case WM_DESTROY: PostQuitMessage(0); return 0;
   }
   return DefWindowProcW(h, m, w, l);
@@ -471,9 +552,8 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
     }
     if (!g_ff) g_ff = new FontFamily(L"Arial");
   }
-  BuildItems();
-  LoadChoice();
-  SyncPos();
+  BuildRows();
+  LoadSelection();
 
   WNDCLASSEXW wc{ sizeof(wc) };
   wc.lpfnWndProc = WndProc; wc.hInstance = hInst; wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
