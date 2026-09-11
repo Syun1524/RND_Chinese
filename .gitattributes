@@ -1,0 +1,7 @@
+# 行尾与二进制属性
+#
+# 影片字幕 *.ass 是「随补丁分发」的资产：它由 subs/tools/build_lyric_subs.py
+# 生成（保留原始 CRLF），最终交给 Windows 的 VSFilter 读取。
+# 若交给 core.autocrlf 处理，提交时 CRLF 会被改写成 LF——仓库里的字节就不再等于
+# 实机验证过的字节（本项目要求字幕逐字节可复核）。故显式关闭转换。
+*.ass -text
