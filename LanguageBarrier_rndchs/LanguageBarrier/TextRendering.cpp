@@ -116,6 +116,13 @@ void TextRendering::Init(void* widthData, void* widthData2,
   ;
 }
 
+wchar_t TextRendering::getCharForGlyphId(int glyphId) const {
+  if (glyphId < 0 || glyphId >= (int)fullCharMap.size()) {
+    return L' ';
+  }
+  return fullCharMap[glyphId];
+}
+
 struct TextSize {
   int w, h, w2, h2;
 };
@@ -688,18 +695,30 @@ FontGlyph* FontData::getGlyphInfoByChar(wchar_t character, FontType type) {
   }
 }
 FontGlyph* FontData::getGlyphInfo(int id, FontType type) {
+  TextRendering& textRendering = TextRendering::Get();
+  wchar_t character = textRendering.getCharForGlyphId(id);
+  // A referenced id can resolve to a character the font has no glyph for (it is
+  // then absent from glyphMap). Returning missingGlyph draws nothing instead of
+  // letting map::at throw out_of_range on the game's render thread.
+  FontGlyph* fallback = &textRendering.missingGlyph;
+
   switch (type) {
-    case Regular:
-      return &this->glyphData.glyphMap.at(TextRendering::Get().fullCharMap[id]);
-      break;
-    case Outline:
-      return &this->glyphData.outlineMap.at(
-          TextRendering::Get().fullCharMap[id]);
-      break;
-    case Italics:
-      return &this->glyphData.glyphMap.at(TextRendering::Get().fullCharMap[id]);
-      break;
+    case Regular: {
+      auto it = this->glyphData.glyphMap.find(character);
+      if (it != this->glyphData.glyphMap.end()) return &it->second;
+      return fallback;
+    }
+    case Outline: {
+      auto it = this->glyphData.outlineMap.find(character);
+      if (it != this->glyphData.outlineMap.end()) return &it->second;
+      return fallback;
+    }
+    case Italics: {
+      auto it = this->glyphData.glyphMap.find(character);
+      if (it != this->glyphData.glyphMap.end()) return &it->second;
+      return fallback;
+    }
     default:
-      break;
+      return fallback;
   }
 }

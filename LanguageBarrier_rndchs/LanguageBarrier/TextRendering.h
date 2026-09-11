@@ -168,6 +168,10 @@ struct TextRendering {
   std::wstring filteredCharMap;
   std::wstring fullCharMap;
   std::wstring* currentCharMap;
+  // Returned when a referenced glyph id resolves to a character that was never
+  // baked (its codepoint is missing from the font). It has width 0 and draws
+  // nothing, which is the right outcome for a glyph the font cannot supply.
+  FontGlyph missingGlyph;
 
   // FNV-1a over fullCharMap; identifies the charset a font cache was baked from.
   uint32_t charsetHash = 0;
@@ -182,6 +186,9 @@ struct TextRendering {
   void RenderOutline(FontData* fontData, uint16_t n, bool measure);
 
   FontData* getFont(int height, bool measure);
+  // Charset character for a glyph id; ids outside the charset map to a space
+  // rather than reading out of bounds.
+  wchar_t getCharForGlyphId(int glyphId) const;
 
   void replaceFontSurface(int size);
   int SurfacePointSize[512];
