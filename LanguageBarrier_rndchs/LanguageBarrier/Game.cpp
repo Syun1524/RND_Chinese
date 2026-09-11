@@ -2,6 +2,7 @@
 #include "Game.h"
 #include <d3d9.h>
 #include <fstream>
+#include <cstdio>
 #include <map>
 #include <string>
 #include <vector>
@@ -738,6 +739,30 @@ int __fastcall mgsFileOpenHook(mgsFileLoader* pThis, void* dummy, int unused) {
 #ifdef _DEBUG
     LanguageBarrierLog(logstr.str());
 #endif
+
+    // fileIdRemap: re-point a request at a DIFFERENT file inside the SAME
+    // archive -- no file is shipped. Used where the wanted asset already exists
+    // in the game's own data (e.g. the alternate character models are the ones
+    // the game itself stores in `model.cpk`), which keeps the patch small and
+    // avoids redistributing game assets. `fileRedirection` (copy into c0data)
+    // still applies when there is no remap entry, so both can coexist.
+    if (config["patch"].count("fileIdRemap") == 1 &&
+        config["patch"]["fileIdRemap"].count(archiveName) > 0) {
+      std::string rkey = (fileId == -1) ? std::string(fileName)
+                                        : std::to_string(fileId);
+      if (config["patch"]["fileIdRemap"][archiveName].count(rkey) == 1) {
+        int newFileId = config["patch"]["fileIdRemap"][archiveName][rkey].get<int>();
+        logstr << " remapped in " << archiveName << " to 0x" << std::hex << newFileId;
+#ifdef _DEBUG
+        LanguageBarrierLog(logstr.str());
+#endif
+
+        pThis->fileId = newFileId;
+        if (fileId == -1) pThis->loadMode = 2;
+        return gameExeMgsFileOpenReal(pThis, unused);
+      }
+    }
+
     if (config["patch"].count("fileRedirection") == 1 &&
         config["patch"]["fileRedirection"].count(archiveName) > 0) {
       std::string key;
@@ -755,6 +780,7 @@ int __fastcall mgsFileOpenHook(mgsFileLoader* pThis, void* dummy, int unused) {
 #ifdef _DEBUG
           LanguageBarrierLog(logstr.str());
 #endif
+
           pThis->fileId = newFileId;
           pThis->vfsObject = c0dataCpk;
           if (fileId == -1) pThis->loadMode = 2;

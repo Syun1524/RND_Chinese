@@ -1,5 +1,6 @@
 #define DEFINE_JSON_CONSTANTS
 #include "LanguageBarrier.h"
+#include <cstdio>
 #include <ctime>
 #include <fstream>
 #include "Config.h"
