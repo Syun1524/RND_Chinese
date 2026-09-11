@@ -30,6 +30,9 @@ NAME_HINT = {
 def main():
     mapping = json.load(io.open(os.path.join(ROOT, "成品ing", "服装映射表.json"),
                                 encoding="utf-8"))
+    # 中文角色名（用户实测核对）优先，缺的用 motion 文件名里的罗马字兜底
+    roles_p = os.path.join(ROOT, "成品ing", "服装核对", "角色名表.json")
+    roles = json.load(io.open(roles_p, encoding="utf-8")) if os.path.exists(roles_p) else {}
     chs = sorted(mapping)
     for ch in chs:
         if len(mapping[ch]) > MAXV:
@@ -52,7 +55,7 @@ def main():
         es = sorted(mapping[ch], key=lambda e: e["variant"])
         vs = ", ".join('L"%s"' % e["variant"] for e in es)
         fs = ", ".join(str(e["fileId"]) for e in es)
-        hint = NAME_HINT.get(ch, "")
+        hint = roles.get(ch) or NAME_HINT.get(ch, "")
         L.append("  { L\"%s\", L\"%s\", %2d, { %s }, { %s } },"
                  % (ch, hint, len(es), vs, fs))
     L.append("};")

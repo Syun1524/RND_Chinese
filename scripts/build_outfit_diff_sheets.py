@@ -37,9 +37,19 @@ NAMECOL_W = 230     # 手写「这是什么服装」的一列：看图时直接�
 ROWLAB_H = 30
 MAX_COLS = 10
 
+# 罗马字线索来自 motion 文件名（c003_070_frau@...），仅作角色名表缺失时的兜底。
+# 中文角色名来自用户实测核对，存在 成品ing/服装核对/角色名表.json。
 NAME_HINT = {
     "c002": "akiho", "c003": "frau", "c004": "junna", "c013": "kou", "c018": "daru",
 }
+
+
+def load_role_names(out_dir):
+    import json
+    p = os.path.join(out_dir, "角色名表.json")
+    if os.path.exists(p):
+        return json.load(io.open(p, encoding="utf-8"))
+    return {}
 
 
 def find_dds(data):
@@ -73,7 +83,8 @@ def main():
     model_dir = os.path.join(ROOT, "解包", "解包cpk的产物(日语)", "model")
     mapping = json.load(io.open(os.path.join(ROOT, "成品ing", "服装映射表.json"),
                                 encoding="utf-8"))
-    # 已确认的服装名（CoZ 泳装那 10 套），用于在名称列预填
+    role_names = load_role_names(out_dir)
+    # 已确认的服装名（CoZ 泳装 + 用户实测核对），用于在名称列预填
     known_names = {}
     nm_path = os.path.join(out_dir, "服装名称表.json")
     if os.path.exists(nm_path):
@@ -125,8 +136,9 @@ def main():
         canvas = Image.new("RGB", (W, H), (18, 18, 22))
         dr = ImageDraw.Draw(canvas)
         title = "ROBOTICS;NOTES DaSH  服装对比  %s" % ch
-        if NAME_HINT.get(ch):
-            title += "  (~%s)" % NAME_HINT[ch]
+        label = role_names.get(ch) or NAME_HINT.get(ch)
+        if label:
+            title += "  (%s)" % label
         dr.text((10, 10), title, font=f_head, fill=(255, 255, 255))
 
         # 名称列表头 + 分隔线
@@ -175,8 +187,9 @@ def main():
     for ch, nv, fn in cards:
         if nv == 1:
             continue
+        _lab = role_names.get(ch) or (NAME_HINT.get(ch) or "")
         p.append("<h2>%s%s —— %d 套</h2><img src='%s'>"
-                 % (ch, "  ~ %s" % NAME_HINT[ch] if NAME_HINT.get(ch) else "", nv, fn))
+                 % (ch, ("  " + _lab) if _lab else "", nv, fn))
     for ch, nv, fn in cards:
         if nv == 1:
             p.append("<p style='color:#888'>%s（单变体，略）</p>" % ch)
