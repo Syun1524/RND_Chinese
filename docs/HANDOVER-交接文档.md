@@ -494,3 +494,62 @@ docs/服装映射表.json                   # 角色 → 变体 → fileId
 `launcher/build_launcher.bat` 与 `build_outfit_tool.bat` 内的注释**必须保持 ASCII** ——
 cmd 按 OEM 代码页解析 REM 行，非 ASCII 会被截断成乱码命令（实测 `'DI+锛屼笉渚濊禆' 不是
 内部或外部命令`）。
+
+
+## 14. 2026-09-12 追加：非 ASCII 路径导致补丁静默失效（重要）
+
+### 14.1 症状与根因
+
+补丁文件全部就位，游戏却显示原版语言（日/英），`languagebarrier/log.txt` 从不生成。
+不崩溃、不报错 —— 完全静默。
+
+**根因**：路径含非 ASCII 字符时，Windows 加载器**跳过本地 `dinput8.dll`**，回退到
+`C:\Windows\SysWOW64\dinput8.dll`，LanguageBarrier 从未启动。
+
+### 14.2 证据（modscan32 扫描运行中进程的模块）
+
+同一份 Game.exe、同一份 dinput8.dll，只有目录不同：
+
+| 游戏目录 | 进程实际加载的 dinput8.dll |
+|---|---|
+| `...\common\ROBOTICS;NOTES DaSH`（纯 ASCII） | `...\NOTES DaSH\DINPUT8.dll` ← 补丁 ✓ |
+| `...\common\ROBOTICS;NOTES DaSH -原版英文 副本 - 副本`（含中文） | `C:\WINDOWS\SYSTEM32\DINPUT8.dll` ← 系统 ✗ |
+| `...\common\ROBOTICS;NOTES DaSH -原版日语 副本 - 副本`（含中文） | `C:\WINDOWS\SYSTEM32\DINPUT8.dll` ← 系统 ✗ |
+| `D:\ZZGAME\ROBOTICS NOTES DaSH`（纯 ASCII，盗版旧版） | `...\DINPUT8.dll` ← 补丁 ✓ |
+
+**决定性实验**：同一个含中文的目录，改从 ASCII junction 进入 → 立刻变为加载本地 DLL。
+路径里带 `;`（Steam 的 `ROBOTICS;NOTES DaSH`）**不影响**，只有非 ASCII 才是触发条件。
+
+> 排查陷阱：`tasklist /m` 对这类 32 位游戏进程**静默返回空**，64 位 PowerShell 也无法
+> 枚举 32 位进程模块 —— 两者都会让人误判。必须用自建的 32 位 toolhelp 工具
+> （`tmp_128/modscan32.cpp`，`modscan32.exe <pid> dinput`）。
+
+### 14.3 解决办法
+
+为含中文的目录建 **ASCII junction**（不占空间，同卷内文件夹改名/移动后依然有效）：
+
+```bash
+python scripts/make_ascii_links.py            # 创建
+python scripts/make_ascii_links.py --remove   # 删除
+```
+
+| ASCII 入口 | 指向 |
+|---|---|
+| `...\common\RND_DaSH_steam` | `ROBOTICS;NOTES DaSH` |
+| `...\common\RND_DaSH_jp_copy` | `ROBOTICS;NOTES DaSH -原版日语 副本 - 副本` |
+| `...\common\RND_DaSH_en_copy` | `ROBOTICS;NOTES DaSH -原版英文 副本 - 副本` |
+
+玩家侧建议：**把游戏目录名改成纯 ASCII**（最彻底），或从上述入口启动。
+
+### 14.4 排查经验（避免重复踩坑）
+
+1. **判断补丁是否加载，看 `languagebarrier/log.txt` 是否生成** —— LB 一启动必写。
+   不要用「进程是否还在」判断（加载失败会弹模态框，进程照样活着）。
+2. **不要用 `tasklist /m` 判断 32 位进程的模块** —— 会静默返回空。用 modscan32。
+3. **不要用 `taskkill /F` 关游戏** —— 字体缓存在正常退出时写回
+   （`saveCache()` 在 `closeAllSystemsHook`），强杀会丢失本次烘焙。
+4. **`patchdef.json` 与 `c0data.cls` 必须成套替换** —— fileRedirection 存的是数组下标，
+   cls 行序一变索引全错位（曾导致标题 UI 整片空白：索引指到了角色模型文件）。
+   `python scripts/deploy_patch.py` 成对部署 + 逐条校验重定向类型。
+5. **验证汉化别只看 OP 动画** —— 片头罗马字来自 `subs/mv_rnd_op001.ass`（CoZ 罗马字歌词轨），
+   与汉化是两条独立通路。
