@@ -259,7 +259,7 @@ static bool RunInstall() {
     }
   }
 
-  // 7) 写回 boot.bat（触发劫持；语言保持原样）
+  // 7) 写回 boot.bat
   SetStatus(L"正在完成…", 97);
   {
     std::wstring bb = Join(g_gameDir, L"boot.bat");
@@ -517,10 +517,23 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
       // 解析第二个参数作为目标目录（跳过 exe 路径本身）
       int argc = 0;
       LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+      // 关键：给出目标目录时必须以它为准。旧逻辑写成
+      //     if (IsDir(argv[1])) g_gameDir = argv[1];
+      // 于是 IsDir 一旦失败就**静默保留 AutoDetectGame() 的结果**，把补丁装到了
+      // 自动探测到的另一个游戏目录（实测：传 D:\ZZGAME\...，日志却显示
+      // dst=...\Steam\...\ROBOTICS;NOTES DaSH）。现在明确失败，绝不悄悄换目标。
       if (argv && argc >= 2 && argv[1][0] != L'/') {
         std::wstring d = argv[1];
         if (!d.empty() && (d.back() == L'"')) d.pop_back();
-        if (IsDir(d)) { g_gameDir = d; g_gameVer = L"(silent) 指定目录"; }
+        for (auto& c : d) if (c == L'/') c = L'\\';
+        while (!d.empty() && d.back() == L'\\') d.pop_back();
+        if (!IsDir(d)) {
+          if (argv) LocalFree(argv);
+          GdiplusShutdown(tk);
+          return 2;
+        }
+        g_gameDir = d;
+        g_gameVer = L"(silent) 指定目录";
       }
       if (argv) LocalFree(argv);
       bool ok = !g_gameDir.empty() && RunInstall();
