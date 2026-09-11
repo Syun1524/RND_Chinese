@@ -1618,6 +1618,23 @@ int __cdecl movieModeDispHook(void* thread) {
   return gameExeMovieModeDispReal(thread);
 }
 
+// Per-row hover/click widths for the title menu, indexed by title_chip_pc
+// atlas row (0..14). The game draws the selection cursor from its own per-row
+// width table, patched at runtime by titleMenuWidthsInit (Game.cpp); this hook
+// carries a separate copy for the mouse hit tests, so both must be updated
+// together -- otherwise the cursor follows the localized menu but the hover
+// zone keeps the English width.
+// The original literals here were the English label widths; each is replaced
+// by the localized width of the SAME atlas row (advance + 37).
+//   row  0 GAME START 169 | 1 CONTINUE 169 | 2 EXTRA 169 | 3 CONFIG 103
+//   row  4 HELP       103 | 5 LAST PHASE 169 | 6 CLEAR LIST 169
+//   row  7 CG LIBRARY 146 | 8 SOUND LIBRARY 169 | 9 MOVIE LIBRARY 169
+//   row 10 TIPS LIST  178 | 11 PHASE AKIHO 136 | 12 DAILY RECORDS 169
+//   row 13 LOAD       103 | 14 EXIT GAME 169
+static const int kTitleMenuWidthsZh[15] = {169, 169, 169, 103, 103, 169, 169,
+                                           146, 169, 169, 178, 136, 169, 103,
+                                           169};
+
 int __cdecl instTitleMenuHook(void* thread) {
   if (*MouseEnabled) {
     LockMouseControls = true;
@@ -1631,54 +1648,65 @@ int __cdecl instTitleMenuHook(void* thread) {
         case 0: {
           int flagVal =
               gameExeGetFlag(OPEN_START2) + gameExeGetFlag(OPEN_START3);
-          if (menuButtonHitTest(0, mouseX, mouseY, 72, 591 + (0 * 48), 333, 41,
+          if (menuButtonHitTest(0, mouseX, mouseY, 72, 591 + (0 * 48),
+                                kTitleMenuWidthsZh[0], 41,
                                 TitleMenuSelectionIndex) &&
               (InputObject->mouseButtons & MouseLeftClick))
             *InputMask |= PAD1A;
           if (gameExeGetFlag(OPEN_START2)) {
-            if (menuButtonHitTest(1, mouseX, mouseY, 72, 591 + (1 * 48), 321,
-                                  41, TitleMenuSelectionIndex) &&
+            if (menuButtonHitTest(1, mouseX, mouseY, 72, 591 + (1 * 48),
+                                  kTitleMenuWidthsZh[11], 41,
+                                  TitleMenuSelectionIndex) &&
                 (InputObject->mouseButtons & MouseLeftClick))
               *InputMask |= PAD1A;
           }
           if (gameExeGetFlag(OPEN_START3)) {
-            if (menuButtonHitTest(2, mouseX, mouseY, 72, 591 + (2 * 48), 311,
-                                  41, TitleMenuSelectionIndex) &&
+            if (menuButtonHitTest(2, mouseX, mouseY, 72, 591 + (2 * 48),
+                                  kTitleMenuWidthsZh[5], 41,
+                                  TitleMenuSelectionIndex) &&
                 (InputObject->mouseButtons & MouseLeftClick))
               *InputMask |= PAD1A;
           }
           if (menuButtonHitTest(1 + flagVal, mouseX, mouseY, 72,
-                                591 + ((1 + flagVal) * 48), 262, 41,
+                                591 + ((1 + flagVal) * 48),
+                                kTitleMenuWidthsZh[1], 41,
                                 TitleMenuSelectionIndex) &&
               (InputObject->mouseButtons & MouseLeftClick))
             *InputMask |= PAD1A;
           if (menuButtonHitTest(2 + flagVal, mouseX, mouseY, 72,
-                                591 + ((2 + flagVal) * 48), 186, 41,
+                                591 + ((2 + flagVal) * 48),
+                                kTitleMenuWidthsZh[2], 41,
                                 TitleMenuSelectionIndex) &&
               (InputObject->mouseButtons & MouseLeftClick))
             *InputMask |= PAD1A;
           if (menuButtonHitTest(3 + flagVal, mouseX, mouseY, 72,
-                                591 + ((3 + flagVal) * 48), 198, 41,
+                                591 + ((3 + flagVal) * 48),
+                                kTitleMenuWidthsZh[3], 41,
                                 TitleMenuSelectionIndex) &&
               (InputObject->mouseButtons & MouseLeftClick))
             *InputMask |= PAD1A;
           if (menuButtonHitTest(4 + flagVal, mouseX, mouseY, 72,
-                                591 + ((4 + flagVal) * 48), 151, 41,
+                                591 + ((4 + flagVal) * 48),
+                                kTitleMenuWidthsZh[4], 41,
                                 TitleMenuSelectionIndex) &&
               (InputObject->mouseButtons & MouseLeftClick))
             *InputMask |= PAD1A;
           if (menuButtonHitTest(5 + flagVal, mouseX, mouseY, 72,
-                                591 + ((5 + flagVal) * 48), 262, 41,
+                                591 + ((5 + flagVal) * 48),
+                                kTitleMenuWidthsZh[14], 41,
                                 TitleMenuSelectionIndex) &&
               (InputObject->mouseButtons & MouseLeftClick))
             *InputMask |= PAD1A;
         } break;
         case 1: {
-          if (menuButtonHitTest(0, mouseX, mouseY, 72, 591, 366, 41,
+          // 0 = DAILY RECORDS (row 12), 1 = LOAD (row 13)
+          if (menuButtonHitTest(0, mouseX, mouseY, 72, 591,
+                                kTitleMenuWidthsZh[12], 41,
                                 LoadMenuSelIndex) &&
               (InputObject->mouseButtons & MouseLeftClick))
             *InputMask |= PAD1A;
-          if (menuButtonHitTest(1, mouseX, mouseY, 72, 591 + (1 * 48), 150, 41,
+          if (menuButtonHitTest(1, mouseX, mouseY, 72, 591 + (1 * 48),
+                                kTitleMenuWidthsZh[13], 41,
                                 LoadMenuSelIndex) &&
               (InputObject->mouseButtons & MouseLeftClick))
             *InputMask |= PAD1A;
@@ -1686,27 +1714,34 @@ int __cdecl instTitleMenuHook(void* thread) {
         case 2: {
           int flagVal = (gameExeGetFlag(ALBUM_ENA) + gameExeGetFlag(MOVIE_ENA) +
                          gameExeGetFlag(MUSIC_ENA));
-          if (menuButtonHitTest(0, mouseX, mouseY, 72, 591, 287, 41,
+          // 0 = CLEAR LIST (row 6), 1..3 = CG/SOUND/MOVIE LIBRARY (rows 7..9),
+          // then TIPS LIST (row 10)
+          if (menuButtonHitTest(0, mouseX, mouseY, 72, 591,
+                                kTitleMenuWidthsZh[6], 41,
                                 ExtrasMenuSelIndex) &&
               (InputObject->mouseButtons & MouseLeftClick))
             *InputMask |= PAD1A;
           if (gameExeGetFlag(ALBUM_ENA) && gameExeGetFlag(MOVIE_ENA) &&
               gameExeGetFlag(MUSIC_ENA)) {
-            if (menuButtonHitTest(1, mouseX, mouseY, 72, 591 + (1 * 48), 299,
-                                  41, ExtrasMenuSelIndex) &&
+            if (menuButtonHitTest(1, mouseX, mouseY, 72, 591 + (1 * 48),
+                                  kTitleMenuWidthsZh[7], 41,
+                                  ExtrasMenuSelIndex) &&
                 (InputObject->mouseButtons & MouseLeftClick))
               *InputMask |= PAD1A;
-            if (menuButtonHitTest(2, mouseX, mouseY, 72, 591 + (2 * 48), 384,
-                                  41, ExtrasMenuSelIndex) &&
+            if (menuButtonHitTest(2, mouseX, mouseY, 72, 591 + (2 * 48),
+                                  kTitleMenuWidthsZh[8], 41,
+                                  ExtrasMenuSelIndex) &&
                 (InputObject->mouseButtons & MouseLeftClick))
               *InputMask |= PAD1A;
-            if (menuButtonHitTest(3, mouseX, mouseY, 72, 591 + (3 * 48), 365,
-                                  41, ExtrasMenuSelIndex) &&
+            if (menuButtonHitTest(3, mouseX, mouseY, 72, 591 + (3 * 48),
+                                  kTitleMenuWidthsZh[9], 41,
+                                  ExtrasMenuSelIndex) &&
                 (InputObject->mouseButtons & MouseLeftClick))
               *InputMask |= PAD1A;
           }
           if (menuButtonHitTest(1 + flagVal, mouseX, mouseY, 72,
-                                591 + ((1 + flagVal) * 48), 240, 41,
+                                591 + ((1 + flagVal) * 48),
+                                kTitleMenuWidthsZh[10], 41,
                                 ExtrasMenuSelIndex) &&
               (InputObject->mouseButtons & MouseLeftClick))
             *InputMask |= PAD1A;

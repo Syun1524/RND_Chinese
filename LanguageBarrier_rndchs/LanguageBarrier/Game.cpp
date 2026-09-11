@@ -326,6 +326,42 @@ int __cdecl mountArchiveHookRNE(int id, const char* mountPoint,
 int __cdecl mountArchiveHookRND(int id, const char* mountPoint, int unk01,
                                 int unk02, int unk03);
 
+// The title menu draws its selection cursor (and click area) at a per-row
+// width taken from a 15-entry table in .data. The English release baked the
+// English label widths in; the localized menu atlas draws the row boxes at
+// Chinese widths, so this table has to be rewritten to match or the cursor
+// keeps the English length. The address comes from the absolute operand of
+// `mov ecx, [reg*4 + table]` in .text; the loader relocates that operand, so
+// dereferencing it at runtime is ASLR-safe.
+static const uint32_t kTitleRowWidthsEn[15] = {333, 262, 186, 198, 151, 311,
+                                               287, 299, 384, 365, 240, 321,
+                                               366, 150, 261};
+// Must equal the box widths of the localized title_chip_pc atlas
+// (see title_chip_pc_zh.records.json: box_w = advance + 37).
+static const uint32_t kTitleRowWidthsZh[15] = {169, 169, 169, 103, 103, 169,
+                                               169, 146, 169, 169, 178, 136,
+                                               169, 103, 169};
+
+static void titleMenuWidthsInit() {
+  if (config["patch"].count("localizedTitleMenuWidths") == 1 &&
+      config["patch"]["localizedTitleMenuWidths"].get<bool>() == false)
+    return;
+  uintptr_t table = sigScan("game", "useOfTitleMenuRowWidths");
+  if (table == NULL) {
+    LanguageBarrierLog("TitleMenuWidths: signature not found; left as-is");
+    return;
+  }
+  uint32_t current[15];
+  memcpy(current, (const void*)table, sizeof(current));
+  if (memcmp(current, kTitleRowWidthsEn, sizeof(current)) != 0) {
+    LanguageBarrierLog("TitleMenuWidths: unexpected table content; left as-is");
+    return;
+  }
+  if (memcmp(current, kTitleRowWidthsZh, sizeof(current)) == 0) return;
+  memcpy_perms((void*)table, kTitleRowWidthsZh, sizeof(kTitleRowWidthsZh));
+  LanguageBarrierLog("TitleMenuWidths: patched to localized widths");
+}
+
 void gameInit() {
   SetProcessDPIAware();
   std::ifstream in("languagebarrier\\stringReplacementTable.bin",
@@ -494,6 +530,8 @@ void gameInit() {
         "game", "setAreaParams", (uintptr_t*)&gameExeSetAreaParams,
         (LPVOID)setAreaParamsHook, (LPVOID*)&gameExeSetAreaParamsReal);
   }
+
+  titleMenuWidthsInit();
 }
 
 // earlyInit is called after all the subsystems have been initialised but before

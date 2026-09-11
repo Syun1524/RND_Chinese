@@ -130,11 +130,20 @@ uintptr_t sigScanRaw(const char* category, const char* sigName,
          << std::endl;
 
   json sig = config["gamedef"]["signatures"][category][sigName];
-  std::string sPattern = sig["pattern"].get<std::string>();
-  const char* pattern = sPattern.c_str();
-  size_t offset = sig["offset"].get<size_t>();
 
-  logstr << sPattern << std::endl;
+  // `pattern` is normally a single string, but may also be an array of strings.
+  // The array form lists the SAME function as compiled by different game builds
+  // (the executable's code generation changed between releases, so one byte
+  // pattern cannot cover every version). They are tried in order and the first
+  // match wins, which lets one gamedef serve several game versions.
+  std::vector<std::string> patterns;
+  if (sig["pattern"].is_array()) {
+    for (auto& p : sig["pattern"]) patterns.push_back(p.get<std::string>());
+  } else {
+    patterns.push_back(sig["pattern"].get<std::string>());
+  }
+  size_t offset = sig["offset"].get<size_t>();
+  int occurrence = sig["occurrence"].get<int>();
 
   HMODULE hModule = GetModuleHandleA(category);
   if (!hModule) hModule = GetModuleHandle(NULL);
@@ -143,24 +152,37 @@ uintptr_t sigScanRaw(const char* category, const char* sigName,
       (IMAGE_SECTION_HEADER*)((uint8_t*)&(pNtHdr->OptionalHeader) +
                               pNtHdr->FileHeader.SizeOfOptionalHeader);
 
-  for (size_t i = 0; i < pNtHdr->FileHeader.NumberOfSections; i++) {
-    if (isData == !!(pSectionHdr->Characteristics & IMAGE_SCN_MEM_EXECUTE))
-      continue;
-
-    uintptr_t baseAddress = (uintptr_t)hModule + pSectionHdr->VirtualAddress;
-    uintptr_t retval = (uintptr_t)FindPattern(
-        (unsigned char*)baseAddress,
-        (unsigned char*)baseAddress + pSectionHdr->Misc.VirtualSize, pattern,
-        baseAddress, offset, sig["occurrence"].get<int>());
-
-    if (retval != NULL) {
-      logstr << " found at 0x" << std::hex << retval;
-      if (lb::IsInitialised) {
-        LanguageBarrierLog(logstr.str());
-      }
-      return retval;
+  for (size_t pi = 0; pi < patterns.size(); pi++) {
+    const char* pattern = patterns[pi].c_str();
+    if (patterns.size() > 1) {
+      logstr << (pi == 0 ? "[variant 1] " : "[variant 2] ") << patterns[pi];
+    } else {
+      logstr << patterns[pi];
     }
-    pSectionHdr++;
+    logstr << std::endl;
+
+    IMAGE_SECTION_HEADER* pSec = pSectionHdr;
+    for (size_t i = 0; i < pNtHdr->FileHeader.NumberOfSections; i++) {
+      if (isData == !!(pSec->Characteristics & IMAGE_SCN_MEM_EXECUTE)) {
+        pSec++;
+        continue;
+      }
+
+      uintptr_t baseAddress = (uintptr_t)hModule + pSec->VirtualAddress;
+      uintptr_t retval = (uintptr_t)FindPattern(
+          (unsigned char*)baseAddress,
+          (unsigned char*)baseAddress + pSec->Misc.VirtualSize, pattern,
+          baseAddress, offset, occurrence);
+
+      if (retval != NULL) {
+        logstr << " found at 0x" << std::hex << retval;
+        if (lb::IsInitialised) {
+          LanguageBarrierLog(logstr.str());
+        }
+        return retval;
+      }
+      pSec++;
+    }
   }
   logstr << " not found!";
   if (lb::IsInitialised) {
