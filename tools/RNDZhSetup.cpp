@@ -70,20 +70,50 @@ static std::wstring FileName(const std::wstring& p) {
   return s == std::wstring::npos ? p : p.substr(s + 1);
 }
 
-// 读 boot.bat 的语言标记（JP / EN），这决定存档目录
+// 存档目录里唯一存在的语言（eng / jpn）。这是玩家实际在用的语言，最可信；
+// 两个都有（都玩过）或都没有时返回空，交给调用方看 boot.bat。
+static std::wstring LangFromSaveDir() {
+  wchar_t* docs = nullptr;
+  if (SHGetKnownFolderPath(FOLDERID_Documents, 0, nullptr, &docs) != S_OK)
+    return L"";
+  std::wstring base = docs;
+  CoTaskMemFree(docs);
+  base += L"\\My Games\\mages_steam\\Robotics Notes DASH";
+  bool eng = IsDir(Join(base, L"eng")), jpn = IsDir(Join(base, L"jpn"));
+  if (eng && !jpn) return L"EN";
+  if (jpn && !eng) return L"JP";
+  return L"";
+}
+
+// 判定游戏语言（JP / EN），决定写回 boot.bat 的值与存档目录。
+//
+// 顺序很关键：
+//   1) 存档目录   —— 玩家实际在用的，唯一时最可信
+//   2) boot.bat   —— 游戏启动参数，权威来源
+//   3) _cn_patch_boot_orig.bat —— 上次安装留下的原件，**只做兜底**
+//
+// 曾经把 3) 放在最前，于是目录被换过语言 / 被复制过时，残留的旧原件会盖掉真实语言
+// （实测：英文版被认成日文版，存档目录也跟着写错）。
 static std::wstring DetectLangFrom(const std::wstring& gameDir) {
-  const wchar_t* names[] = { L"_cn_patch_boot_orig.bat", L"boot.bat" };
+  std::wstring save_lang = LangFromSaveDir();
+  std::wstring boot_lang;
+  const wchar_t* names[] = { L"boot.bat", L"_cn_patch_boot_orig.bat" };
   for (auto n : names) {
     std::ifstream f(Join(gameDir, n), std::ios::binary);
     if (!f) continue;
     std::stringstream ss; ss << f.rdbuf();
-    std::string s = ss.str();
-    for (auto& c : s) c = (char)toupper((unsigned char)c);
-    size_t e = s.find("EN"), j = s.find("JP");
-    if (e != std::string::npos && (j == std::string::npos || e < j)) return L"EN";
-    if (j != std::string::npos) return L"JP";
+    std::string t = ss.str();
+    for (auto& c : t) c = (char)toupper((unsigned char)c);
+    size_t e = t.find("EN"), j = t.find("JP");
+    std::wstring got;
+    if (e != std::string::npos && (j == std::string::npos || e < j)) got = L"EN";
+    else if (j != std::string::npos) got = L"JP";
+    if (got.empty()) continue;
+    boot_lang = got;
+    break;                                 // boot.bat 存在即采用，原件只作兜底
   }
-  return L"";
+  if (!save_lang.empty()) return save_lang;   // 存档目录与 boot.bat 冲突时，以实际在用的为准
+  return boot_lang;
 }
 
 static bool ValidGameDir(const std::wstring& d) {
@@ -142,7 +172,10 @@ static void CollectFiles(const std::wstring& base, const std::wstring& rel,
       CollectFiles(base, r, out);
     } else {
       // 跳过安装程序自身与 SFX 配置
-      if (rel.empty() && (name == L"Setup.exe" || name == L"7zSFX.txt")) continue;
+      // boot.bat 一并跳过：包内那份写死 JP，中途失败会把语言卡在 JP。
+      // 安装最后一步会按检测到的语言自己写一份。
+      if (rel.empty() && (name == L"Setup.exe" || name == L"7zSFX.txt" ||
+                          name == L"boot.bat")) continue;
       out.push_back({ r, L"f" });
     }
   } while (FindNextFileW(h, &fd));
@@ -209,7 +242,10 @@ static bool RunInstall() {
   wchar_t stamp[64];
   wsprintfW(stamp, L"_cn_patch_backup_%04d%02d%02d_%02d%02d%02d",
             st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
-  std::wstring bak = g_gameDir + stamp;
+  // 必须用 Join：g_gameDir 以『游戏目录名』结尾（自动探测时没有尾部分隔符），
+  // 直接相加会把备份建到游戏目录的【同级】，卸载器就再也找不到它
+  // （实测为此在 steamapps/common 下散落了 41 个 _cn_patch_backup_*）。
+  std::wstring bak = Join(g_gameDir, stamp);
   CreateDirectoryW(bak.c_str(), nullptr);
   // 备份将被覆盖的既有文件（根目录 + NOTES DaSH 子目录）。
   // 注意 dinput8.dll / DXVK 实际生效位置是 NOTES DaSH\（游戏从那里加载），

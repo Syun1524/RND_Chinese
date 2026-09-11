@@ -105,6 +105,11 @@ static std::wstring FindLatestBackup() {
 
 static std::vector<std::wstring> g_files, g_dirs;   // 待删除（包内清单）
 
+static std::wstring ParentDir(const std::wstring& p) {
+  size_t s = p.find_last_of(L"\\/");
+  return s == std::wstring::npos ? std::wstring() : p.substr(0, s);
+}
+
 // 收集本程序所在目录里"属于补丁"的文件。
 // 按白名单：补丁特有的文件名/目录；不碰游戏本体（.cpk / Game.exe / launcher 等）。
 static void CollectPatchFiles() {
@@ -237,6 +242,27 @@ static bool RunUninstall() {
       }
     }
   }
+
+  // 5) 删除本次/历史安装留下的备份目录。
+  //    备份里有的是游戏原文件（恢复后就不再需要），有的是补丁文件（已删）。
+  //    旧版安装器把备份建到了【上级目录】（路径少了分隔符），所以两处都要扫。
+  {
+    const std::wstring dirs_to_scan[] = { g_dir, ParentDir(g_dir) };
+    for (auto& base : dirs_to_scan) {
+      if (base.empty()) continue;
+      WIN32_FIND_DATAW fd;
+      HANDLE h = FindFirstFileW(Join(base, L"_cn_patch_backup_*").c_str(), &fd);
+      if (h == INVALID_HANDLE_VALUE) continue;
+      do {
+        if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
+        RemoveTree(Join(base, fd.cFileName), true);
+      } while (FindNextFileW(h, &fd));
+      FindClose(h);
+    }
+    // 还有本次安装记录的原版 boot 备份
+    DeleteFileW(Join(g_dir, L"_cn_patch_boot_orig.bat").c_str());
+  }
+
 
   SetStatus(L"卸载完成", 100);
   return true;
