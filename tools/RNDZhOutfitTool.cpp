@@ -308,17 +308,23 @@ static void Paint(HDC hdc) {
     DrawTxt(gr, prog.c_str(), F(22,true), C_WARN, 20, 172);
     DrawTxt(gr, (L"当前 " + ChoiceId()).c_str(), F(13), C_MUTED, 20, 206);
 
-    if (!SwimsuitOn()) {
-      DrawTxt(gr, L"⚠「泳装／换装模式」没开 —— 游戏会穿原版默认服，核对结果无效。",
-              F(14,true), C_WARN, 20, 240);
-      DrawTxt(gr, L"请先在 RNDZhLauncher.exe 里勾上它，再来核对。",
-              F(12), C_MUTED, 20, 264);
+    // 核对【不依赖】「泳装／换装模式」。机制上看 zzOutfitOverride 自带 fileIdRemap，
+    // 而 mgsFileOpenHook 读 config["patch"]["fileIdRemap"] 是【无条件】的
+    // （且命中就直接 return，不会落到 fileRedirection）。所以开着/关着都能核对：
+    //   开着  -> 被核对角色穿选中的那套，其它角色穿泳装
+    //   关着  -> 被核对角色穿选中的那套，其它角色穿原版默认服
+    // 两种都可用，关着时画面更干净。
+    DrawTxt(gr, L"点「开始游戏」进游戏看这套长什么样，退出后点「下一套 ▶」继续。",
+            F(13), C_TEXT, 20, 236);
+    if (SwimsuitOn()) {
+      DrawTxt(gr, L"（「泳装／换装模式」已开：其它角色会是泳装，被核对角色是选中的这一套。）",
+              F(12), C_MUTED, 20, 262);
     } else {
-      DrawTxt(gr, L"进游戏看清这套是什么，退出后点「下一套 ▶」继续。",
-              F(12), C_MUTED, 20, 240);
-      DrawTxt(gr, L"认出来的名字填进 成品ing/服装核对/服装名称表.json。",
-              F(12), C_MUTED, 20, 260);
+      DrawTxt(gr, L"（「泳装／换装模式」未开：其它角色是原版默认服，被核对角色是选中的这一套。不影响核对。）",
+              F(12), C_MUTED, 20, 262);
     }
+    DrawTxt(gr, L"认出来的名字填进 成品ing/服装核对/服装名称表.json。",
+            F(12), C_MUTED, 20, 284);
 
     DrawBtn(gr, StartRect(), L"开始游戏", st.hot == 800);
 
