@@ -319,7 +319,7 @@ idx_end + offset              （字符串数据地址）
 | 1 | 数字 `9` 不显示 | ✅ **已修**（`RUBY_MARKERS_ENABLED` 默认关，提交 `0e751ce`；待实机回归） |
 | 2 | 来电人名无滚动动效 | CoZ 功能缺失，非 bug（§6） |
 | 3 | 30 个 PUA 图标字（U+E001–E01E）不显示 | 字体无此字形，被过滤。隔壁方案用 1044 个 PUA 槽参考 `Build-RNDZhNativeMapFont.ps1` |
-| 4 | 偶发 Runtime Error 崩溃 | 清理字体/缓存后**暂未复现**，未确证。已排除：大图集超限、烘焙卡顿、码表错配、签名失败 |
+| 4 | 偶发 Runtime Error 崩溃 | ✅ **根因已定位并修复**（2026-09-11）：码表有、字体无字形的字符被排除出 `glyphMap`，`getGlyphInfo` 的 `map::at` 命中即抛异常。见 §12.1 |
 | 5 | 离线扫描仍报约 980 处"越界字形" | 大概率是扫描器对控制码长度处理不准的假象；其中 344 处集中在废弃文件 `rnd_01_01_00-.msb`（patchdef/gamedef 中零引用） |
 
 ---
@@ -333,3 +333,66 @@ idx_end + offset              （字符串数据地址）
 4. **离线渲染验证**：用游戏真实 `fontData.bin` + DDS 图集离线拼出字符串图像，
    可确认数据链路是否健康，快速缩小范围。
 5. **改字符集是"换门牌号"**：msb 存的是索引不是字符，所以必须同步重写 msb 引用。
+
+---
+
+## 12. 2026-09-11 追加（本轮新增结论）
+
+### 12.1 字体兜底：偶发崩溃已定位（提交 `c45dcb9`）
+
+**根因**：`forceIncludeHan=true` 只让"字体里有字形"的字进图集；**码表里有、字体里没有**的字
+（实测 **31 个**：U+02DC 与 30 个 PUA）仍被排除出 `glyphMap`。而 `FontData::getGlyphInfo()`
+用 `std::map::at()` 取值 —— 命中即抛 `std::out_of_range`，**抛在游戏渲染线程 = 崩溃**。
+
+**实测**：31 个缺字形字符中，被**活跃 msb 引用**的只有 `U+02DC '˜'`，共 **8 次**
+（`_twipo_00.msb` 4 条帖子的颜文字 `((((;゜Д゜))))˜˜发抖发抖`）。这就是 §10 #4 的病因。
+
+**修复**：`getGlyphInfo` 改 `find()` + `missingGlyph` 兜底（`width=0`，画出来为空）；
+新增 `getCharForGlyphId()` 把越界 id 映射为空格。取自已存在于本机备份仓库
+（CoZ upstream）工作区中一份**未提交**的修法。**已部署实机**。
+
+> 该修复能覆盖**任何**未来的缺字（换字体/改码表/新译文），是通用安全网。
+
+### 12.2 波浪号 `˜` → `～`（提交 `e060c52`）
+
+`U+02DC` 不在 `NotoSansCJKsc` 字形集中。已把 `_twipo_00.msb` 那 8 处改用码表内已有的
+**全角波浪 `U+FF5E`（索引 228）**，字形存在、视觉等价。同步改了 `cnscript` 译稿源。
+> 教训：`cnscript`（译稿）与 `charset.utf8` 必须能对上；译文用到"码表不含"或"字体不含"的字都会出问题。
+
+### 12.3 `redoDialogueWordwrap` 必须保持 `false`
+
+关掉的是 CoZ 自己重写的换行（英文思维：按"单词"断行）。中文下**必须关**：
+`DialogueWordwrap.cpp` 的 `is_letter(c) = c<0x8000 && 非标点` 把连续汉字当成**一个词**
+（实测一句话被切成最长 15 字的不可断块），导致长句无法换行。
+- 代价：`type1Punctuation` / `type2Punctuation` 两串配置**失活**（仅在该开关为 true 时读取）。
+- 若日后要"数字/英文不断行"，需改 C++ 让 `next_word` 对 CJK 按单字断，属独立小工程。
+
+### 12.4 `appdatadir` 空值 = 启动器开关失效（⚠ 发布前必改）
+
+- CoZ 原值 `Committee of Zero\RNDSteam`；**当前 CN 实机值是空串** → LB 读 `%LOCALAPPDATA%\config.json`
+- 而 `LauncherC0.exe` 写的是 `%LOCALAPPDATA%\Committee of Zero\RNDSteam\config.json` → **两者不通**
+- 后果：**启动器里所有开关（泳装/鼠标/卡拉OK…）对 CN 补丁无效**
+- 修复：把 `patchdef.json` 的 `appdatadir` 设回 `Committee of Zero\RNDSteam`，
+  或自研启动器读写自己的目录。详见 `docs/打包清单.md` §4.3。
+
+### 12.5 白烤 ≠ 崩溃源
+
+实测各字号**无字形溢出**（size63 格 83px，最大墨迹 65px）；代码里 4 处
+`if (rows>cellSize||width>cellSize) { }` 的空块**上游 CoZ 原本就是空的**，非本分支删改。
+
+### 12.6 码表精简：只有 284 字可安全移除
+
+714 个未使用索引中，再排除"`cnscript` 里有用到"的，只剩 **284 个**可安全中和
+（图集 69 行 → 65 行，省 6.5%，约 417MB → 390MB）。需三处同步 + 全量重烤，**建议出正式包再做**。
+> 注意：不能按"未使用"直接删——删掉 `cnscript` 用到的字，`sc3tools` 重建会报 `CharNotInCharset`。
+
+### 12.7 其他工具经验
+
+- `sc3tools` 的 `extract-text` 默认会把**全角标点改半角**；往返前务必加 **`--preserve-fullwidth`**，
+  否则往返会失真（实测 `，`→`,`）。加了才是逐字节可控。
+- 仓库内 sc3tools 基线比上游旧（上游已改 JSON 驱动 gamedef），**不要直接 pull 上游**。
+
+### 12.8 相关文档
+
+- `docs/打包清单.md` —— 自研安装包的**包体清单**（含必须排除项、配置项、泳装模式）
+- `docs/补丁说明.md` —— 面向玩家的补丁说明（替换 CoZ 英文 `RNDPatch-README.txt`）
