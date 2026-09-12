@@ -1,4 +1,4 @@
 #include <windows.h>
 
-101 ICON "game.ico"
+101 ICON "uninstall.ico"
 1 24 "uninstall.manifest"

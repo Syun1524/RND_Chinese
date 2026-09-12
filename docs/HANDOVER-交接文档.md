@@ -496,15 +496,36 @@ cmd 按 OEM 代码页解析 REM 行，非 ASCII 会被截断成乱码命令（�
 内部或外部命令`）。
 
 
-## 14. 2026-09-12 追加：非 ASCII 路径导致补丁静默失效（重要）
+## 14. 2026-09-12 追加：目录名含分号导致补丁静默失效（已修复）
 
 ### 14.1 症状与根因
 
 补丁文件全部就位，游戏却显示原版语言（日/英），`languagebarrier/log.txt` 从不生成。
 不崩溃、不报错 —— 完全静默。
 
-**根因**：路径含非 ASCII 字符时，Windows 加载器**跳过本地 `dinput8.dll`**，回退到
-`C:\Windows\SysWOW64\dinput8.dll`，LanguageBarrier 从未启动。
+**根因（本日定死）**：目录名含分号 `;` 时，Windows 加载器把目录路径**按 `;` 切开**，
+把分号后面每一段当成**相对目录名**（相对游戏目录）再搜一遍。本地 `dinput8.dll`
+只有在那个子目录存在、且里面放了 DLL 时才会被加载。
+
+实测（`scripts/diagnostics/predict_mechanism.py`，三条可证伪预测全部命中）：
+
+| 目录名 | 分号后的片段 | 片段子目录 | 实际加载的 dinput8 |
+|---|---|---|---|
+| `RNDt` | （无） | — | 本地 ✓ |
+| `RND;t` | `t` | 不存在 | 系统 ✗ |
+| `RND;t` + 建了 `t\` 放 DLL | `t` | 存在 | 本地 ✓ |
+| `RND;A1;B2` + 只建 `B2\` | `A1`/`B2` | `B2` 存在 | 本地 ✓（任一片段命中即可） |
+
+**长度和中文都不是变量。** 本节早先写过"非 ASCII 导致"、后来又改成"分号+长路径"，
+**两次都是错的** —— 各自从一个同时变动了多个变量的样本推出来。
+`isolate_mechanism.py` 一次只改一个变量（短/长 ASCII、短/长中文、有无分号），
+唯一与成败相关的只有分号。
+
+**这也解释了那个一直没解释的 `NOTES DaSH\` 子目录**：它是 **CoZ 原版补丁的 workaround**
+—— CoZ payload 里带着一个**写死名字**的 `NOTES DaSH\`（代理 DLL 全在里面，根目录反而没有），
+正是 Steam 正本目录名 `ROBOTICS;NOTES DaSH` 分号后的片段。
+把游戏目录改成副本后片段不再是 `NOTES DaSH`，那个目录就白带了 → 补丁静默不加载。
+（纯净游戏目录里**没有**这个子目录，两份母本都实测过。）
 
 ### 14.2 证据（modscan32 扫描运行中进程的模块）
 
@@ -512,36 +533,43 @@ cmd 按 OEM 代码页解析 REM 行，非 ASCII 会被截断成乱码命令（�
 
 | 游戏目录 | 进程实际加载的 dinput8.dll |
 |---|---|
-| `...\common\ROBOTICS;NOTES DaSH`（纯 ASCII） | `...\NOTES DaSH\DINPUT8.dll` ← 补丁 ✓ |
-| `...\common\ROBOTICS;NOTES DaSH -原版英文 副本 - 副本`（含中文） | `C:\WINDOWS\SYSTEM32\DINPUT8.dll` ← 系统 ✗ |
-| `...\common\ROBOTICS;NOTES DaSH -原版日语 副本 - 副本`（含中文） | `C:\WINDOWS\SYSTEM32\DINPUT8.dll` ← 系统 ✗ |
-| `D:\ZZGAME\ROBOTICS NOTES DaSH`（纯 ASCII，盗版旧版） | `...\DINPUT8.dll` ← 补丁 ✓ |
-
-**决定性实验**：同一个含中文的目录，改从 ASCII junction 进入 → 立刻变为加载本地 DLL。
-路径里带 `;`（Steam 的 `ROBOTICS;NOTES DaSH`）**不影响**，只有非 ASCII 才是触发条件。
+| `...\common\ROBOTICS;NOTES DaSH`（片段 `NOTES DaSH` 存在） | `...\NOTES DaSH\DINPUT8.dll` ← 补丁 ✓ |
+| `...\common\ROBOTICS;NOTES DaSH -原版英文 副本 - 副本`（片段不存在） | `C:\WINDOWS\SYSTEM32\DINPUT8.dll` ← 系统 ✗ |
+| `...\common\ROBOTICS;NOTES DaSH -原版日语 副本 - 副本`（片段不存在） | `C:\WINDOWS\SYSTEM32\DINPUT8.dll` ← 系统 ✗ |
+| `D:\ZZGAME\ROBOTICS NOTES DaSH`（无分号） | `...\DINPUT8.dll` ← 补丁 ✓ |
 
 > 排查陷阱：`tasklist /m` 对这类 32 位游戏进程**静默返回空**，64 位 PowerShell 也无法
 > 枚举 32 位进程模块 —— 两者都会让人误判。必须用自建的 32 位 toolhelp 工具
-> （`tmp_128/modscan32.cpp`，`modscan32.exe <pid> dinput`）。
+> （`scripts/diagnostics/modscan32.cpp`，`modscan32.exe <pid> dinput`）。
+>
+> 另一个陷阱：modscan32 的输出经管道会丢中文（`wprintf` 按 ANSI 代码页转换，
+> 中文目录名变成 `?`）。判读时只认 ASCII 子串（如 `steamapps`）。
 
-### 14.3 解决办法
+### 14.3 解决办法：安装器自动建片段子目录（已实现）
 
-为含中文的目录建 **ASCII junction**（不占空间，同卷内文件夹改名/移动后依然有效）：
+**补丁侧是能修的** —— 建一个与「分号后片段」同名的子目录、把代理 DLL 放进去即可。
+安装器按游戏目录名**实时算**片段名（`SemicolonFragments()`），装完自动建目录 +
+复制 8 个代理文件（`dinput8.dll` / `d3d9/d3d10/d3d10_1/d3d10core/d3d11` / `dxgi` /
+`VSFilter.dll`）。Steam 正本、任意副本、玩家改名后的目录全都自动兼容。
+**玩家不需要改名，也不需要 junction。**
 
-```bash
-python scripts/make_ascii_links.py            # 创建
-python scripts/make_ascii_links.py --remove   # 删除
-```
+卸载器同样算出这些片段（`g_fragDirs`），**逐文件**只删我们放进去的那 8 个名字，
+目录空了才删、非空保留 —— 绝不整树删（那些目录名来自玩家自己的目录名）。
+装完还有自检：片段子目录里没落到 `dinput8.dll` 就明确弹警告。
 
-| ASCII 入口 | 指向 |
-|---|---|
-| `...\common\RND_DaSH_steam` | `ROBOTICS;NOTES DaSH` |
-| `...\common\RND_DaSH_jp_copy` | `ROBOTICS;NOTES DaSH -原版日语 副本 - 副本` |
-| `...\common\RND_DaSH_en_copy` | `ROBOTICS;NOTES DaSH -原版英文 副本 - 副本` |
+`python scripts/make_ascii_links.py` 的 ASCII junction **仍可用但不是必需**
+（那是给命令行/自动化提供 ASCII 路径的便利，与加载无关）。
 
-玩家侧建议：**把游戏目录名改成纯 ASCII**（最彻底），或从上述入口启动。
+### 14.4 另一个 bug：重装后卸载残留代理 DLL（同日修复）
 
-### 14.4 排查经验（避免重复踩坑）
+对**已装过补丁**的目录再装一次时，安装器把那里的 `dinput8.dll / d3d9 / dxgi /
+VSFilter.dll …` 也当"既有文件"备份了；卸载器看到"备份里有"就按「安装前就存在 → 恢复」
+处理，于是把我们自己的补丁文件原样留下。修法：安装前**比对内容**，
+与 payload 根目录同名文件一致的（= 上次装的补丁）不备份。
+`scripts/diagnostics/test_reinstall_clean.py` 两个方向都测：
+装两次再卸载必须干净；外来 `dinput8.dll` 必须被**还原**而非删除。
+
+### 14.5 排查经验（避免重复踩坑）
 
 1. **判断补丁是否加载，看 `languagebarrier/log.txt` 是否生成** —— LB 一启动必写。
    不要用「进程是否还在」判断（加载失败会弹模态框，进程照样活着）。
@@ -551,5 +579,58 @@ python scripts/make_ascii_links.py --remove   # 删除
 4. **`patchdef.json` 与 `c0data.cls` 必须成套替换** —— fileRedirection 存的是数组下标，
    cls 行序一变索引全错位（曾导致标题 UI 整片空白：索引指到了角色模型文件）。
    `python scripts/deploy_patch.py` 成对部署 + 逐条校验重定向类型。
-5. **验证汉化别只看 OP 动画** —— 片头罗马字来自 `subs/mv_rnd_op001.ass`（CoZ 罗马字歌词轨），
+5. **下结论前先隔离变量** —— 这个坑被误判过三次（"中文""长路径""分号+长度"），
+   全是因为对照样本一次改了好几个变量。一次只动一个维度，其余保持不变。
+6. **验证汉化别只看 OP 动画** —— 片头罗马字来自 `subs/mv_rnd_op001.ass`（CoZ 罗马字歌词轨），
    与汉化是两条独立通路。
+
+
+## 15. 2026-09-12 晚追加：三个窗口统一 + 启动器修复 + 卸载器改名
+
+### 15.1 真正的"显示有问题"：三个 exe 都没声明 DPI 感知
+
+实测：系统 DPI 120（125%），窗口却报 96 —— Windows 把整个界面位图**拉伸 1.25 倍**
+（启动器客户区 1125×775 而逻辑只有 900×620）。后果是**发虚、边缘发糊**。
+
+三个 exe 现在都 `SetProcessDPIAware()` + 按真实 DPI 换算尺寸，绘制用
+`ScaleTransform` 缩放坐标系。要点：
+
+- `BltBit` 要用**物理**尺寸 —— 用逻辑值只拷左上角一块（主按钮整片消失，踩过）
+- 鼠标坐标要 `unscale()` 回逻辑再命中判定
+- **原生子控件是物理坐标**（安装器的 EDIT 目录框）：创建与 `WM_SIZE` 都要乘 S，
+  否则"看着对、点不准"
+
+### 15.2 启动器「开始游戏」被切
+
+`StartRect()` 右边界 = 660+250 = **910 > WIN_W 900**，手写死坐标超出窗口。
+改为由统一栅格反推（内容右边界 = WIN_W-32），窗口 900×620 → 820×580。
+
+顺带修：下拉列表原先会被随后绘制的「影片字幕」「开始游戏」**盖住**，
+现在所有控件画完再画下拉。
+
+### 15.3 卸载器改名 + 专用图标
+
+- 产品名 `RNDZhUninstall.exe` → **`卸载汉化.exe`**（源码文件名不变）
+- 图标换成**红底垃圾桶**（`uninstall.ico`，`scripts/make_uninstall_icon.py` 生成）
+- 配色从深色霓虹改成**纯白极简**（与安装器/启动器同一套常量），主按钮红色
+
+理由：两个 exe 名字太像又并排躺在游戏目录，点错的代价是**把汉化卸了**。
+
+> ★ **中文名不能写在 .bat 里** —— cmd 按 OEM 代码页逐行读批处理，`chcp 65001`
+> 只对"还没读到的行"生效，写成 LF 换行也会失效（两种都踩过：
+> 报 `'5001' 不是内部或外部命令`）。做法：bat 编译成 ASCII 名，
+> 再由 `setup/build/rename_uninstall.py` 改名（Python 处理 Unicode 路径没问题）。
+
+**升级路径**：安装器会清掉 `RNDZhUninstall.exe` 等旧名，否则老玩家升级后
+目录里会同时躺着新旧两个卸载器。`test_uninstaller_rename.py` 专测这条。
+
+### 15.4 排查陷阱：截图工具会骗人
+
+`shot.py` 原先按 `GetClientRect` 分配位图，但 **`PrintWindow` 画的是整个窗口**
+（含标题栏与边框）→ 底部被裁 → 看起来像"按钮被切了"，**为此白查了一轮 UI**。
+现在按窗口尺寸分配、再按客户区偏移裁出来。
+
+判断"控件被裁"之前，先用 `measure_window.py` 把**窗口矩形 / 客户区 / 客户区偏移**
+三个值都量出来再换算 —— 只看图像高度会算错一个标题栏（38 px）。
+
+抓图：`python scripts/diagnostics/shot_ui.py [setup|uninstall|launcher]`。

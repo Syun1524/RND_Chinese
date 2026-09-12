@@ -21,7 +21,12 @@ SETUP = (r"D:\DATA\tran\agent tran\9.6文本外工作\成品ing\setup"
 MASTER = r"D:\Ruanjian\Steam\steamapps\common\ROBOTICS;NOTES DaSH -原版英文 副本"
 TARGET = r"D:\Ruanjian\Steam\steamapps\common\RND_DaSH_en_copy"
 TEMP = os.environ.get("TEMP") or ""
-KEEP = {"RNDZhSetup.exe", "RNDZhUninstall.exe"}
+# 卸载器的产品名（中文，避免与 RNDZhLauncher.exe 混淆而误点）
+UNINSTALLER = "卸载汉化.exe"
+# 补丁装完后游戏目录里会留下这两个（工具自身，设计如此）；
+# 卸载器的产品名是中文「卸载汉化.exe」——它与 RNDZhLauncher.exe 名字太像，
+# 旧名 RNDZhUninstall.exe 已弃用（玩家容易点错成卸载）。
+KEEP = {"RNDZhSetup.exe", "卸载汉化.exe", "RNDZhUninstall.exe"}
 
 
 def md5(p):
@@ -56,7 +61,12 @@ def z7_dirs():
 
 
 def patch_left(root):
-    """还有哪些补丁痕迹（用于等待卸载真正完成）"""
+    """还有哪些补丁痕迹（用于等待卸载真正完成）
+
+    注：`NOTES DaSH\\dinput8.dll` 这条只对**含分号**的目录（如 Steam 正本）有意义 ——
+    加载器会去「分号后片段同名」的子目录找 DLL，安装器就在那里建一个。
+    对无分号的目录这条永不命中，留着无害（多一条"必须消失"的判据而已）。
+    """
     marks = ["dinput8.dll", "VSFilter.dll", "RNDZhLauncher.exe",
              "d3d9", "d3d10", "d3d10_1", "d3d10core", "d3d11", "dxgi",
              "languagebarrier", os.path.join("NOTES DaSH", "dinput8.dll"),
@@ -111,7 +121,7 @@ print("\n[0] 纯净母本: %d 文件" % len(master))
 
 # 先卸载到纯净
 print("\n[1] 归零")
-ui = os.path.join(TARGET, "RNDZhUninstall.exe")
+ui = os.path.join(TARGET, UNINSTALLER)
 if os.path.exists(ui):
     subprocess.run(["powershell", "-NoProfile", "-Command",
                     "$p=Start-Process -FilePath '%s' -ArgumentList '/silent' "
@@ -131,10 +141,16 @@ ps = ("$p=Start-Process -FilePath '%s' -ArgumentList '-y','\"%s\"','/silent' "
 r = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
                    capture_output=True, text=True, encoding="utf-8", errors="replace")
 print("  启动 pid=%s" % (r.stdout or "").strip())
+# 判断"补丁落盘"看的是 languagebarrier/ —— 不要盯 NOTES DaSH\。
+# TARGET 是个 junction（RND_DaSH_en_copy，名字里没有分号），加载器直接用根目录那份，
+# 安装器也就**不会**建任何片段子目录。以前这里查 NOTES DaSH\dinput8.dll 能过，
+# 只是因为 payload 里恰好预置了那个目录（2026-09-12 已移除，实测它冗余）——
+# 于是这个检查条件本身是错的，改成查真正必然存在的补丁目录。
 ok = False
 for i in range(100):
     time.sleep(2)
-    if os.path.exists(os.path.join(TARGET, "NOTES DaSH", "dinput8.dll")):
+    if (os.path.exists(os.path.join(TARGET, "languagebarrier", "patchdef.json"))
+            and os.path.exists(os.path.join(TARGET, "dinput8.dll"))):
         ok = True
         print("  第 %d 秒：补丁落盘" % ((i + 1) * 2))
         break
@@ -170,7 +186,7 @@ if st:
 print("\n[4] 卸载")
 time.sleep(2)
 ps2 = ("$p=Start-Process -FilePath '%s' -ArgumentList '/silent' -Verb RunAs "
-       "-PassThru; $p.Id" % os.path.join(TARGET, "RNDZhUninstall.exe"))
+       "-PassThru; $p.Id" % os.path.join(TARGET, UNINSTALLER))
 subprocess.run(["powershell", "-NoProfile", "-Command", ps2],
                capture_output=True)
 for _ in range(120):

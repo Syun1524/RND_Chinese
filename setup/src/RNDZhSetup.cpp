@@ -65,11 +65,11 @@ static std::wstring g_gameVer;     // 一行状态提示（如「已找到游戏
 // 之前手绘输入框只能处理 ASCII 按键，打中文/粘贴都不行。
 static const int ID_EDIT_DIR = 1001;   // 目录 EDIT 控件 ID
 static LRESULT CALLBACK EditSubclass(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
-static std::wstring PathLoadWarning(const std::wstring& d);
+static std::wstring PathLoadNotice(const std::wstring& d);
 static void RefreshDirHint();          // EditSubclass 会用到
 static HWND g_hEdit = nullptr;
 static bool g_syncingEdit = false;   // 防止 文本变更 与 设置文本 互相触发
-static bool g_pathBad = false;      // 目标路径会导致补丁加载不了（含分号+长）
+static bool g_pathBad = false;      // 目录名含分号（安装时自动建兼容子目录，仅提示用）
 
 // ───────────────────────── 工具 ─────────────────────────
 static bool Exists(const std::wstring& p) {
@@ -84,6 +84,17 @@ static std::wstring Join(const std::wstring& a, const std::wstring& b) {
   if (a.back() == L'\\') return a + b;
   return a + L"\\" + b;
 }
+
+// 规整路径用于**显示**：统一分隔符 + 盘符大写。
+// 为什么需要：Steam 注册表里的 SteamPath 可能是 `d:/ruanjian/steam`（小写盘符 + 正斜杠），
+// 直接拼出来就是 `d:/ruanjian/steam\steamapps\common\...` 这种混合样子，
+// 在界面里看着像坏掉的路径（实际能用）。只影响显示，不改内部用的字符串。
+static std::wstring PrettyPath(const std::wstring& p) {
+  std::wstring s = p;
+  for (auto& c : s) if (c == L'/') c = L'\\';
+  if (s.size() >= 2 && s[1] == L':') s[0] = (wchar_t)towupper(s[0]);
+  return s;
+}
 static std::wstring ExeDir() {
   wchar_t buf[MAX_PATH]; GetModuleFileNameW(nullptr, buf, MAX_PATH);
   std::wstring s(buf); size_t p = s.find_last_of(L'\\');
@@ -92,6 +103,31 @@ static std::wstring ExeDir() {
 static std::wstring FileName(const std::wstring& p) {
   size_t s = p.find_last_of(L"\\/");
   return s == std::wstring::npos ? p : p.substr(s + 1);
+}
+
+// 两个文件内容是否相同（用于判断"这文件是不是我们自己上次装进去的"）
+static bool SameContents(const std::wstring& a, const std::wstring& b) {
+  HANDLE ha = CreateFileW(a.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (ha == INVALID_HANDLE_VALUE) return false;
+  HANDLE hb = CreateFileW(b.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (hb == INVALID_HANDLE_VALUE) { CloseHandle(ha); return false; }
+  LARGE_INTEGER sa, sb;
+  bool same = GetFileSizeEx(ha, &sa) && GetFileSizeEx(hb, &sb) && sa.QuadPart == sb.QuadPart;
+  if (same) {
+    char ba[65536], bb[65536];
+    for (;;) {
+      DWORD na = 0, nb = 0;
+      if (!ReadFile(ha, ba, sizeof(ba), &na, nullptr) ||
+          !ReadFile(hb, bb, sizeof(bb), &nb, nullptr) || na != nb) { same = false; break; }
+      if (na == 0) break;
+      if (memcmp(ba, bb, na) != 0) { same = false; break; }
+    }
+  }
+  CloseHandle(ha);
+  CloseHandle(hb);
+  return same;
 }
 
 // 存档目录里唯一存在的语言（eng / jpn）。这是玩家实际在用的语言，最可信；
@@ -150,27 +186,67 @@ static bool ValidGameDir(const std::wstring& d) {
   return Exists(Join(d, L"Game.exe")) && Exists(Join(d, L"script.cpk"));
 }
 
-// 检查目标路径是否会【静默失效】—— 本补丁最重要的环境前提。
+// 玩家目录名里有分号（;）时，加载器怎么找本地 DLL —— 本补丁最重要的环境事实。
 //
 // 游戏静态导入 DINPUT8.dll，靠 Windows 加载器在 exe 所在目录找到我们的代理 DLL。
-// 实测（modscan32 扫描运行中进程的已加载模块）：
+// 目录名**含分号**时，加载器把目录路径按 `;` 切开，**分号后面每一段都被当成相对
+// 目录名**，相对游戏目录再搜一遍；只有那个子目录存在且放了 DLL，补丁才会启动。
 //
-//   启动路径                                      实际加载的 dinput8
-//   ...\common\RND_probe_noSemi\（无分号）        本地的 ✓
-//   ...\ROBOTICS;NOTES DaSH -原版英文 副本 - 副本   C:\WINDOWS\SYSTEM32\  ✗
+// 实测（scripts/diagnostics/predict_mechanism.py，三条预测全部命中）：
 //
-// 即：**路径含分号 `;` 且较长时，加载器跳过本地 DLL**，补丁从未启动 ——
-// 不崩溃、不报错，只是游戏显示原版语言。因为 Steam 目录名本身带 `;`
-// （ROBOTICS;NOTES DaSH），从它复制出来的副本几乎都会中招。
+//   目录名                分号后的片段   片段子目录     实际加载的 dinput8
+//   RNDt                  （无）         —            本地 ✓
+//   RND;t                 t              不存在        系统 ✗
+//   RND;t 且建了 t\ 子目录  t              存在          本地 ✓（从 t\ 里加载）
+//   RND;NOTES DaSH        NOTES DaSH     已存在        本地 ✓（从 NOTES DaSH\ 加载）
 //
-// 返回空 = 没问题；否则返回给用户的提示。
-static std::wstring PathLoadWarning(const std::wstring& d) {
-  if (d.find(L';') == std::wstring::npos) return L"";   // 无分号 → 安全
-  // 路径短时实测可正常加载（Steam 正本即如此），只有长路径才踩雷。
-  if (d.size() <= 55) return L"";
-  return L"⚠ 路径含分号（;）且较长，补丁可能加载不了。\n"
-         L"请改用不含分号的短路径启动游戏：把游戏目录改名，或建一个 ASCII 入口（junction）。\n"
-         L"这是 Windows 加载器行为，补丁侧无法规避。";
+// 长度与中文都不影响（早先记的"长路径""中文导致"都是从一个混了多个变量的样本
+// 推出来的误判，separate_variables 实测：短/长 × 有/无中文 全部通过，
+// 唯一决定成败的是分号）。
+//
+// **所以补丁侧是可以修的**：把分号后的片段名建成子目录、把代理 DLL 放进去即可。
+// CoZ 原版补丁其实一直在这么做 —— 它的 payload 里带着一个写死名字的 `NOTES DaSH\`
+// 子目录，那正是 Steam 正本目录名 `ROBOTICS;NOTES DaSH` 分号后的片段。
+// 只是写死了，玩家一旦把游戏目录改名（做副本）就失效，补丁便"静默不加载"。
+//
+// 下面把它推广成按实际目录名计算，任何名字都能自动兼容 ——
+// 因此**我们自己不再需要在 payload 里预置那个目录**（2026-09-12 已移除，实测冗余：
+// 见 scripts/diagnostics/probe_notes_subdir.py，装到 Steam 正本时由这里现算现建）。
+// 归档在 成品ing/_backup/notes_dash_hardcoded_20260912/。
+static std::vector<std::wstring> SemicolonFragments(const std::wstring& d) {
+  std::vector<std::wstring> out;
+  std::wstring name = FileName(d);
+  size_t p = name.find(L';');
+  while (p != std::wstring::npos) {
+    size_t q = name.find(L';', p + 1);
+    std::wstring seg = (q == std::wstring::npos) ? name.substr(p + 1)
+                                                 : name.substr(p + 1, q - p - 1);
+    p = q;
+    // Win32 建目录时会静默去掉尾随的点/空格，那样子目录名与片段对不上、白建，跳过
+    while (!seg.empty() && (seg.back() == L' ' || seg.back() == L'.')) seg.pop_back();
+    if (!seg.empty()) out.push_back(seg);
+  }
+  return out;
+}
+
+// 代理文件：游戏静态导入 dinput8；dxgi/d3d* 是 DXVK 的；VSFilter 是字幕渲染。
+// 片段子目录里各放一份 —— 路径含分号时，根目录那份压根进不了加载器的搜索路径。
+static const wchar_t* kProxyFiles[] = {
+  L"dinput8.dll", L"d3d9", L"d3d10", L"d3d10_1", L"d3d10core", L"d3d11", L"dxgi",
+  L"VSFilter.dll" };
+
+// 给用户看的一行提示。注意措辞：以前这里写的是"补丁侧无法规避"，现已证实可以规避，
+// 安装时会自动建子目录兼容，所以只需要告知，不再需要吓唬用户去改名。
+static std::wstring PathLoadNotice(const std::wstring& d) {
+  std::vector<std::wstring> frags = SemicolonFragments(d);
+  if (frags.empty()) return L"";
+  std::wstring s = L"路径含分号，将自动建 ";
+  for (size_t i = 0; i < frags.size(); i++) {
+    if (i) s += L"、";
+    s += frags[i] + L"\\";
+  }
+  s += L" 兼容";
+  return s;
 }
 
 // 在常见位置找游戏
@@ -419,18 +495,60 @@ static bool RunInstall() {
   // （实测为此在 steamapps/common 下散落了 41 个 _cn_patch_backup_*）。
   std::wstring bak = Join(g_gameDir, stamp);
   CreateDirectoryW(bak.c_str(), nullptr);
-  // 备份将被覆盖的既有文件（根目录 + NOTES DaSH 子目录）。
-  // 注意 dinput8.dll / DXVK 实际生效位置是 NOTES DaSH\（游戏从那里加载），
-  // 根目录那份只是双保险，两处都要备份才能完整还原。
-  const wchar_t* keep[] = { L"boot.bat", L"dinput8.dll", L"VSFilter.dll",
-                            L"d3d9", L"d3d10", L"d3d10_1", L"d3d10core", L"d3d11", L"dxgi" };
-  for (auto n : keep) {
+  // 备份将被覆盖的既有文件（根目录 + 分号路径兼容子目录）。
+  //
+  // ★ 别备份"已经是我们自己"的文件 —— 重装时那个位置本来就是我们上次装的补丁，
+  //   备份它没有意义，而且会害了卸载：卸载器看到"备份里有这个文件"就当作
+  //   "安装前就存在"去**恢复**它，于是补丁文件被原样留下，卸载不干净。
+  //   （实测：对已装过补丁的目录再装一次，卸载后 dinput8/d3d9/dxgi/VSFilter
+  //     都还留在游戏目录里，而纯净母本并没有这些文件。）
+  //   判据用内容比对：payload 里有同名文件、且内容一致 → 是自己人，不备份。
+  //   内容不同说明玩家装的是别家的补丁/原版文件，那必须备份，卸载时得以还原。
+  //
+  //   注意比对的是 payload **根目录**的同名文件，不是相同相对路径 ——
+  //   兼容子目录里的那份正是我们从根目录拷进去的（见步骤 6.5），
+  //   payload 里压根没有那个子目录，按相对路径找会一律找不到。
+  auto IsOursAlready = [&](const std::wstring& candidate) {
+    std::wstring inPayload = Join(g_srcDir, FileName(candidate));
+    return Exists(inPayload) && SameContents(candidate, inPayload);
+  };
+  // 代理文件（不含 boot.bat）：装完会被我们的版本覆盖，卸载时该删除而不是恢复，
+  // 所以"内容已经是我们自己的"时候不备份。
+  const wchar_t* proxyKeep[] = { L"dinput8.dll", L"VSFilter.dll",
+                                 L"d3d9", L"d3d10", L"d3d10_1", L"d3d10core",
+                                 L"d3d11", L"dxgi" };
+  for (auto n : proxyKeep) {
     std::wstring s = Join(g_gameDir, n);
-    if (Exists(s)) CopyFileW(s.c_str(), Join(bak, n).c_str(), FALSE);
-    std::wstring s2 = Join(Join(g_gameDir, L"NOTES DaSH"), n);
-    if (Exists(s2)) {
-      CreateDirectoryW(Join(bak, L"NOTES DaSH").c_str(), nullptr);
-      CopyFileW(s2.c_str(), Join(Join(bak, L"NOTES DaSH"), n).c_str(), FALSE);
+    if (!Exists(s)) continue;
+    if (IsOursAlready(s)) continue;              // 上次装的补丁，不备份
+    CopyFileW(s.c_str(), Join(bak, n).c_str(), FALSE);
+  }
+  // boot.bat 单独处理：它是**游戏自己的文件**（我们只改写内容），
+  // 卸载时必须还原成原版那行 launcher.exe —— 所以它永远要备份，不做内容比对
+  // （比对反而会误判：boot.bat 在"已装过补丁"的目录里内容也跟我们写的一样，
+  //   但它不是补丁文件，卸载后不能删掉）。
+  {
+    std::wstring s = Join(g_gameDir, L"boot.bat");
+    if (Exists(s)) CopyFileW(s.c_str(), Join(bak, L"boot.bat").c_str(), FALSE);
+  }
+  // 子目录清单：按当前目录名算出来的分号片段 + 硬编码的 NOTES DaSH
+  //（后者兼容早期版本留下的目录；重名去重，免得同一份文件备份两次）
+  {
+    std::vector<std::wstring> subs = SemicolonFragments(g_gameDir);
+    bool hasNotes = false;
+    for (auto& s : subs) if (_wcsicmp(s.c_str(), L"NOTES DaSH") == 0) hasNotes = true;
+    if (!hasNotes) subs.push_back(L"NOTES DaSH");
+    for (auto& sub : subs) {
+      // 别把备份目录自己（_cn_patch_backup_*）当成兼容子目录
+      if (sub.rfind(L"_cn_patch_backup", 0) == 0) continue;
+      if (!IsDir(Join(g_gameDir, sub))) continue;
+      for (auto n : proxyKeep) {
+        std::wstring s2 = Join(Join(g_gameDir, sub), n);
+        if (!Exists(s2)) continue;
+        if (IsOursAlready(s2)) continue;         // 同理：自己人不备份
+        CreateDirectoryW(Join(bak, sub).c_str(), nullptr);
+        CopyFileW(s2.c_str(), Join(Join(bak, sub), n).c_str(), FALSE);
+      }
     }
   }
   if (!Exists(Join(g_gameDir, L"_cn_patch_boot_orig.bat")) && Exists(Join(g_gameDir, L"boot.bat")))
@@ -454,7 +572,7 @@ static bool RunInstall() {
   // 6) 复制
   g_copied = 0;
   for (auto& t : g_tasks) {
-    // 安装器自己不需要进游戏目录 —— 卸载靠 RNDZhUninstall.exe，
+    // 安装器自己不需要进游戏目录 —— 卸载靠「卸载汉化.exe」，
     // 重装直接再跑一次安装包即可。留着它只是多一个看不懂的文件。
     if (t.second == L"f" && FileName(t.first) == L"RNDZhSetup.exe") continue;
     if (!CopyOne(t.first, t.second == L"d")) {
@@ -470,6 +588,24 @@ static bool RunInstall() {
     }
   }
 
+  // 6.5) 目录名含分号时，补一个「分号后片段同名」的子目录，把代理 DLL 放进去。
+  //      加载器把目录名按 `;` 切开后，是拿这些片段当**相对目录名**去搜的，
+  //      所以本地 DLL 只有放进去才会被加载（机制见 SemicolonFragments 的注释）。
+  //      名字按 g_gameDir 实时算，Steam 正本 / 任意副本 / 用户改名后的目录都能自动兼容。
+  {
+    std::vector<std::wstring> frags = SemicolonFragments(g_gameDir);
+    if (!frags.empty()) SetStatus(L"正在写入分号路径兼容目录…", 95);
+    for (auto& frag : frags) {
+      std::wstring sub = Join(g_gameDir, frag);
+      CreateDirectoryW(sub.c_str(), nullptr);
+      if (!IsDir(sub)) continue;          // 建不出来（名字非法/权限）就跳过，下面还有 step 9 兜底
+      for (auto n : kProxyFiles) {
+        std::wstring src = Join(g_gameDir, n);
+        if (Exists(src)) CopyFileW(src.c_str(), Join(sub, n).c_str(), FALSE);
+      }
+    }
+  }
+
   // 7) 写回 boot.bat
   SetStatus(L"正在完成…", 97);
   {
@@ -478,18 +614,43 @@ static bool RunInstall() {
     f << "@echo off\r\n\r\nstart launcher.exe " << (lang == L"EN" ? "EN" : "JP") << "\r\n";
   }
 
-  // 8) 清掉历史安装留下的安装器副本。
-  //    旧版本会把 RNDZhSetup.exe 一起拷进游戏目录；它没有任何用处
-  //    （卸载靠 RNDZhUninstall.exe，重装直接再跑一次安装包）。
+  // 8) 清掉历史安装留下的残留。
+  //    · RNDZhSetup.exe —— 旧版本会把它一起拷进游戏目录；没有任何用处
+  //      （重装直接再跑一次安装包），留着只是多一个看不懂的文件。
+  //    · RNDZhUninstall.exe —— 卸载器**旧名**。新版改名成「卸载汉化.exe」
+  //      （旧名与 RNDZhLauncher.exe 太像，容易误点成卸载）。
+  //      升级安装时这里不清，游戏目录里会同时躺着新旧两个卸载器。
   //    只删「不是我正在运行的那一份」—— 比较**完整路径**，不能只比文件名，
   //    否则从游戏目录内运行时会把两者视为同一个而永远跳过。
   {
     wchar_t self[MAX_PATH]; GetModuleFileNameW(nullptr, self, MAX_PATH);
-    std::wstring stale = Join(g_gameDir, L"RNDZhSetup.exe");
     std::wstring selfPath = self;
-    if (Exists(stale) && _wcsicmp(stale.c_str(), selfPath.c_str()) != 0) {
-      SetFileAttributesW(stale.c_str(), FILE_ATTRIBUTE_NORMAL);
-      DeleteFileW(stale.c_str());
+    const wchar_t* staleNames[] = { L"RNDZhSetup.exe", L"RNDZhUninstall.exe",
+                                    L"RNDZh-Uninstall.exe" };
+    for (auto n : staleNames) {
+      std::wstring stale = Join(g_gameDir, n);
+      if (Exists(stale) && _wcsicmp(stale.c_str(), selfPath.c_str()) != 0) {
+        SetFileAttributesW(stale.c_str(), FILE_ATTRIBUTE_NORMAL);
+        DeleteFileW(stale.c_str());
+      }
+    }
+  }
+
+  // 9) 自检：路径含分号时，确认片段子目录里真的有 dinput8.dll。
+  //    这一步是给"静默失效"兜底的 —— 加载器找不到本地 DLL 时，游戏不会报错，
+  //    只是显示原版语言，玩家和我们都发现不了（这个坑排查了很久）。
+  //    所以宁可这里明确报一次错，也不要装完等玩家来反馈"补丁没用"。
+  {
+    std::vector<std::wstring> frags = SemicolonFragments(g_gameDir);
+    for (auto& frag : frags) {
+      std::wstring probe = Join(Join(g_gameDir, frag), L"dinput8.dll");
+      if (!Exists(probe)) {
+        std::wstring msg = L"安装已完成，但无法写入兼容目录：\n" + Join(g_gameDir, frag) +
+            L"\n\n该目录名的分号会让 Windows 加载器跳过本地 dinput8.dll，"
+            L"补丁将不会生效。\n\n请把游戏目录改成一个不含分号的名字后重新安装。";
+        MessageBoxW(g_hwnd, msg.c_str(), L"补丁可能不会生效", MB_ICONWARNING);
+        break;
+      }
     }
   }
 
@@ -535,6 +696,9 @@ static void TxtR(Graphics& g, const wchar_t* s, Font* f, const Color& c, const R
 
 // ── 布局（单一栅格：左边距 24，内容宽 432）──
 // 所有控件都从这几个常量推导，改窗口大小时不会散架。
+// 注意：这些是**逻辑**坐标。实际绘制时 Paint 会先 ScaleTransform 到物理像素，
+// 鼠标消息进来则用 unscale() 换回逻辑坐标；原生 EDIT 子控件是物理坐标，
+// 创建与 WM_SIZE 时都要乘 S。三处不一致就会「看着对、点不准」。
 static const float PAD = 24.f;                       // 左右边距
 static const float CW  = (float)WIN_W - PAD * 2;     // 内容宽度
 static RectF TitleRect()   { return RectF(PAD, 18.f, CW, 26.f); }
@@ -547,19 +711,37 @@ static RectF StatusRect()  { return RectF(PAD, 166.f, CW, 18.f); }
 static RectF InstallRect() { return RectF(PAD + CW - 196.f, WIN_H - 54.f, 96.f, 34.f); }
 static RectF CancelRect()  { return RectF(PAD + CW - 92.f, WIN_H - 54.f, 92.f, 34.f); }
 
+// DPI 缩放（三个窗口同一套做法）。安装器带原生 EDIT 子控件，所以除了绘制坐标，
+// 子控件的位置/尺寸也要按 S 换算 —— 见 SyncEditRect()。
+static float S = 1.0f;
+static inline float unscale(int v) { return (float)v / S; }
+
+// 把 EDIT 子控件摆到 FieldRect() 的位置（物理像素）
+static void SyncEditRect() {
+  if (!g_hEdit) return;
+  RectF f = FieldRect();
+  SetWindowPos(g_hEdit, nullptr,
+               (int)(f.X * S), (int)(f.Y * S),
+               (int)(f.Width * S), (int)(f.Height * S),
+               SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
 static void Paint(HDC hdc) {
   RECT rc; GetClientRect(g_hwnd, &rc);
+  const int pw = rc.right, ph = rc.bottom;
   HDC mem = CreateCompatibleDC(hdc);
-  HBITMAP bmp = CreateCompatibleBitmap(hdc, rc.right, rc.bottom);
+  HBITMAP bmp = CreateCompatibleBitmap(hdc, pw, ph);
   HBITMAP old = (HBITMAP)SelectObject(mem, bmp);
   {
     Graphics g(mem);
     g.SetSmoothingMode(SmoothingModeAntiAlias);
     g.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
-    SolidBrush bg(C_BG); g.FillRectangle(&bg, 0, 0, rc.right, rc.bottom);
+    g.ScaleTransform((float)pw / WIN_W, (float)ph / WIN_H);
+    S = (float)pw / WIN_W;
+    SolidBrush bg(C_BG); g.FillRectangle(&bg, 0, 0, WIN_W, WIN_H);
 
     // 顶部标题条（浅灰 + 图标 + 标题一行）
-    SolidBrush panel(C_PANEL); g.FillRectangle(&panel, 0, 0, rc.right, 54);
+    SolidBrush panel(C_PANEL); g.FillRectangle(&panel, 0, 0, WIN_W, 54);
     if (g_iconBmp) {
       GraphicsPath clip; float d0 = 10;
       RectF ib(PAD, 14, 26, 26);
@@ -626,11 +808,13 @@ static void Paint(HDC hdc) {
       TxtR(g, g_done ? L"关闭" : L"取消", F(14), C_TEXT, cr, 1, 1);
     }
   }
-  BitBlt(hdc, 0, 0, rc.right, rc.bottom, mem, 0, 0, SRCCOPY);
+  BitBlt(hdc, 0, 0, pw, ph, mem, 0, 0, SRCCOPY);
   SelectObject(mem, old); DeleteObject(bmp); DeleteDC(mem);
 }
 
-static int Hit(int x, int y) {
+// 命中判定：入参是**物理**像素（鼠标消息给的），先换回逻辑坐标再比。
+static int Hit(int px, int py) {
+  int x = (int)unscale(px), y = (int)unscale(py);
   auto in = [&](const RectF& r) {
     return x >= r.X && x <= r.GetRight() && y >= r.Y && y <= r.GetBottom();
   };
@@ -647,7 +831,8 @@ static int Hit(int x, int y) {
 static void PushDirToEdit() {
   if (!g_hEdit) return;
   g_syncingEdit = true;
-  SetWindowTextW(g_hEdit, g_gameDir.c_str());
+  // 显示用规整过的路径（盘符大写、统一反斜杠）；g_gameDir 本身保持原样
+  SetWindowTextW(g_hEdit, PrettyPath(g_gameDir).c_str());
   g_syncingEdit = false;
 }
 
@@ -703,11 +888,12 @@ static void RefreshDirHint() {
   std::wstring lg = DetectLangFrom(g_gameDir);
   g_gameVer = (lg == L"EN") ? L"已找到游戏（英文版）" : L"已找到游戏（日文版）";
   if (Exists(Join(g_gameDir, L"languagebarrier\\patchdef.json")))
-    g_gameVer += L"，已装过补丁，将覆盖";
-  // 路径会让补丁静默失效时明确提示（原因见 PathLoadWarning 的注释）
-  if (!PathLoadWarning(g_gameDir).empty()) {
+    g_gameVer += L"，将覆盖旧补丁";
+  // 目录名含分号时告知会自动建兼容子目录（不再阻止安装，也不需要用户改名）。
+  // 文案要短：这行是单行绘制、不换行，太长会顶出窗口右边。
+  if (!PathLoadNotice(g_gameDir).empty()) {
     g_pathBad = true;
-    g_gameVer = L"⚠ 该路径含分号且较长，补丁装了也加载不了（点「安装」看解决办法）";
+    g_gameVer += L"（路径含分号，已自动兼容）";
   }
 }
 
@@ -743,16 +929,9 @@ static void PickFolder() {
 
 
 static void OnInstall() {
-  // 路径有问题时，先把"装上也加载不了"讲清楚，让用户自己决定。
-  // 不做静默阻止 —— 万一将来 Windows 改了行为，用户仍能选择继续。
-  std::wstring warn = PathLoadWarning(g_gameDir);
-  if (!warn.empty()) {
-    std::wstring msg = warn +
-        L"\n\n仍然要继续安装吗？（装完后需要从未含分号的路径启动游戏）";
-    if (MessageBoxW(g_hwnd, msg.c_str(), L"路径会导致补丁失效",
-                    MB_YESNO | MB_ICONWARNING) != IDYES)
-      return;
-  }
+  // 目录名含分号时不再阻止安装 —— 安装过程会自动把分号后的片段名建成子目录，
+  // 把代理 DLL 放进去，加载器就能找到（机制见 SemicolonFragments 的注释）。
+  // 以前这里会弹窗要用户自己改名或建 junction，那是在"无法规避"的误判下写的。
   g_pct = 0; g_failed = false;
   if (!RunInstall()) { g_failed = true; g_done = false; }
   else g_done = true;
@@ -1000,8 +1179,16 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   RegisterClassExW(&wc);
 
   DWORD style = WS_OVERLAPPEDWINDOW & ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
+  // DPI 感知：先声明，再按真实 DPI 换算客户区尺寸（否则 125% 下被位图拉伸变糊）
+  SetProcessDPIAware();
+  HDC screen = GetDC(nullptr);
+  float dpi = (float)GetDeviceCaps(screen, LOGPIXELSX);
+  ReleaseDC(nullptr, screen);
+  if (dpi <= 0) dpi = 96.f;
+  S = dpi / 96.f;
+  int cw = (int)(WIN_W * S + 0.5f), ch = (int)(WIN_H * S + 0.5f);
   int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
-  RECT r{ 0, 0, WIN_W, WIN_H };
+  RECT r{ 0, 0, cw, ch };
   AdjustWindowRect(&r, style, FALSE);
   int ww = r.right - r.left, wh = r.bottom - r.top;
   g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"ROBOTICS;NOTES DaSH 简体中文补丁 · 安装程序",
@@ -1011,16 +1198,20 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   // 目录框：原生 EDIT 子控件。
   // 它自带插入符、选区、剪贴板、输入法（中文输入）、自动横向滚动 ——
   // 之前手绘的输入框只能处理 ASCII 按键，用户反馈"打不了字"就是这个原因。
+  // 子控件用**物理**像素定位，所以 SyncEditRect() 里乘了 S。
   {
     RectF f = FieldRect();
+    std::wstring shown = PrettyPath(g_gameDir);   // 盘符大写 + 统一反斜杠
     g_hEdit = CreateWindowExW(
-        WS_EX_CLIENTEDGE, L"EDIT", g_gameDir.c_str(),
+        WS_EX_CLIENTEDGE, L"EDIT", shown.c_str(),
         WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
-        (int)f.X + 2, (int)f.Y + 2, (int)f.Width - 4, (int)f.Height - 4,
+        (int)(f.X * S), (int)(f.Y * S),
+        (int)(f.Width * S), (int)(f.Height * S),
         g_hwnd, (HMENU)ID_EDIT_DIR, hInst, nullptr);
     SendMessageW(g_hEdit, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
     SendMessageW(g_hEdit, EM_SETLIMITTEXT, MAX_PATH * 2, 0);
     SetWindowSubclass(g_hEdit, EditSubclass, 1, 0);
+    SyncEditRect();
   }
 
   DragAcceptFiles(g_hwnd, TRUE);     // 允许把游戏文件夹拖进窗口

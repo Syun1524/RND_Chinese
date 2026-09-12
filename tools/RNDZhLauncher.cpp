@@ -38,27 +38,42 @@
 // 资源文件 launcher.rc 引用，见 build_launcher.bat。
 
 // 注意：启动器【不】导入 DINPUT8.dll。
-// 补丁的 dinput8.dll 是代理 DLL，由 Game.exe 自身（它静态导入 DINPUT8.dll）
-// 从【NOTES DaSH\】加载（实测：放根目录无效），与启动器无关。
+// 补丁的 dinput8.dll 是代理 DLL，由 Game.exe 自身（它静态导入 DINPUT8.dll）加载，
+// 生效位置是「分号后片段同名」的子目录（路径含 `;` 时加载器按分号切开、把片段
+// 当相对目录搜）；无分号的目录则直接用根目录那份。详见 AGENTS.md「重大发现」。
+// 无论如何都与启动器无关。
 
 using namespace Gdiplus;
 
 // ───────────────────────── 配置（颜色/布局常量） ─────────────────────────
-static const int WIN_W = 900;
-static const int WIN_H = 620;
-static const int LEFT_W = 340;
+// 配色与安装器/卸载器保持一致（纯白极简）：白底、浅灰边框、深灰字、蓝色主按钮。
+// 三个窗口是一套东西，色调必须统一 —— 启动器以前是深色霓虹风，跟安装器对不上。
+static const int WIN_W = 820;
+static const int WIN_H = 580;
+static const int LEFT_W = 280;
 
 static const Color
-  C_BG     (255, 24, 27, 34),
-  C_PANEL  (255, 33, 38, 48),
-  C_HILITE (255, 44, 50, 63),
-  C_LINE   (255, 62, 70, 86),
-  C_TEXT   (255, 233, 236, 242),
-  C_DIM    (255, 150, 158, 172),
-  C_MUTED  (255, 104, 113, 128),
-  C_ACCENT (255, 64, 150, 255),
-  C_WHITE  (255, 255, 255, 255),
-  C_CHEK   (255, 236, 241, 248);
+  C_BG      (255, 255, 255, 255),   // 窗口底
+  C_PANEL   (255, 245, 246, 248),   // 左侧品牌区 / 悬停底
+  C_FIELD   (255, 255, 255, 255),   // 输入/下拉底色
+  C_BORDER  (255, 216, 220, 227),   // 边框
+  C_TEXT    (255,  31,  35,  40),   // 正文
+  C_DIM     (255, 107, 114, 128),   // 次要文字
+  C_MUTED   (255, 156, 163, 175),   // 更淡（禁用/提示）
+  C_ACCENT  (255,  11, 107, 203),   // 主按钮 / 勾选态
+  C_ACCENTH (255,  10,  95, 176),   // 主按钮悬停
+  C_HILITE  (255, 236, 240, 245),   // 下拉项悬停底
+  C_SEL     (255, 226, 238, 252),   // 下拉项"当前选中"底
+  C_WHITE   (255, 255, 255, 255);
+
+// ── DPI 缩放 ──
+// 三个 exe 以前都没声明 DPI 感知，系统 125% 缩放时 Windows 会把整个界面
+// 位图拉伸 1.25 倍 —— 文字发虚、边缘发糊（实测客户区 1125x775 而逻辑只有 900x620）。
+// 现在声明「系统 DPI 感知」，并把绘制坐标统一乘 S：界面物理尺寸不变，但变清晰。
+// 实现上用 GDI+ 的 ScaleTransform 一次性缩放坐标系，不用逐个坐标乘 ——
+// 布局常量保持逻辑值，看源码仍能直接算。
+static float S = 1.0f;                 // 缩放系数 = 窗口DPI / 96
+static inline float unscale(int v) { return (float)v / S; }   // 鼠标坐标 → 逻辑坐标
 
 // 设置项（「换装」是下拉，不在这组复选里）
 enum Opt { OPT_MOUSE=0, OPT_SCROLL_ADV, OPT_SCROLL_CLOSE, OPT_DXVK, OPT_COUNT };
@@ -344,36 +359,67 @@ static void DrawTxt(Graphics& g, const wchar_t* s, Font* f, const Color& c, floa
 
 // 勾选框（含对勾 / 空框）
 static void DrawCheck(Graphics& g, const RectF& box, bool on, bool hot) {
-  FillRR(g, box, 5, on ? C_ACCENT : C_HILITE);
-  if (!on) {
-    StrokeRR(g, box, 5, hot ? C_DIM : C_LINE, 1.4f);
-  } else {
-    Pen p(C_CHEK, 2.4f); p.SetStartCap(LineCapRound); p.SetEndCap(LineCapRound);
+  if (on) {
+    FillRR(g, box, 5, C_ACCENT);
+    Pen p(C_WHITE, 2.4f); p.SetStartCap(LineCapRound); p.SetEndCap(LineCapRound);
     g.DrawLine(&p, box.X + 5, box.Y + 11.5f, box.X + 9.5f, box.Y + 16);
     g.DrawLine(&p, box.X + 9.5f, box.Y + 16, box.X + 17.5f, box.Y + 5.5f);
+  } else {
+    FillRR(g, box, 5, C_FIELD);
+    StrokeRR(g, box, 5, hot ? C_DIM : C_BORDER, 1.4f);
   }
 }
 
 // 下拉框外框 + 当前值 + 箭头
 static void DrawComboFrame(Graphics& g, const RectF& cr, const wchar_t* value, bool hot) {
-  FillRR(g, cr, 7, C_HILITE);
-  StrokeRR(g, cr, 7, hot ? C_DIM : C_LINE, 1.f);
+  FillRR(g, cr, 7, C_FIELD);
+  StrokeRR(g, cr, 7, hot ? C_ACCENT : C_BORDER, hot ? 1.4f : 1.f);
   DrawTxt(g, value, F(16), C_TEXT, cr.X + 14, cr.Y + 8);
   float cx = cr.GetRight() - 18, cy = cr.Y + 18;
   SolidBrush db(C_DIM); PointF tri[3] = { {cx-5,cy-2},{cx+5,cy-2},{cx,cy+3} };
   g.FillPolygon(&db, tri, 3);
 }
 
+// 下拉展开的选项列表（单独一个函数，便于最后绘制 —— 见 Paint 里的 z 序说明）。
+// 注意：ItemRect 定义在下面（几何区），所以本函数声明在前、实现放在几何之后。
+static void DrawComboItems(Graphics& g, const RectF& base, int n,
+                           const wchar_t* const* labels, int sel, int idBase, int hot);
+
 // ── 几何 ──
-// 4 个复选框（78 + i*46），底部 78+3*46+40 = 256
-static RectF OptRect(int i)   { return RectF(LEFT_W + 44.f, 78.f + i * 46.f, 400.f, 30.f); }
-static RectF OutfitRect()     { return RectF(LEFT_W + 168.f, 306.f, 210.f, 36.f); }  // 换装
-static RectF ComboRect()      { return RectF(LEFT_W + 168.f, 400.f, 210.f, 36.f); }  // 影片字幕
-static RectF StartRect()      { return RectF(LEFT_W + 320.f, 490.f, 250.f, 60.f); }
-// 下拉一律【向下】展开（控件在窗口中上部，向上展开会算出负坐标跑到窗口外）。
-// 换装 5 项：344..514；字幕 3 项：438..540；窗口高 620 放得下。
+// 统一栅格：右边距 PAD_R = 32，内容右边界 = WIN_W - 32 = 788。
+// 以前这里是一堆手写死坐标，StartRect() = X660 + 宽250 → 右边界 910，
+// 而窗口只有 900 宽 —— 「开始游戏」按钮右边被切掉 10 px（实机截图可见）。
+// 现在全部由右边界反推，改窗口尺寸不会再散架。
+static const float PAD_R = 32.f;
+static const float RX = (float)LEFT_W + 36.f;      // 右栏内容左边界
+static const float RW = (float)WIN_W - PAD_R;      // 右栏内容右边界
+
+// 4 个复选框：行高 46（标题 17px + 灰色说明 12px）
+static RectF OptRect(int i)   { return RectF(RX, 64.f + i * 46.f, RW - RX, 30.f); }
+static RectF OutfitRect()     { return RectF(RX + 92.f, 292.f, RW - (RX + 92.f), 36.f); }
+static RectF ComboRect()      { return RectF(RX + 92.f, 386.f, RW - (RX + 92.f), 36.f); }
+// 主按钮：右下角对齐，宽 220 高 52，离底 28
+static RectF StartRect()      { return RectF(RW - 220.f, (float)WIN_H - 28.f - 52.f, 220.f, 52.f); }
+// 下拉一律【向下】展开。换装 5 项、字幕 3 项，展开时下面要留得下 ——
+// 窗口高度按「字幕框底 + 3 项 + 主按钮」反推（见 WIN_H）。
 static RectF ItemRect(const RectF& base, int k) {
   return RectF(base.X, base.GetBottom() + 2 + k * 34.f, base.Width, 34.f);
+}
+
+// 下拉列表的绘制（实现在这里，因为要用 ItemRect）
+static void DrawComboItems(Graphics& g, const RectF& base, int n,
+                           const wchar_t* const* labels, int sel, int idBase, int hot) {
+  // 先铺一层白底，避免选项和背景的分隔线/按钮混在一起
+  RectF box(base.X, base.GetBottom() + 2, base.Width, n * 34.f + 4);
+  FillRR(g, box, 6, C_FIELD);
+  for (int k = 0; k < n; k++) {
+    RectF ir = ItemRect(base, k);
+    bool isHot = (hot == idBase + k);
+    Color bg = isHot ? C_HILITE : (k == sel ? C_SEL : C_FIELD);
+    FillRR(g, RectF(ir.X + 1, ir.Y, ir.Width - 2, ir.Height), k == 0 ? 5.f : 0.f, bg);
+    DrawTxt(g, labels[k], F(16), k == sel ? C_ACCENT : C_TEXT, ir.X + 12, ir.Y + 7);
+  }
+  StrokeRR(g, box, 6, C_BORDER, 1.f);
 }
 
 // 命中 id：0..OPT_COUNT-1 选项 / 100+k subs / 200 开始 / 300 subs框
@@ -382,21 +428,28 @@ enum { ID_START = 200, ID_COMBO_SUBS = 300, ID_COMBO_OUTFIT = 500 };
 
 static void Paint(HDC hdc) {
   RECT rc; GetClientRect(g_hwnd, &rc);
+  // 物理客户区尺寸。声明 DPI 感知后 rc 就是物理像素；绘制时用 ScaleTransform
+  // 把坐标系缩放到逻辑尺寸，但 BitBlt 必须用物理尺寸往回拷。
+  const int pw = rc.right, ph = rc.bottom;
   HDC mem = CreateCompatibleDC(hdc);
-  HBITMAP bmp = CreateCompatibleBitmap(hdc, rc.right, rc.bottom);
+  HBITMAP bmp = CreateCompatibleBitmap(hdc, pw, ph);
   HBITMAP old = (HBITMAP)SelectObject(mem, bmp);
   {
     Graphics gr(mem);
     gr.SetSmoothingMode(SmoothingModeAntiAlias);
     gr.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
+    float sx = (float)pw / WIN_W, sy = (float)ph / WIN_H;
+    S = sx;
+    gr.ScaleTransform(sx, sy);
 
     SolidBrush bg(C_BG); gr.FillRectangle(&bg, 0, 0, rc.right, rc.bottom);
     SolidBrush panel(C_PANEL); gr.FillRectangle(&panel, 0, 0, LEFT_W, rc.bottom);
+    Pen edge(C_BORDER, 1.f); gr.DrawLine(&edge, LEFT_W, 0, LEFT_W, rc.bottom);
 
     // ── 左：品牌 ──
     if (g_iconBmp) {
-      GraphicsPath clip; float d0 = 28;
-      RectF ib(LEFT_W/2.f - 60, 96, 120, 120);
+      GraphicsPath clip; float d0 = 24;
+      RectF ib(LEFT_W/2.f - 56, 96, 112, 112);
       clip.AddArc(ib.X, ib.Y, d0, d0, 180, 90);
       clip.AddArc(ib.GetRight()-d0, ib.Y, d0, d0, 270, 90);
       clip.AddArc(ib.GetRight()-d0, ib.GetBottom()-d0, d0, d0, 0, 90);
@@ -406,17 +459,15 @@ static void Paint(HDC hdc) {
       gr.DrawImage(g_iconBmp, (INT)ib.X, (INT)ib.Y, (INT)ib.Width, (INT)ib.Height);
       gr.ResetClip();
     } else {
-      FillRR(gr, RectF(LEFT_W/2.f - 60, 96, 120, 120), 14, C_HILITE);
-      DrawTxt(gr, L"图标", F(14), C_MUTED, LEFT_W/2.f, 148, 1);
+      FillRR(gr, RectF(LEFT_W/2.f - 56, 96, 112, 112), 14, C_HILITE);
+      DrawTxt(gr, L"图标", F(14), C_MUTED, LEFT_W/2.f, 146, 1);
     }
-    DrawTxt(gr, L"ROBOTICS;NOTES DaSH", F(19,true), C_TEXT, LEFT_W/2.f, 240, 1);
-    DrawTxt(gr, L"简体中文补丁", F(18,true), Color(255,120,190,255), LEFT_W/2.f, 274, 1);
-    DrawTxt(gr, L"（暂定）", F(13), C_MUTED, LEFT_W/2.f, 300, 1);
-    DrawTxt(gr, L"v0.1", F(12), C_MUTED, LEFT_W/2.f, rc.bottom - 30, 1);
+    DrawTxt(gr, L"ROBOTICS;NOTES DaSH", F(17,true), C_TEXT, LEFT_W/2.f, 234, 1);
+    DrawTxt(gr, L"简体中文补丁", F(17,true), C_ACCENT, LEFT_W/2.f, 262, 1);
+    DrawTxt(gr, L"v0.1", F(12), C_MUTED, LEFT_W/2.f, rc.bottom - 28, 1);
 
     // ── 右：选项 ──
-    float rx = LEFT_W + 44.f;
-    DrawTxt(gr, L"选项", F(13), C_MUTED, rx, 46);
+    DrawTxt(gr, L"选项", F(13), C_MUTED, RX, 34);
     for (int i = 0; i < OPT_COUNT; i++) {
       RectF r = OptRect(i);
       bool on = st.on[i];
@@ -426,37 +477,34 @@ static void Paint(HDC hdc) {
     }
 
     // ── 换装 ──
-    Pen sep0(C_LINE, 1.f); gr.DrawLine(&sep0, rx, 286.f, (float)rc.right - 44, 286.f);
-    DrawTxt(gr, L"换装", F(17), C_DIM, rx, 315);
+    Pen sep0(C_BORDER, 1.f); gr.DrawLine(&sep0, RX, 272.f, RW, 272.f);
+    DrawTxt(gr, L"换装", F(17), C_TEXT, RX, 301);
     DrawComboFrame(gr, OutfitRect(), OUTFIT_LABEL[st.outfit], st.hot == ID_COMBO_OUTFIT);
     DrawTxt(gr, L"全员换成这套服装（各角色只换自己有的那套）",
-            F(12), C_MUTED, rx, 350);
-    if (st.comboOpen == 1) {
-      for (int k = 0; k < OUTFIT_N; k++) {
-        RectF ir = ItemRect(OutfitRect(), k);
-        FillRR(gr, ir, 6, (st.hot == 400 + k) ? C_ACCENT
-                            : (k == st.outfit ? C_HILITE : C_PANEL));
-        DrawTxt(gr, OUTFIT_LABEL[k], F(16), C_TEXT, ir.X + 12, ir.Y + 7);
-      }
-    }
+            F(12), C_MUTED, RX, 336);
 
-    Pen sep(C_LINE, 1.f); gr.DrawLine(&sep, rx, 380.f, (float)rc.right - 44, 380.f);
-    DrawTxt(gr, L"影片字幕", F(17), C_DIM, rx, 409);
+    Pen sep(C_BORDER, 1.f); gr.DrawLine(&sep, RX, 366.f, RW, 366.f);
+    DrawTxt(gr, L"影片字幕", F(17), C_TEXT, RX, 395);
     DrawComboFrame(gr, ComboRect(), SUBS_LABEL[st.subs], st.hot == ID_COMBO_SUBS);
-    if (st.comboOpen == 0) {
-      for (int k = 0; k < 3; k++) {
-        RectF ir = ItemRect(ComboRect(), k);
-        FillRR(gr, ir, 6, (st.hot == 100 + k) ? C_ACCENT : C_HILITE);
-        DrawTxt(gr, SUBS_LABEL[k], F(16), C_TEXT, ir.X + 12, ir.Y + 7);
-      }
-    }
 
+    // ── 主按钮 ──
     { RectF sr = StartRect();
-      FillRR(gr, sr, 10, (st.hot == ID_START) ? Color(255,96,178,255) : C_ACCENT);
-      SolidBrush w(C_WHITE); StringFormat sf; sf.SetAlignment(StringAlignmentCenter);
-      gr.DrawString(L"开始游戏", -1, F(20,true), sr, &sf, &w); }
+      FillRR(gr, sr, 8, (st.hot == ID_START) ? C_ACCENTH : C_ACCENT);
+      SolidBrush w(C_WHITE); StringFormat sf;
+      sf.SetAlignment(StringAlignmentCenter); sf.SetLineAlignment(StringAlignmentCenter);
+      gr.DrawString(L"开始游戏", -1, F(19,true), sr, &sf, &w); }
+
+    // ── 下拉列表最后画 ──
+    // 必须放在所有控件之后：展开的选项会盖住下面的分隔线与主按钮，
+    // 若按源码顺序（换装就在换装标题之后）绘制，会被后面画的「影片字幕」
+    // 和「开始游戏」覆盖，看起来像下拉框被切了一块。
+    if (st.comboOpen == 1)
+      DrawComboItems(gr, OutfitRect(), OUTFIT_N, OUTFIT_LABEL, st.outfit,
+                     400, st.hot);
+    else if (st.comboOpen == 0)
+      DrawComboItems(gr, ComboRect(), 3, SUBS_LABEL, st.subs, 100, st.hot);
   }
-  BitBlt(hdc, 0, 0, rc.right, rc.bottom, mem, 0, 0, SRCCOPY);
+  BitBlt(hdc, 0, 0, pw, ph, mem, 0, 0, SRCCOPY);
   SelectObject(mem, old); DeleteObject(bmp); DeleteDC(mem);
 }
 
@@ -513,10 +561,13 @@ static void LaunchGame() {
 }
 
 // ───────────────────────── 交互 ─────────────────────────
-static int HitTest(int x, int y) {
+// 注意：鼠标消息给的是**物理像素**，而布局是逻辑坐标，所以先 unscale 再比。
+static int HitTest(int px, int py) {
+  int x = (int)unscale(px), y = (int)unscale(py);
   auto in = [&](const RectF& r) {
     return x >= r.X && x <= r.GetRight() && y >= r.Y && y <= r.GetBottom();
   };
+  // 下拉优先：展开时它盖在下面的控件上，命中判定也必须先于它们
   if (st.comboOpen == 1) for (int k = 0; k < OUTFIT_N; k++) if (in(ItemRect(OutfitRect(), k))) return 400 + k;
   if (st.comboOpen == 0) for (int k = 0; k < 3; k++) if (in(ItemRect(ComboRect(), k))) return 100 + k;
   if (in(StartRect())) return ID_START;
@@ -593,11 +644,22 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   RegisterClassExW(&wc);
 
   DWORD style = WS_OVERLAPPEDWINDOW & ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
-  int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
-  RECT r{ 0, 0, WIN_W, WIN_H };
+  // DPI 感知：先声明，再按【当前窗口 DPI】换算客户区尺寸。
+  // 不声明的话 Windows 会把整个窗口位图拉伸（125% 缩放下发虚），
+  // 而且 SetProcessDPIAware 之后再取 DPI 才是真实值。
+  SetProcessDPIAware();
+  HDC screen = GetDC(nullptr);
+  float dpi = (float)GetDeviceCaps(screen, LOGPIXELSX);
+  ReleaseDC(nullptr, screen);
+  if (dpi <= 0) dpi = 96.f;
+  S = dpi / 96.f;
+
+  int cw = (int)(WIN_W * S + 0.5f), ch = (int)(WIN_H * S + 0.5f);
+  RECT r{ 0, 0, cw, ch };
   AdjustWindowRect(&r, style, FALSE);
   int ww = r.right - r.left, wh = r.bottom - r.top;
-  g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"ROBOTICS;NOTES DaSH 简体中文补丁（暂定）",
+  int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
+  g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"ROBOTICS;NOTES DaSH 简体中文补丁",
                            style, (sw - ww) / 2, (sh - wh) / 2, ww, wh,
                            nullptr, nullptr, hInst, nullptr);
   ShowWindow(g_hwnd, SW_SHOW); UpdateWindow(g_hwnd);

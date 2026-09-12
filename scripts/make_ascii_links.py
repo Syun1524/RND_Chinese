@@ -1,16 +1,26 @@
 # -*- coding: utf-8 -*-
-"""Create ASCII junction entry points for the CJK-named game folders.
+"""Create ASCII junction entry points for the game folders.
 
-Root cause (verified with modscan32 on the live process, see scripts/diagnostics/):
-  A local proxy dinput8.dll is only picked up when the game is reached through a path
-  that is pure ASCII. Launching the very same directory via an ASCII junction flips the
-  loader back to the local DLL:
+用途：给这些目录提供**纯 ASCII 的入口路径**，方便命令行/自动化操作。
+**与补丁能不能加载无关** —— 分号路径的问题已由安装器自动解决（见下）。
 
-     ...\\ROBOTICS;NOTES DaSH -原版英文 副本 - 副本      -> C:\\WINDOWS\\SYSTEM32\\DINPUT8.dll
-     D:\\...\\RND_EN_copy_ascii  (junction to it)        -> <game>\\DINPUT8.dll
+分号目录的真实机制（2026-09-12 定死，见 scripts/diagnostics/）：
+  目录名含 `;` 时，Windows 加载器把目录路径**按 `;` 切开**，把分号后面每一段
+  当成**相对目录名**（相对游戏目录）再搜一遍；本地 dinput8.dll 只有在那个
+  子目录存在、且里面放了 DLL 时才会被加载。
 
-So each affected folder gets an ASCII junction. Junctions cost no disk space and stay
-valid when the target folder is renamed/moved within the same volume.
+  实测（predict_mechanism.py，三条可证伪预测全部命中）：
+      目录名 RNDt                      → 无片段         → 本地 ✓
+      目录名 RND;t（无 t\\ 子目录）      → 片段 t 不存在  → 系统 ✗
+      目录名 RND;t（建了 t\\ 放 DLL）    → 片段 t 存在    → 本地 ✓
+      RND;NOTES DaSH（NOTES DaSH 已存在）→              本地 ✓
+
+  **长度和中文都不是变量**（早先"长路径""中文"两个结论来自混了变量的样本，都是错的）。
+  CoZ 原版补丁正是因为这样才在 payload 里带一个写死名字的 `NOTES DaSH\\`。
+
+现在的解决办法（安装器内置，玩家不用管）：
+  安装器按游戏目录名**实时算**出分号后每一段，自动建同名子目录并把代理 DLL
+  复制进去（`SemicolonFragments()`）。所以本脚本**不再是补丁生效的必需品**。
 
     python scripts/make_ascii_links.py            # 创建（已存在则跳过）
     python scripts/make_ascii_links.py --remove   # 全部删除
@@ -33,24 +43,13 @@ LINKS = [
     ("RND_DaSH_en_copy",  os.path.join(COMMON, "ROBOTICS;NOTES DaSH -原版英文 副本 - 副本")),
     ("RND_EN_copy2",      os.path.join(COMMON, "ROBOTICS;NOTES DaSH -原版英文 副本 - 副本")),
 ]
-# 为什么必需 ASCII 入口 —— 实测结论（2026-09-12）：
+# 这些入口现在只是**操作便利**（纯 ASCII 路径，命令行/自动化好写），
+# 不再影响补丁加载。四个入口都保留，是因为历史脚本和人工排查时都用惯了这些名字。
 #
-# 触发条件是「路径含分号 `;` **且** 路径较长」，与中文无关：
-#
-#   路径                                            长度  加载
-#   ...\common\测试（短中文）                        37   ✓
-#   ...\common\RND_EN_copy_ascii_verylongdir...    85   ✓
-#   ...\common\ROBOTICS NOTES DaSH -abcdefg...      76   ✓（纯 ASCII，无分号）
-#   ...\common\ROBOTICS;NOTES DaSH -abcdefg...      76   ✗（纯 ASCII，有分号）
-#   ...\ROBOTICS;NOTES DaSH -原版英文 副本 - 副本       68   ✗（有分号）
-#
-# 即 `;` 是主因（Windows 视其为路径分隔符），长路径把它放大成加载失败。
-# 注意 Steam 正本 `...\ROBOTICS;NOTES DaSH` 也含分号但**路径短**，所以照常工作 ——
-# 这就是"正本能用、副本不能用"的真正原因。
-#
-# 另外两个已知异常：
-#   · 中文名（无分号）实测可加载，但为稳妥仍建议用 ASCII 入口
-#   · Steam 正本本身无需入口
+# 下面这段曾经的"为什么必需"（含分号+长度阈值）是**误判**，已作废：
+#   触发条件从来不是长度，也不是中文 —— 唯一变量是分号，且机制是
+#   "分号后的片段被当相对目录搜"。完整实测见文件头与
+#   scripts/diagnostics/predict_mechanism.py。
 
 
 def run(*args):

@@ -1,5 +1,11 @@
-// RNDZhUninstall — ROBOTICS;NOTES DaSH 简体中文补丁 卸载程序
+// 卸载汉化 — ROBOTICS;NOTES DaSH 简体中文补丁 卸载程序
 // 放在补丁包根目录（= 游戏根目录），双击运行。
+//
+// ★ 关于文件名：产物叫「卸载汉化.exe」，不叫 RNDZhUninstall.exe。
+//   原因：RNDZhLauncher.exe 与 RNDZhUninstall.exe 长得太像，两个 exe 又并排躺在
+//   游戏目录里，玩家很容易点错 —— 而点错的代价是「把汉化卸了」。
+//   中文名一眼就能区分，图标也换成红底垃圾桶（见 make_uninstall_icon.py）。
+//   源码文件名保留 RNDZhUninstall.cpp，只有产物名改了，历史记录好对照。
 //
 // 卸载逻辑：
 //   1. 删除补丁写入的文件（按包内清单，避免误删游戏本体）
@@ -31,12 +37,28 @@
 
 using namespace Gdiplus;
 
-static const int WIN_W = 660, WIN_H = 360;
+// 配色与安装器/启动器一致（纯白极简）。以前这里是深色霓虹，跟安装器对不上。
+static const int WIN_W = 480, WIN_H = 300;
 static const Color
-  C_BG(255, 24, 27, 34), C_PANEL(255, 33, 38, 48), C_HILITE(255, 44, 50, 63),
-  C_LINE(255, 62, 70, 86), C_TEXT(255, 233, 236, 242), C_DIM(255, 150, 158, 172),
-  C_MUTED(255, 104, 113, 128), C_ACCENT(255, 64, 150, 255), C_WHITE(255, 255, 255, 255),
-  C_OK(255, 96, 200, 130), C_WARN(255, 235, 180, 80), C_ERR(255, 235, 100, 100);
+  C_BG      (255, 255, 255, 255),
+  C_PANEL   (255, 245, 246, 248),
+  C_FIELD   (255, 255, 255, 255),
+  C_BORDER  (255, 216, 220, 227),
+  C_TEXT    (255,  31,  35,  40),
+  C_DIM     (255, 107, 114, 128),
+  C_MUTED   (255, 156, 163, 175),
+  C_ACCENT  (255,  11, 107, 203),   // 主按钮（与安装器同色）
+  C_ACCENTH (255,  10,  95, 176),
+  C_TRACK   (255, 232, 235, 240),
+  C_WHITE   (255, 255, 255, 255),
+  C_OK      (255,  26, 127,  55),
+  C_WARN    (255, 154, 103,   0),
+  C_ERR     (255, 207,  34,  46);
+
+// DPI 缩放（与安装器/启动器同一套做法）：声明感知 + ScaleTransform，
+// 界面物理尺寸不变、但不再被系统位图拉伸变糊。
+static float S = 1.0f;
+static inline float unscale(int v) { return (float)v / S; }
 
 static HWND g_hwnd;
 static FontFamily* g_ff = nullptr;
@@ -60,10 +82,24 @@ static std::wstring Join(const std::wstring& a, const std::wstring& b) {
   if (a.back() == L'\\') return a + b;
   return a + L"\\" + b;
 }
+
+// 规整路径用于**显示**：统一分隔符 + 盘符大写。
+// Steam 注册表里的 SteamPath 可能是 `d:/ruanjian/steam`（小写盘符 + 正斜杠），
+// 直接显示就是 `d:/ruanjian/steam\steamapps\...` 这种混合样子，看着像坏路径。
+static std::wstring PrettyPath(const std::wstring& p) {
+  std::wstring s = p;
+  for (auto& c : s) if (c == L'/') c = L'\\';
+  if (s.size() >= 2 && s[1] == L':') s[0] = (wchar_t)towupper(s[0]);
+  return s;
+}
 static std::wstring ExeDir() {
   wchar_t buf[MAX_PATH]; GetModuleFileNameW(nullptr, buf, MAX_PATH);
   std::wstring s(buf); size_t p = s.find_last_of(L'\\');
   return p == std::wstring::npos ? L"." : s.substr(0, p);
+}
+static std::wstring FileName(const std::wstring& p) {
+  size_t s = p.find_last_of(L"\\/");
+  return s == std::wstring::npos ? p : p.substr(s + 1);
 }
 
 // 删除目录树（先删文件再删目录）
@@ -104,6 +140,7 @@ static std::wstring FindLatestBackup() {
 }
 
 static std::vector<std::wstring> g_files, g_dirs;   // 待删除（包内清单）
+static std::vector<std::wstring> g_fragDirs;        // 分号路径兼容目录（只清我们的文件）
 
 static std::wstring ParentDir(const std::wstring& p) {
   size_t s = p.find_last_of(L"\\/");
@@ -114,7 +151,10 @@ static std::wstring ParentDir(const std::wstring& p) {
 // 按白名单：补丁特有的文件名/目录；不碰游戏本体（.cpk / Game.exe / launcher 等）。
 static void CollectPatchFiles() {
   const wchar_t* files[] = {
-    L"dinput8.dll", L"VSFilter.dll", L"RNDZhLauncher.exe", L"RNDZhUninstall.exe",
+    L"dinput8.dll", L"VSFilter.dll", L"RNDZhLauncher.exe",
+    L"卸载汉化.exe",              // 本程序（新版名）
+    L"RNDZhUninstall.exe",        // 旧版名：装着旧补丁的目录里可能还有它
+    L"RNDZhSetup.exe",            // 更早的安装器副本（现在不再安装，但历史残留要清）
     L"d3d9", L"d3d10", L"d3d10_1", L"d3d10core", L"d3d11", L"dxgi",
     L"proton_boot_fix.sh", L"安装说明.txt", L"_cn_patch_boot_orig.bat",
     // 早期版本调试用的日志；万一旧副本里有，卸载时一并清掉
@@ -124,11 +164,36 @@ static void CollectPatchFiles() {
     std::wstring p = Join(g_dir, f);
     if (Exists(p)) g_files.push_back(f);
   }
-  // 注意：dinput8.dll 与 DXVK 的"生效位置"是 NOTES DaSH\ 子目录（游戏从那里加载），
-  // 根目录那份只是双保险；两处都要纳入处理。
+  // 注意：dinput8.dll 与 DXVK 的"生效位置"不止根目录 —— 目录名含分号时，
+  // 加载器会去「分号后片段同名」的子目录里找（机制见安装器 SemicolonFragments 的注释），
+  // 安装器会把代理 DLL 复制进那些子目录，卸载时同样要清掉。
+  // `NOTES DaSH` 是 Steam 正本目录名 `ROBOTICS;NOTES DaSH` 算出来的那一个，
+  // 这里保留是为了兼容早期版本（当时还没按名字动态计算）留下的目录。
   const wchar_t* dirs[] = { L"languagebarrier", L"NOTES DaSH" };
   for (auto d : dirs) {
     if (IsDir(Join(g_dir, d))) g_dirs.push_back(d);
+  }
+  // 按当前目录名算出来的片段，单独放 g_fragDirs：
+  // 它们是**通用**目录名（比如游戏副本名里带的那一长串），不能像 languagebarrier
+  // 那样整树删 —— 万一里面本来就有用户自己的东西，整树删就成了删人数据。
+  // 对它们只做文件级处理（我们放进去的那几个代理文件），清空后才删目录。
+  {
+    std::wstring name = FileName(g_dir);
+    size_t p = name.find(L';');
+    while (p != std::wstring::npos) {
+      size_t q = name.find(L';', p + 1);
+      std::wstring seg = (q == std::wstring::npos) ? name.substr(p + 1)
+                                                   : name.substr(p + 1, q - p - 1);
+      p = q;
+      while (!seg.empty() && (seg.back() == L' ' || seg.back() == L'.')) seg.pop_back();
+      if (seg.empty()) continue;
+      // 去重：Steam 正本会同时命中硬编码的 `NOTES DaSH` 和这里算出来的同一个名字，
+      // 处理两遍会把第一遍刚从备份恢复出来的文件再删掉。
+      bool dup = false;
+      for (auto& d : g_dirs) if (_wcsicmp(d.c_str(), seg.c_str()) == 0) { dup = true; break; }
+      for (auto& d : g_fragDirs) if (_wcsicmp(d.c_str(), seg.c_str()) == 0) { dup = true; break; }
+      if (!dup && IsDir(Join(g_dir, seg))) g_fragDirs.push_back(seg);
+    }
   }
 }
 
@@ -245,6 +310,32 @@ static bool RunUninstall() {
     }
   }
 
+  // 3.5) 分号路径兼容目录：只删我们放进去的代理 DLL。
+  //      这些目录名来自游戏目录名本身（可能是玩家自己的命名），里面未必只有我们的东西，
+  //      所以逐文件删、且只删 kProxyFiles 里那几个名字；目录空了才顺手删掉，
+  //      非空就留着 —— 绝不能整树删，那会连玩家的文件一起清掉。
+  for (auto& d : g_fragDirs) {
+    SetStatus(L"正在清理 " + d + L" …", 95);
+    std::wstring dir = Join(g_dir, d);
+    static const wchar_t* proxy[] = {
+      L"dinput8.dll", L"d3d9", L"d3d10", L"d3d10_1", L"d3d10core", L"d3d11", L"dxgi",
+      L"VSFilter.dll" };
+    for (auto n : proxy) {
+      std::wstring rel = Join(d, n);
+      std::wstring p = Join(g_dir, rel);
+      if (!Exists(p)) continue;
+      // 备份里有的（= 安装前就存在于该子目录）要恢复，不能删
+      if (InBackup(rel)) {
+        CopyFileW(Join(bak, rel).c_str(), p.c_str(), FALSE);
+      } else {
+        SetFileAttributesW(p.c_str(), FILE_ATTRIBUTE_NORMAL);
+        DeleteFileW(p.c_str());
+      }
+    }
+    // 目录已空则删掉；非空（RemoveDirectory 失败）说明还有别人的东西，保留
+    RemoveDirectoryW(dir.c_str());
+  }
+
   // 5) 删除本次/历史安装留下的备份目录。
   //    备份里有的是游戏原文件（恢复后就不再需要），有的是补丁文件（已删）。
   //    旧版安装器把备份建到了【上级目录】（路径少了分隔符），所以两处都要扫。
@@ -287,6 +378,14 @@ static void FillRR(Graphics& g, const RectF& r, float rad, const Color& c) {
   p.AddArc(r.X, r.GetBottom() - d, d, d, 90, 90);
   p.CloseFigure(); SolidBrush b(c); g.FillPath(&b, &p);
 }
+static void StrokeRR(Graphics& g, const RectF& r, float rad, const Color& c, float w) {
+  GraphicsPath p; float d = rad * 2;
+  p.AddArc(r.X, r.Y, d, d, 180, 90);
+  p.AddArc(r.GetRight() - d, r.Y, d, d, 270, 90);
+  p.AddArc(r.GetRight() - d, r.GetBottom() - d, d, d, 0, 90);
+  p.AddArc(r.X, r.GetBottom() - d, d, d, 90, 90);
+  p.CloseFigure(); Pen pen(c, w); g.DrawPath(&pen, &p);
+}
 static void Txt(Graphics& g, const wchar_t* s, Font* f, const Color& c, float x, float y, int align = 0) {
   SolidBrush b(c); StringFormat sf; sf.SetAlignment((StringAlignment)align);
   g.DrawString(s, -1, f, RectF(x, y, 0, 0), &sf, &b);
@@ -298,23 +397,31 @@ static void TxtR(Graphics& g, const wchar_t* s, Font* f, const Color& c, const R
   g.DrawString(s, -1, f, r, &sf, &b);
 }
 
-static RectF OkRect()     { return RectF(WIN_W - 350.f, WIN_H - 78.f, 150.f, 48.f); }
-static RectF CancelRect() { return RectF(WIN_W - 180.f, WIN_H - 78.f, 150.f, 48.f); }
+static RectF OkRect()     { return RectF(WIN_W - 24.f - 150.f - 12.f - 100.f,
+                                         WIN_H - 24.f - 40.f, 150.f, 40.f); }
+static RectF CancelRect() { return RectF(WIN_W - 24.f - 100.f, WIN_H - 24.f - 40.f,
+                                         100.f, 40.f); }
 
 static void Paint(HDC hdc) {
   RECT rc; GetClientRect(g_hwnd, &rc);
+  // 物理客户区尺寸：绘制用 ScaleTransform 缩到逻辑尺寸，BitBlt 要用物理值
+  const int pw = rc.right, ph = rc.bottom;
   HDC mem = CreateCompatibleDC(hdc);
-  HBITMAP bmp = CreateCompatibleBitmap(hdc, rc.right, rc.bottom);
+  HBITMAP bmp = CreateCompatibleBitmap(hdc, pw, ph);
   HBITMAP old = (HBITMAP)SelectObject(mem, bmp);
   {
     Graphics g(mem);
     g.SetSmoothingMode(SmoothingModeAntiAlias);
     g.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
-    SolidBrush bg(C_BG); g.FillRectangle(&bg, 0, 0, rc.right, rc.bottom);
-    SolidBrush panel(C_PANEL); g.FillRectangle(&panel, 0, 0, rc.right, 76);
+    g.ScaleTransform((float)pw / WIN_W, (float)ph / WIN_H);
+    S = (float)pw / WIN_W;
+
+    SolidBrush bg(C_BG); g.FillRectangle(&bg, 0, 0, WIN_W, WIN_H);
+    SolidBrush panel(C_PANEL); g.FillRectangle(&panel, 0, 0, WIN_W, 72);
+    Pen edge(C_BORDER, 1.f); g.DrawLine(&edge, 0, 72, WIN_W, 72);
 
     if (g_iconBmp) {
-      GraphicsPath clip; float d0 = 16; RectF ib(24, 18, 40, 40);
+      GraphicsPath clip; float d0 = 14; RectF ib(20, 16, 40, 40);
       clip.AddArc(ib.X, ib.Y, d0, d0, 180, 90);
       clip.AddArc(ib.GetRight()-d0, ib.Y, d0, d0, 270, 90);
       clip.AddArc(ib.GetRight()-d0, ib.GetBottom()-d0, d0, d0, 0, 90);
@@ -323,49 +430,56 @@ static void Paint(HDC hdc) {
       g.DrawImage(g_iconBmp, (INT)ib.X, (INT)ib.Y, (INT)ib.Width, (INT)ib.Height);
       g.ResetClip();
     }
-    Txt(g, L"ROBOTICS;NOTES DaSH 简体中文补丁", F(19, true), C_TEXT, 78, 20);
-    Txt(g, L"卸载程序", F(13), C_DIM, 80, 46);
+    Txt(g, L"卸载汉化", F(16, true), C_TEXT, 72, 18);
+    Txt(g, L"ROBOTICS;NOTES DaSH 简体中文补丁", F(12), C_DIM, 74, 44);
 
-    Txt(g, L"游戏目录", F(14), C_DIM, 32, 104);
+    Txt(g, L"游戏目录", F(13), C_DIM, 24, 92);
     {
-      RectF er(32, 128, (float)WIN_W - 64, 40);
-      FillRR(g, er, 8, C_HILITE);
-      Pen pn(C_LINE, 1.f); g.DrawRectangle(&pn, er.X, er.Y, er.Width, er.Height);
-      TxtR(g, g_dir.c_str(), F(14), C_TEXT, RectF(er.X + 12, er.Y, er.Width - 24, er.Height), 0, 1);
+      RectF er(24, 112, (float)WIN_W - 48, 34);
+      FillRR(g, er, 6, C_FIELD);
+      StrokeRR(g, er, 6, C_BORDER, 1.f);
+      TxtR(g, PrettyPath(g_dir).c_str(), F(13), C_TEXT,
+           RectF(er.X + 10, er.Y, er.Width - 20, er.Height), 0, 1);
     }
     if (!g_info.empty())
-      Txt(g, g_info.c_str(), F(13), C_WARN, 32, 186);
+      Txt(g, g_info.c_str(), F(12), C_WARN, 24, 156);
 
-    Txt(g, g_status.c_str(), F(13), g_failed ? C_ERR : C_DIM, 32, 226);
+    Txt(g, g_status.c_str(), F(12), g_failed ? C_ERR : (g_done ? C_OK : C_DIM),
+        24, 186);
     if (g_pct >= 0) {
-      RectF bg2(32, 250, (float)WIN_W - 64, 12);
-      FillRR(g, bg2, 6, C_HILITE);
+      RectF bg2(24, 210, (float)WIN_W - 48, 10);
+      FillRR(g, bg2, 5, C_TRACK);
       if (g_pct > 0) {
         RectF fg2(bg2.X, bg2.Y, bg2.Width * g_pct / 100.f, bg2.Height);
-        FillRR(g, fg2, 6, g_failed ? C_ERR : C_ACCENT);
+        FillRR(g, fg2, 5, g_failed ? C_ERR : C_ACCENT);
       }
     }
     {
       bool can = !g_done && g_pct < 0;
+      // 主按钮是"确认卸载"——破坏性操作，用红色以示区别（安装器是蓝色）
       RectF r = OkRect();
-      FillRR(g, r, 10, can ? ((g_hot == 1) ? Color(255,96,178,255) : C_ACCENT) : C_HILITE);
-      TxtR(g, g_done ? L"已完成" : L"确认卸载", F(17, true), can || g_done ? C_WHITE : C_MUTED, r, 1, 1);
+      FillRR(g, r, 6, can ? ((g_hot == 1) ? Color(255, 176,  28,  38) : C_ERR)
+                          : C_TRACK);
+      TxtR(g, g_done ? L"已完成" : L"确认卸载", F(15, true),
+           (can || g_done) ? C_WHITE : C_MUTED, r, 1, 1);
       RectF c = CancelRect();
-      FillRR(g, c, 10, (g_hot == 2) ? C_HILITE : Color(255,38,44,56));
-      TxtR(g, g_done ? L"关闭" : L"取消", F(17), C_TEXT, c, 1, 1);
+      bool cHot = (g_hot == 2);
+      FillRR(g, c, 6, cHot ? C_PANEL : C_FIELD);
+      StrokeRR(g, c, 6, cHot ? C_DIM : C_BORDER, 1.f);
+      TxtR(g, g_done ? L"关闭" : L"取消", F(15), C_TEXT, c, 1, 1);
     }
   }
-  BitBlt(hdc, 0, 0, rc.right, rc.bottom, mem, 0, 0, SRCCOPY);
+  BitBlt(hdc, 0, 0, pw, ph, mem, 0, 0, SRCCOPY);
   SelectObject(mem, old); DeleteObject(bmp); DeleteDC(mem);
 }
 
-static int Hit(int x, int y) {
-  if (!g_done && g_pct < 0) {
-    RectF r = OkRect();
-    if (x >= r.X && x <= r.GetRight() && y >= r.Y && y <= r.GetBottom()) return 1;
-  }
-  { RectF r = CancelRect();
-    if (x >= r.X && x <= r.GetRight() && y >= r.Y && y <= r.GetBottom()) return 2; }
+static int Hit(int px, int py) {
+  int x = (int)unscale(px), y = (int)unscale(py);
+  auto in = [&](const RectF& r) {
+    return x >= r.X && x <= r.GetRight() && y >= r.Y && y <= r.GetBottom();
+  };
+  if (!g_done && g_pct < 0 && in(OkRect())) return 1;
+  if (in(CancelRect())) return 2;
   return -1;
 }
 
@@ -481,11 +595,19 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   RegisterClassExW(&wc);
 
   DWORD style = WS_OVERLAPPEDWINDOW & ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
-  int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
-  RECT r{ 0, 0, WIN_W, WIN_H };
+  // DPI 感知：先声明，再按真实 DPI 换算客户区尺寸（否则 125% 下被位图拉伸变糊）
+  SetProcessDPIAware();
+  HDC screen = GetDC(nullptr);
+  float dpi = (float)GetDeviceCaps(screen, LOGPIXELSX);
+  ReleaseDC(nullptr, screen);
+  if (dpi <= 0) dpi = 96.f;
+  S = dpi / 96.f;
+  int cw = (int)(WIN_W * S + 0.5f), ch = (int)(WIN_H * S + 0.5f);
+  RECT r{ 0, 0, cw, ch };
   AdjustWindowRect(&r, style, FALSE);
   int ww = r.right - r.left, wh = r.bottom - r.top;
-  g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"ROBOTICS;NOTES DaSH 简体中文补丁 · 卸载",
+  int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
+  g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"卸载汉化 — ROBOTICS;NOTES DaSH 简体中文补丁",
                            style, (sw - ww) / 2, (sh - wh) / 2, ww, wh,
                            nullptr, nullptr, hInst, nullptr);
   ShowWindow(g_hwnd, SW_SHOW); UpdateWindow(g_hwnd);
