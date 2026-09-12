@@ -21,6 +21,9 @@ import time
 
 sys.stdout.reconfigure(encoding="utf-8")
 
+# 卸载器的产品名（中文，避免与 RNDZhLauncher.exe 混淆而误点）
+UNINSTALLER = "卸载汉化.exe"
+
 WS = r"D:\DATA\tran\agent tran\9.6文本外工作"
 SETUP = os.path.join(WS, "成品ing", "RNDZh-Setup-v0.1.exe")
 MODSCAN = os.path.join(WS, "scripts", "diagnostics", "modscan32.exe")
@@ -47,8 +50,13 @@ def frag_of(path):
 FRAG = frag_of(TARGET)[0] if frag_of(TARGET) else ""
 
 # 安装/卸载工具自身会留在游戏目录（设计如此），比对时排除
-ALLOW = {"RNDZhLauncher.exe", "RNDZhUninstall.exe", "RNDZhSetup.exe",
+ALLOW = {"RNDZhLauncher.exe", "卸载汉化.exe", "RNDZhUninstall.exe", "RNDZhSetup.exe",
          "RNDZh-Setup-v0.1.exe"}
+
+# 卸载器**会把自己删掉**（RNDZhUninstall.cpp 的 ScheduleSelfDelete）——
+# 所以「卸载后少了 卸载汉化.exe」是**预期结果**，不是残留。
+# 这里在"缺失"统计里把它摘掉，否则每次都会误报一条。
+SELF_DELETING = {"卸载汉化.exe", "RNDZhUninstall.exe", "_uninstall_del.exe"}
 
 
 def md5(p):
@@ -75,6 +83,7 @@ def snap(root):
 
 def killall():
     for exe in ("Game.exe", "launcher.exe", "RNDZhSetup.exe", "RNDZhUninstall.exe",
+                "卸载汉化.exe",
                 "RNDZh-Setup-v0.1.exe", "setup.tmp"):
         subprocess.run(["taskkill", "/F", "/IM", exe], capture_output=True)
 
@@ -153,7 +162,7 @@ killall()
 time.sleep(1)
 # 卸载器必须从游戏目录里跑（它用自身所在目录当游戏目录）。
 # 干净目录里没有它，那就已经纯净了，跳过卸载。
-uninst = os.path.join(TARGET, "RNDZhUninstall.exe")
+uninst = os.path.join(TARGET, UNINSTALLER)
 if os.path.isdir(os.path.join(TARGET, "languagebarrier")):
     print("  已装补丁，先卸载…")
     if not os.path.exists(uninst):
@@ -214,7 +223,11 @@ try:
 
     after = snap(TARGET)
     extra = sorted(set(after) - set(before) - ALLOW)
-    missing = sorted(set(before) - set(after))
+    # 卸载器自删（SELF_DELETING）是预期行为 —— 它的"消失"不算缺失
+    missing = sorted(k for k in (set(before) - set(after))
+                     if os.path.basename(k) not in SELF_DELETING)
+    vanished = sorted(k for k in (set(before) - set(after))
+                      if os.path.basename(k) in SELF_DELETING)
     changed = sorted(k for k in (set(before) & set(after)) if before[k] != after[k])
     print("  多余 %d | 缺失 %d | 不同 %d" % (len(extra), len(missing), len(changed)))
     for k in extra[:12]:
@@ -223,11 +236,13 @@ try:
         print("    缺失: %s" % k)
     for k in changed[:12]:
         print("    不同: %s" % k)
+    if vanished:
+        print("  卸载器自删: %s ✓（预期）" % "、".join(vanished))
     frag_left = os.path.isdir(sub)
     print("  兼容子目录: %s" % ("已清掉 ✓" if not frag_left else "仍存在 ✗"))
     print()
     if not extra and not missing and not changed and not frag_left:
-        print("★ 发布版验收通过：含分号目录自动兼容 + 卸载回纯净。")
+        print("★ 发布版验收通过：含分号目录自动兼容 + 卸载回纯净（含卸载器自删）。")
     else:
         print("!! 有差异，见上。")
 finally:

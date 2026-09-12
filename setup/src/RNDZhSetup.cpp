@@ -65,11 +65,9 @@ static std::wstring g_gameVer;     // 一行状态提示（如「已找到游戏
 // 之前手绘输入框只能处理 ASCII 按键，打中文/粘贴都不行。
 static const int ID_EDIT_DIR = 1001;   // 目录 EDIT 控件 ID
 static LRESULT CALLBACK EditSubclass(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
-static std::wstring PathLoadNotice(const std::wstring& d);
 static void RefreshDirHint();          // EditSubclass 会用到
 static HWND g_hEdit = nullptr;
 static bool g_syncingEdit = false;   // 防止 文本变更 与 设置文本 互相触发
-static bool g_pathBad = false;      // 目录名含分号（安装时自动建兼容子目录，仅提示用）
 
 // ───────────────────────── 工具 ─────────────────────────
 static bool Exists(const std::wstring& p) {
@@ -235,19 +233,9 @@ static const wchar_t* kProxyFiles[] = {
   L"dinput8.dll", L"d3d9", L"d3d10", L"d3d10_1", L"d3d10core", L"d3d11", L"dxgi",
   L"VSFilter.dll" };
 
-// 给用户看的一行提示。注意措辞：以前这里写的是"补丁侧无法规避"，现已证实可以规避，
-// 安装时会自动建子目录兼容，所以只需要告知，不再需要吓唬用户去改名。
-static std::wstring PathLoadNotice(const std::wstring& d) {
-  std::vector<std::wstring> frags = SemicolonFragments(d);
-  if (frags.empty()) return L"";
-  std::wstring s = L"路径含分号，将自动建 ";
-  for (size_t i = 0; i < frags.size(); i++) {
-    if (i) s += L"、";
-    s += frags[i] + L"\\";
-  }
-  s += L" 兼容";
-  return s;
-}
+// 注：曾经这里有个 PathLoadNotice()/NeedsFragmentDirs()，用来在界面上显示
+// 「路径含分号，将自动建 xxx\ 兼容」。已删除 —— 那是实现细节，玩家看不懂也不需要知道，
+// 安装器自己处理好即可。需要判断"是否含分号"时直接调 SemicolonFragments()。
 
 // 在常见位置找游戏
 // 取「启动本程序的进程」所在目录。
@@ -594,7 +582,8 @@ static bool RunInstall() {
   //      名字按 g_gameDir 实时算，Steam 正本 / 任意副本 / 用户改名后的目录都能自动兼容。
   {
     std::vector<std::wstring> frags = SemicolonFragments(g_gameDir);
-    if (!frags.empty()) SetStatus(L"正在写入分号路径兼容目录…", 95);
+    // 进度文案不写"分号兼容目录"这种实现词 —— 玩家看进度条时只需要知道"还在装"。
+    if (!frags.empty()) SetStatus(L"正在安装…", 95);
     for (auto& frag : frags) {
       std::wstring sub = Join(g_gameDir, frag);
       CreateDirectoryW(sub.c_str(), nullptr);
@@ -640,14 +629,16 @@ static bool RunInstall() {
   //    这一步是给"静默失效"兜底的 —— 加载器找不到本地 DLL 时，游戏不会报错，
   //    只是显示原版语言，玩家和我们都发现不了（这个坑排查了很久）。
   //    所以宁可这里明确报一次错，也不要装完等玩家来反馈"补丁没用"。
+  //
+  //    文案只说**发生了什么 + 怎么办**，不解释分号/加载器这些机制 ——
+  //    玩家看到"分号会让加载器跳过 DLL"也做不了什么，只会更困惑。
   {
     std::vector<std::wstring> frags = SemicolonFragments(g_gameDir);
     for (auto& frag : frags) {
       std::wstring probe = Join(Join(g_gameDir, frag), L"dinput8.dll");
       if (!Exists(probe)) {
-        std::wstring msg = L"安装已完成，但无法写入兼容目录：\n" + Join(g_gameDir, frag) +
-            L"\n\n该目录名的分号会让 Windows 加载器跳过本地 dinput8.dll，"
-            L"补丁将不会生效。\n\n请把游戏目录改成一个不含分号的名字后重新安装。";
+        std::wstring msg = L"安装已完成，但补丁可能无法生效。\n\n"
+            L"请把游戏文件夹改成不含分号（;）的名字，然后重新安装一次。";
         MessageBoxW(g_hwnd, msg.c_str(), L"补丁可能不会生效", MB_ICONWARNING);
         break;
       }
@@ -879,7 +870,6 @@ static LRESULT CALLBACK EditSubclass(HWND h, UINT m, WPARAM w, LPARAM l,
 // 校验并刷新目录框下方那行提示。文本刻意保持简短 ——
 // 玩家只需要知道"找到了没有"，不需要知道存档目录叫什么。
 static void RefreshDirHint() {
-  g_pathBad = false;
   if (g_gameDir.empty()) { g_gameVer.clear(); return; }
   if (!ValidGameDir(g_gameDir)) {
     g_gameVer = L"这里没有 Game.exe，请选择游戏根目录";
@@ -889,12 +879,10 @@ static void RefreshDirHint() {
   g_gameVer = (lg == L"EN") ? L"已找到游戏（英文版）" : L"已找到游戏（日文版）";
   if (Exists(Join(g_gameDir, L"languagebarrier\\patchdef.json")))
     g_gameVer += L"，将覆盖旧补丁";
-  // 目录名含分号时告知会自动建兼容子目录（不再阻止安装，也不需要用户改名）。
-  // 文案要短：这行是单行绘制、不换行，太长会顶出窗口右边。
-  if (!PathLoadNotice(g_gameDir).empty()) {
-    g_pathBad = true;
-    g_gameVer += L"（路径含分号，已自动兼容）";
-  }
+  // 注意：目录名含分号导致的兼容处理**不要在这里提示**。
+  // 那是我们的实现细节，玩家既看不懂"分号片段"也不知道分子目录是干什么的；
+  // 而且现在安装器会自动处理好，根本不需要玩家知情（详见 SemicolonFragments）。
+  // 以前这里有句「路径含分号，已自动兼容」，属于自说自话的废话 —— 已删。
 }
 
 static void PickFolder() {

@@ -30,7 +30,8 @@ GAMES = [
 SRC = os.path.join(ROOT, "成品ing", "补丁包", "languagebarrier")
 
 # 每个归档里被重定向的文件应当是什么类型（用来抓"索引错位指向别的文件"）
-EXPECT_EXT = {"bg": ".png", "manual": ".png", "system": ".png", "model": ".lkm"}
+EXPECT_EXT = {"bg": ".png", "manual": ".png", "system": ".png", "model": ".lkm",
+              "movie": ".usm"}
 
 
 def resolve(cls, idx):
