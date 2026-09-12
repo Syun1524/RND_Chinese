@@ -71,12 +71,17 @@ def main():
 
     # 排除规则：这些是开发/历史产物，绝不能进玩家拿到的包。
     # 用 copytree(ignore=...) 而不是先拷后删 —— 免得漏删。
+    #
+    # ★ 不能用「文件名以 _ 开头」当垃圾判据。游戏资源本身就有下划线开头的名字
+    #   （c0data/_nobg.png、enscript/_system_00.msb 等 9 个），它们是 patchdef.json
+    #   与 enscript.cls 点名要用的正经补丁数据。曾用该规则把它们整批漏掉，
+    #   而构建只打印文件数、不校验，装完游戏后这些 .msb 直接找不到。
+    #   现在改为：只按明确的垃圾特征排除，并在拷贝后拿 .cls 清单做门禁自检。
     def _ignore(dirpath, names):
         drop = []
         for n in names:
             low = n.lower()
-            if (n.startswith('_')                       # _stage/_bak/临时
-                    or '.bak' in low                    # patchdef.json.bak_*
+            if ('.bak' in low                           # patchdef.json.bak_*
                     or low.endswith(('.obj', '.res', '.pdb', '.ilk'))
                     or 'silent_log' in low              # 诊断日志
                     or low.endswith('.log')
@@ -95,6 +100,24 @@ def main():
             if '.bak' in f.lower() or 'silent_log' in f.lower()]
     if junk:
         sys.exit('★ stage 里混入垃圾：%s' % junk)
+
+    # 自检：c0data.cls / enscript.cls 点名的文件必须都在 stage 里。
+    # 这两个清单是 LanguageBarrier 的归档索引 —— 少一个文件，游戏打开它时就直接找不到。
+    # （曾因「_ 开头当垃圾」漏掉 _nobg.png 与 8 个 _*.msb，构建毫无反应。）
+    missing = []
+    for cls_rel, sub in (('languagebarrier/c0data.cls', 'c0data'),
+                         ('languagebarrier/enscript.cls', 'enscript')):
+        cls_path = os.path.join(stage, cls_rel)
+        if not os.path.exists(cls_path):
+            sys.exit('★ 缺少 %s' % cls_rel)
+        with open(cls_path, encoding='utf-8-sig') as fh:
+            for line in fh:
+                name = line.strip()
+                if name and not os.path.exists(
+                        os.path.join(stage, 'languagebarrier', sub, name)):
+                    missing.append('%s/%s' % (sub, name))
+    if missing:
+        sys.exit('★ 归档清单点名但未打进包（%d 个）：%s' % (len(missing), missing))
 
     # 2) 用 7zr 压缩（官方安装器示例即 7zr + BCJ2）
     log('[2/4] 压缩中…（约需 20-60 秒）')

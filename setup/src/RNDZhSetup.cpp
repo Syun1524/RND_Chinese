@@ -13,6 +13,7 @@
 #include <gdiplus.h>
 #include <shlobj.h>
 #include <shellapi.h>
+#include <commctrl.h>
 #include <string>
 #include <vector>
 #include <map>
@@ -21,6 +22,7 @@
 
 #pragma comment(lib, "gdiplus.lib")
 #pragma comment(lib, "shell32.lib")
+#pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
 #pragma comment(lib, "ole32.lib")
@@ -58,10 +60,13 @@ static int g_pct = -1;             // -1 = 未开始
 static bool g_done = false, g_failed = false;
 static int g_hot = -1;
 static std::wstring g_gameVer;     // 一行状态提示（如「已找到游戏（日文版）」）
-// 目录框是可编辑的：用户能直接打字/粘贴路径，也能拖放文件夹进来。
-// 不需要单独的"编辑中"状态 —— 每次按键就直接改 g_gameDir，简化状态机。
-static int  g_caret = 0;           // 光标位置（字符下标）
-static bool g_focusField = false;  // 目录框是否获得焦点（决定是否画光标）
+// 目录框用原生 EDIT 子控件：插入符、选区、剪贴板、输入法全部自带。
+// 之前手绘输入框只能处理 ASCII 按键，打中文/粘贴都不行。
+static const int ID_EDIT_DIR = 1001;   // 目录 EDIT 控件 ID
+static LRESULT CALLBACK EditSubclass(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
+static void RefreshDirHint();          // EditSubclass 会用到
+static HWND g_hEdit = nullptr;
+static bool g_syncingEdit = false;   // 防止 文本变更 与 设置文本 互相触发
 
 // ───────────────────────── 工具 ─────────────────────────
 static bool Exists(const std::wstring& p) {
@@ -487,30 +492,15 @@ static void Paint(HDC hdc) {
     }
     Txt(g, L"ROBOTICS;NOTES DaSH 简体中文补丁", F(16, true), C_TEXT, PAD + 36, 18);
 
-    // 游戏目录（可编辑框）
+    // 游戏目录：真正的 EDIT 子控件负责显示与编辑（见 g_hEdit），
+    // 这里只画标签、外框和「浏览」按钮。
+    // 不再手绘输入框 —— 手绘版没有插入符、选区、剪贴板和输入法支持，
+    // 用户反馈"打不了字"正是这个原因。原生 EDIT 这些全都自带。
     Txt(g, L"游戏目录", F(13), C_DIM, DirLabelRect().X, DirLabelRect().Y);
     {
       RectF fr = FieldRect();
-      FillRR(g, fr, 4, C_FIELD);
-      StrokeRR(g, fr, 4, g_focusField ? C_ACCENT : C_BORDER, g_focusField ? 1.6f : 1.f);
-
-      // 文字从左边距内缩 8px；空时显示占位提示
-      bool empty = g_gameDir.empty();
-      const wchar_t* shown = empty ? L"选择或粘贴游戏目录（内含 Game.exe）" : g_gameDir.c_str();
-      TxtR(g, shown, F(13), empty ? C_MUTED : C_TEXT,
-           RectF(fr.X + 8, fr.Y, fr.Width - 16, fr.Height), 0, 1);
-
-      // 光标（仅聚焦时画）：按字符宽度估算位置，够用且不需要精确排版
-      if (g_focusField && !empty) {
-        std::wstring pre = g_gameDir.substr(0, g_caret);
-        RectF mb; Font* f = F(13);
-        g.MeasureString(pre.c_str(), -1, f, RectF(0,0,4000,40), &mb);
-        float cx = fr.X + 8 + mb.Width;
-        if (cx < fr.GetRight() - 6) {
-          Pen cp(C_TEXT, 1.f);
-          g.DrawLine(&cp, cx, fr.Y + 8, cx, fr.GetBottom() - 8);
-        }
-      }
+      // 只画边框：EDIT 自己填白底，画重了会盖住文字
+      StrokeRR(g, fr, 4, C_BORDER, 1.f);
 
       RectF br = BrowseRect();
       bool hot = (g_hot == 1);
@@ -572,6 +562,54 @@ static int Hit(int x, int y) {
   return -1;
 }
 
+// 把 g_gameDir 写进 EDIT 控件（外部改变目录时调用）
+static void PushDirToEdit() {
+  if (!g_hEdit) return;
+  g_syncingEdit = true;
+  SetWindowTextW(g_hEdit, g_gameDir.c_str());
+  g_syncingEdit = false;
+}
+
+// 从 EDIT 控件读回目录（用户编辑后调用）
+static void PullDirFromEdit() {
+  if (!g_hEdit) return;
+  int n = GetWindowTextLengthW(g_hEdit);
+  std::wstring s(n + 1, L'\0');
+  if (n > 0) GetWindowTextW(g_hEdit, &s[0], n + 1);
+  s.resize(n);
+  while (!s.empty() && (s.front() == L'"' || s.front() == L' ')) s.erase(s.begin());
+  while (!s.empty() && (s.back() == L'"' || s.back() == L' ' || s.back() == L'\r')) s.pop_back();
+  for (auto& c : s) if (c == L'/') c = L'\\';
+  g_gameDir = s;
+  RefreshDirHint();
+}
+
+// EDIT 子控件过程：内容变化时同步到 g_gameDir，并在按下回车时立即校验。
+static LRESULT CALLBACK EditSubclass(HWND h, UINT m, WPARAM w, LPARAM l,
+                                     UINT_PTR, DWORD_PTR) {
+  switch (m) {
+  case WM_CHAR:
+    if (w == VK_RETURN) {                 // 回车 = 确认输入
+      PullDirFromEdit();
+      if (g_hwnd) InvalidateRect(g_hwnd, nullptr, FALSE);
+      return 0;                           // 吞掉回车，避免系统提示音
+    }
+    break;
+  case WM_KEYUP:
+  case WM_PASTE:
+  case WM_CUT:
+  case WM_CLEAR:
+    // 处理完再同步（用 PostMessage 让控件先更新文本）
+    PostMessageW(g_hwnd, WM_APP + 1, 0, 0);
+    break;
+  case WM_KILLFOCUS:
+    PullDirFromEdit();                    // 失焦时也确认一次
+    InvalidateRect(g_hwnd, nullptr, FALSE);
+    break;
+  }
+  return DefSubclassProc(h, m, w, l);
+}
+
 // 校验并刷新目录框下方那行提示。文本刻意保持简短 ——
 // 玩家只需要知道"找到了没有"，不需要知道存档目录叫什么。
 static void RefreshDirHint() {
@@ -603,7 +641,7 @@ static void PickFolder() {
       PWSTR psz = nullptr;
       if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &psz)) && psz) {
         g_gameDir = psz;
-        g_caret = (int)g_gameDir.size();
+        PushDirToEdit();
         CoTaskMemFree(psz);
       }
       item->Release();
@@ -616,17 +654,6 @@ static void PickFolder() {
   InvalidateRect(g_hwnd, nullptr, FALSE);
 }
 
-// 把编辑框里输入的路径规范化后写入 g_gameDir，并刷新提示。
-// 用户可能粘贴带引号的路径（从资源管理器复制地址栏会带引号）。
-static void CommitTypedDir() {
-  std::wstring d = g_gameDir;
-  while (!d.empty() && (d.front() == L'"' || d.front() == L' ')) d.erase(d.begin());
-  while (!d.empty() && (d.back() == L'"' || d.back() == L' ' || d.back() == L'\r')) d.pop_back();
-  for (auto& c : d) if (c == L'/') c = L'\\';
-  g_gameDir = d;
-  if (g_caret > (int)g_gameDir.size()) g_caret = (int)g_gameDir.size();
-  RefreshDirHint();
-}
 
 static void OnInstall() {
   g_pct = 0; g_failed = false;
@@ -651,55 +678,24 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
     else SetCursor(LoadCursor(nullptr, IDC_ARROW));
     return TRUE;
   }
+  case WM_LBUTTONDOWN: {
+    // 点目录框区域时把焦点交给 EDIT（原生控件自己处理插入符与选区）
+    if (Hit(GET_X_LPARAM(l), GET_Y_LPARAM(l)) == 4 && g_hEdit)
+      SetFocus(g_hEdit);
+    return 0;
+  }
   case WM_LBUTTONUP: {
     int id = Hit(GET_X_LPARAM(l), GET_Y_LPARAM(l));
     if (id == 1) { PickFolder(); }
     else if (id == 2) { OnInstall(); }
     else if (id == 3) { PostMessageW(h, WM_CLOSE, 0, 0); }
     else if (id == 4) {
-      // 点目录框：聚焦并进入编辑，光标放到末尾
-      if (!g_focusField) { g_focusField = true; g_caret = (int)g_gameDir.size(); }
-      SetFocus(h);
-      InvalidateRect(h, nullptr, FALSE);
-    } else if (g_focusField && !g_done && g_pct < 0) {
-      // 点别处：取消聚焦
-      g_focusField = false;
-      InvalidateRect(h, nullptr, FALSE);
+      if (g_hEdit) SetFocus(g_hEdit);
     }
     return 0;
   }
-  // ── 目录框的键盘编辑 ──
-  case WM_CHAR: {
-    if (!g_focusField || g_done || g_pct >= 0) break;
-    wchar_t c = (wchar_t)w;
-    if (c == L'\r') { CommitTypedDir(); return 0; }
-    if (c == L'\b') {                                  // 退格
-      if (g_caret > 0) { g_gameDir.erase(g_caret - 1, 1); g_caret--; }
-    } else if (c == 1) {                               // Ctrl+A 全选 → 等价清空重输
-      g_gameDir.clear(); g_caret = 0;
-    } else if (c >= L' ') {                            // 可打印字符
-      g_gameDir.insert(g_caret, 1, c); g_caret++;
-    } else {
-      return 0;
-    }
-    InvalidateRect(h, nullptr, FALSE);
-    return 0;
-  }
-  case WM_KEYDOWN: {
-    if (!g_focusField) break;
-    if (w == VK_LEFT  && g_caret > 0) { g_caret--; InvalidateRect(h, nullptr, FALSE); return 0; }
-    if (w == VK_RIGHT && g_caret < (int)g_gameDir.size()) { g_caret++; InvalidateRect(h, nullptr, FALSE); return 0; }
-    if (w == VK_HOME) { g_caret = 0; InvalidateRect(h, nullptr, FALSE); return 0; }
-    if (w == VK_END)  { g_caret = (int)g_gameDir.size(); InvalidateRect(h, nullptr, FALSE); return 0; }
-    if (w == VK_DELETE) {
-      if (g_caret < (int)g_gameDir.size()) g_gameDir.erase(g_caret, 1);
-      InvalidateRect(h, nullptr, FALSE); return 0;
-    }
-    if (w == VK_RETURN) { CommitTypedDir(); InvalidateRect(h, nullptr, FALSE); return 0; }
-    break;
-  }
-  case WM_SETFOCUS: if (g_focusField) { InvalidateRect(h, nullptr, FALSE); } return 0;
-  case WM_KILLFOCUS: g_focusField = false; InvalidateRect(h, nullptr, FALSE); return 0;
+  case WM_SETFOCUS: return 0;
+  case WM_KILLFOCUS: return 0;
   // 支持把文件夹从资源管理器拖进窗口
   case WM_DROPFILES: {
     HDROP dp = (HDROP)w;
@@ -715,13 +711,17 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         }
       }
       g_gameDir = d;
-      g_caret = (int)g_gameDir.size();
+      PushDirToEdit();
       RefreshDirHint();
       InvalidateRect(h, nullptr, FALSE);
     }
     DragFinish(dp);
     return 0;
   }
+  case WM_APP + 1:            // EDIT 内容变化 → 同步并刷新提示
+    PullDirFromEdit();
+    InvalidateRect(h, nullptr, FALSE);
+    return 0;
   case WM_PAINT: { PAINTSTRUCT ps; HDC dc = BeginPaint(h, &ps); Paint(dc); EndPaint(h, &ps); return 0; }
   case WM_ERASEBKGND: return 1;
   case WM_CLOSE:
@@ -787,6 +787,47 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
     std::wstring cl = GetCommandLineW();
     std::wstring lower = cl;
     for (auto& c : lower) c = (wchar_t)towlower(c);
+
+    // 自检模式（/selftest）：不开窗口，把语言判定与路径规范化跑一遍并写结果。
+    // 提权窗口无法被自动化截图/点击（UIPI），所以把"能不能正确判定"这件事
+    // 做成可脚本验证的纯逻辑测试，避免只能靠人眼看。
+    if (lower.find(L"/selftest") != std::wstring::npos) {
+      int argc = 0;
+      LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+      std::wstring target;
+      if (argv && argc >= 2 && argv[1][0] != L'/') {
+        target = argv[1];
+        for (auto& c : target) if (c == L'/') c = L'\\';
+        while (!target.empty() && target.back() == L'\\') target.pop_back();
+      }
+      if (argv) LocalFree(argv);
+
+      // 用 UTF-8 字节写文件，不要用 std::wofstream ——
+      // wofstream 用默认 locale，遇到第一个非 ASCII 字符就会截断，
+      // 结果中文路径在日志里"消失"，看起来像判定失败（其实是日志的问题）。
+      {
+        std::ofstream out("D:\\rnd_selftest.txt", std::ios::binary | std::ios::trunc);
+        auto put = [&](const char* k, const std::wstring& v) {
+          int n = WideCharToMultiByte(CP_UTF8, 0, v.c_str(), (int)v.size(),
+                                      nullptr, 0, nullptr, nullptr);
+          std::string u8(n, 0);
+          if (n) WideCharToMultiByte(CP_UTF8, 0, v.c_str(), (int)v.size(),
+                                     &u8[0], n, nullptr, nullptr);
+          out << k << u8 << "\n";
+        };
+        auto putb = [&](const char* k, bool b) { out << k << (b ? "1" : "0") << "\n"; };
+        if (out) {
+          put("target=", target);
+          putb("exists=", IsDir(target));
+          putb("validGameDir=", ValidGameDir(target));
+          put("detectedLang=", DetectLangFrom(target));
+          putb("alreadyPatched=", Exists(Join(target, L"languagebarrier\\patchdef.json")));
+        }
+      }
+      GdiplusShutdown(tk);
+      return 0;
+    }
+
     if (lower.find(L"/silent") != std::wstring::npos) {
       // 解析第二个参数作为目标目录（跳过 exe 路径本身）
       int argc = 0;
@@ -838,6 +879,22 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"ROBOTICS;NOTES DaSH 简体中文补丁 · 安装程序",
                            style, (sw - ww) / 2, (sh - wh) / 2, ww, wh,
                            nullptr, nullptr, hInst, nullptr);
+
+  // 目录框：原生 EDIT 子控件。
+  // 它自带插入符、选区、剪贴板、输入法（中文输入）、自动横向滚动 ——
+  // 之前手绘的输入框只能处理 ASCII 按键，用户反馈"打不了字"就是这个原因。
+  {
+    RectF f = FieldRect();
+    g_hEdit = CreateWindowExW(
+        WS_EX_CLIENTEDGE, L"EDIT", g_gameDir.c_str(),
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
+        (int)f.X + 2, (int)f.Y + 2, (int)f.Width - 4, (int)f.Height - 4,
+        g_hwnd, (HMENU)ID_EDIT_DIR, hInst, nullptr);
+    SendMessageW(g_hEdit, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+    SendMessageW(g_hEdit, EM_SETLIMITTEXT, MAX_PATH * 2, 0);
+    SetWindowSubclass(g_hEdit, EditSubclass, 1, 0);
+  }
+
   DragAcceptFiles(g_hwnd, TRUE);     // 允许把游戏文件夹拖进窗口
   ShowWindow(g_hwnd, SW_SHOW); UpdateWindow(g_hwnd);
 

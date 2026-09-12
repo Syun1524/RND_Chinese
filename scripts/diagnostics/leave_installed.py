@@ -15,7 +15,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 PKG = r"D:\DATA\tran\agent tran\9.6文本外工作\成品ing\补丁包"
 SETUP = os.path.join(PKG, "RNDZhSetup.exe")
-KILLER = r"D:\DATA\tran\agent tran\9.6文本外工作\tmp_128\rndkill.exe"
+KILLER = r"D:\DATA\tran\agent tran\9.6文本外工作\scripts\diagnostics\rndkill.exe"
 
 TARGETS = [
     ("Steam 正本",     r"D:\Ruanjian\Steam\steamapps\common\ROBOTICS;NOTES DaSH"),

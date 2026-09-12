@@ -3,13 +3,18 @@
 //
 // 职责：
 //   1. 读写 %LOCALAPPDATA%\Committee of Zero\RNDSteam\config.json 的开关
-//   2. 「启用 DXVK」= 对游戏根目录下的 d3d9/d3d10/... 做改名（带/不带 .dll）
-//   3. 「开始游戏」= 以 "Game.exe roboticsnotesd EN" 拉起游戏
+//   2. 「换装」= 全员切换到 和服/泳装/体操服/猫耳 四套主题之一（写 zzOutfitSet）
+//   3. 「启用 DXVK」= 对游戏根目录下的 d3d9/d3d10/... 做改名（带/不带 .dll）
+//   4. 「开始游戏」= 以 "Game.exe roboticsnotesd EN" 拉起游戏
 //
 // 编译：见 build_launcher.bat
 //
-// 注意：换装核对（把某角色全部服装指向指定一套，用于逐套辨认服装名）**不在**这里。
-// 它是开发者用一次的工具，见同目录 RNDZhOutfitTool.cpp。玩家只需要「泳装／换装模式」。
+// 换装写 zzOutfitSet（四套并列：和服/泳装/体操服/猫耳），不再用 CoZ 的 swimsuitPatch
+// —— 那只表达"泳装"一种，且覆盖范围已被本机制完全包住（见 scripts/add_outfit_sets.py，
+// 该脚本会把 swimsuitPatch 从 patchdef 里删掉）。
+//
+// 另外：换装核对（把某角色单独指向某套）是开发者工具，见 RNDZhOutfitTool.cpp。
+// 它写的 zz_<角色>_<变体> 键排序在 zzOutfitSet 之后，所以能压过主题单独固定某个角色。
 
 #define WIN32_LEAN_AND_MEAN
 #define UNICODE
@@ -40,7 +45,7 @@ using namespace Gdiplus;
 
 // ───────────────────────── 配置（颜色/布局常量） ─────────────────────────
 static const int WIN_W = 900;
-static const int WIN_H = 560;
+static const int WIN_H = 620;
 static const int LEFT_W = 340;
 
 static const Color
@@ -55,35 +60,43 @@ static const Color
   C_WHITE  (255, 255, 255, 255),
   C_CHEK   (255, 236, 241, 248);
 
-// 设置项
-enum Opt { OPT_MOUSE=0, OPT_SCROLL_ADV, OPT_SCROLL_CLOSE, OPT_SWIMSUIT, OPT_DXVK, OPT_COUNT };
+// 设置项（「换装」是下拉，不在这组复选里）
+enum Opt { OPT_MOUSE=0, OPT_SCROLL_ADV, OPT_SCROLL_CLOSE, OPT_DXVK, OPT_COUNT };
 static const wchar_t* OPT_LABEL[OPT_COUNT] = {
-  L"鼠标控制", L"滚轮向上推进文本", L"滚轮向下关闭已读记录",
-  L"泳装／换装模式", L"启用 DXVK"
+  L"鼠标控制", L"滚轮向上推进文本", L"滚轮向下关闭已读记录", L"启用 DXVK"
 };
 static const wchar_t* OPT_KEY[OPT_COUNT] = {
   L"mouseControls", L"scrollDownToAdvanceText", L"disableScrollDownToCloseBacklog",
-  L"swimsuitPatch", L"enableDxvk"
+  L"enableDxvk"
 };
 static const wchar_t* OPT_HINT[OPT_COUNT] = {
   L"用鼠标（而不是键盘）在 ADV 场景里控制视角与推进",
   L"滚轮向下推文本；关闭后只能点左键/Auto",
   L"关闭后滚轮向下不会退出已读记录",
-  L"把全员服装替换为泳装／换装（CoZ 的换装模式）",
   L"用 Vulkan 转译渲染，缓解新显卡上的兼容问题"
 };
 // 注意：disableScrollDownToCloseBacklog 在配置里是"禁用"语义。
 // 界面写正向「滚轮向下关闭已读记录」，勾选=启用该功能=写 false。
-static bool OPT_INVERT[OPT_COUNT] = { false, false, true, false, false };
-static bool OPT_DEF[OPT_COUNT]    = { true,  true,  true, true,  false };
+static bool OPT_INVERT[OPT_COUNT] = { false, false, true, false };
+static bool OPT_DEF[OPT_COUNT]    = { true,  true,  true, false };
+
+// ── 换装主题 ──
+// 值必须与 patchdef.json -> settings.zzOutfitSet.choices 的键一致。
+// none = 不换装（各角色穿默认服）。
+static const wchar_t* OUTFIT_LABEL[5] = { L"原版", L"和服", L"泳装", L"体操服", L"猫耳" };
+static const wchar_t* OUTFIT_VALUE[5] = { L"none", L"kimono", L"swimsuit", L"gym", L"nekomimi" };
+static const int OUTFIT_N = 5;
 
 static const wchar_t* SUBS_LABEL[3] = { L"卡拉OK + 翻译", L"仅卡拉OK", L"仅翻译" };
 static const wchar_t* SUBS_VALUE[3] = { L"all", L"karaonly", L"tlonly" };
 
+static const wchar_t* SET_KEY = L"zzOutfitSet";
+
 struct State {
   bool on[OPT_COUNT];
   int  subs;            // 0/1/2
-  int  comboOpen = -1;  // -1 无 / 0 subs
+  int  outfit;          // 0..4
+  int  comboOpen = -1;  // -1 无 / 0 subs / 1 outfit
   int  hot = -1;        // 悬停项，用与 press 同一套 id
   int  press = -1;
 } st;
@@ -201,7 +214,7 @@ static void EnsureDir(const std::wstring& dir) {
 }
 
 // 写配置：整份重写，未知键原样带上。
-// 换装核对工具写的 zzOutfitOverride 属于未知键 → 会被保留，
+// 换装核对工具写的 zz_<角色>_<变体> 属于未知键 → 会被保留，
 // 玩家在这里改开关不会把开发工具的当前核对项清掉。
 static void SaveConfig() {
   std::wstring dir = ConfigPath();
@@ -225,16 +238,25 @@ static void SaveConfig() {
     if (OPT_INVERT[i]) v = !v;            // 界面正向 → 配置语义
     emit(OPT_KEY[i], b(v));
   }
+  emit(SET_KEY, std::wstring(L"\"") + OUTFIT_VALUE[st.outfit] + L"\"");
   emit(L"karaokeSubs", std::wstring(L"\"") + SUBS_VALUE[st.subs] + L"\"");
   emit(L"showAllSettings", L"true");
   emit(L"rneMouseControls", L"true");
   static const wchar_t* MINE[] = { L"__schema_version", L"mouseControls",
-    L"scrollDownToAdvanceText", L"disableScrollDownToCloseBacklog", L"swimsuitPatch",
-    L"enableDxvk", L"karaokeSubs", L"showAllSettings", L"rneMouseControls" };
+    L"scrollDownToAdvanceText", L"disableScrollDownToCloseBacklog",
+    SET_KEY, L"enableDxvk", L"karaokeSubs", L"showAllSettings", L"rneMouseControls" };
   for (auto& kv : old) {
     bool mine = false;
     for (auto m : MINE) if (kv.first == m) { mine = true; break; }
     if (mine || kv.first.empty()) continue;
+    // 丢掉除 zzOutfitSet 外的所有 zz* 键：
+    //  - zz_<角色>_<变体>：核对工具的固定项。它排序在 zzOutfitSet 之后，会把对应
+    //    角色压过主题（选了「和服」但那几个角色不换），玩家的"一键切换"就废了。
+    //  - swimsuitPatch：CoZ 的老键，patchdef 里已删除（四套并列，泳装不再特殊）。
+    //  - zzOutfitOverride：更早的单选机制残留。
+    // 这三者都是开发/历史状态，不该跟着成品走。
+    if (kv.first.rfind(L"zz", 0) == 0 && kv.first != SET_KEY) continue;
+    if (kv.first == L"swimsuitPatch") continue;
     emit(kv.first, kv.second);
   }
   out << L"\n}";
@@ -261,6 +283,12 @@ static void LoadConfig() {
   if (it != m.end())
     for (int i = 0; i < 3; i++)
       if (it->second.find(SUBS_VALUE[i]) != std::wstring::npos) st.subs = i;
+
+  st.outfit = 0;                          // 默认「原版」，不换装
+  auto sit = m.find(SET_KEY);
+  if (sit != m.end())
+    for (int i = 0; i < OUTFIT_N; i++)
+      if (sit->second.find(OUTFIT_VALUE[i]) != std::wstring::npos) { st.outfit = i; break; }
 }
 
 // DXVK：d3d9/d3d10/d3d10_1/d3d10core/d3d11/dxgi 带/不带 .dll
@@ -336,16 +364,21 @@ static void DrawComboFrame(Graphics& g, const RectF& cr, const wchar_t* value, b
   g.FillPolygon(&db, tri, 3);
 }
 
-// 单项几何
-static RectF OptRect(int i) { return RectF(LEFT_W + 44.f, 78.f + i * 46.f, 400.f, 30.f); }
-static RectF ComboRect()    { return RectF(LEFT_W + 168.f, 396.f, 210.f, 36.f); }
-static RectF StartRect()    { return RectF(LEFT_W + 320.f, 460.f, 250.f, 60.f); }
-static RectF ComboItemRect(int k) {
-  return RectF(ComboRect().X, ComboRect().GetBottom() + 2 + k * 34.f, ComboRect().Width, 34.f);
+// ── 几何 ──
+// 4 个复选框（78 + i*46），底部 78+3*46+40 = 256
+static RectF OptRect(int i)   { return RectF(LEFT_W + 44.f, 78.f + i * 46.f, 400.f, 30.f); }
+static RectF OutfitRect()     { return RectF(LEFT_W + 168.f, 306.f, 210.f, 36.f); }  // 换装
+static RectF ComboRect()      { return RectF(LEFT_W + 168.f, 400.f, 210.f, 36.f); }  // 影片字幕
+static RectF StartRect()      { return RectF(LEFT_W + 320.f, 490.f, 250.f, 60.f); }
+// 下拉一律【向下】展开（控件在窗口中上部，向上展开会算出负坐标跑到窗口外）。
+// 换装 5 项：344..514；字幕 3 项：438..540；窗口高 620 放得下。
+static RectF ItemRect(const RectF& base, int k) {
+  return RectF(base.X, base.GetBottom() + 2 + k * 34.f, base.Width, 34.f);
 }
 
 // 命中 id：0..OPT_COUNT-1 选项 / 100+k subs / 200 开始 / 300 subs框
-enum { ID_START = 200, ID_COMBO_SUBS = 300 };
+//         400+k outfit / 500 outfit框
+enum { ID_START = 200, ID_COMBO_SUBS = 300, ID_COMBO_OUTFIT = 500 };
 
 static void Paint(HDC hdc) {
   RECT rc; GetClientRect(g_hwnd, &rc);
@@ -392,12 +425,27 @@ static void Paint(HDC hdc) {
       DrawTxt(gr, OPT_HINT[i], F(12), C_MUTED, r.X + 34, r.Y + 24);
     }
 
+    // ── 换装 ──
+    Pen sep0(C_LINE, 1.f); gr.DrawLine(&sep0, rx, 286.f, (float)rc.right - 44, 286.f);
+    DrawTxt(gr, L"换装", F(17), C_DIM, rx, 315);
+    DrawComboFrame(gr, OutfitRect(), OUTFIT_LABEL[st.outfit], st.hot == ID_COMBO_OUTFIT);
+    DrawTxt(gr, L"全员换成这套服装（各角色只换自己有的那套）",
+            F(12), C_MUTED, rx, 350);
+    if (st.comboOpen == 1) {
+      for (int k = 0; k < OUTFIT_N; k++) {
+        RectF ir = ItemRect(OutfitRect(), k);
+        FillRR(gr, ir, 6, (st.hot == 400 + k) ? C_ACCENT
+                            : (k == st.outfit ? C_HILITE : C_PANEL));
+        DrawTxt(gr, OUTFIT_LABEL[k], F(16), C_TEXT, ir.X + 12, ir.Y + 7);
+      }
+    }
+
     Pen sep(C_LINE, 1.f); gr.DrawLine(&sep, rx, 380.f, (float)rc.right - 44, 380.f);
-    DrawTxt(gr, L"影片字幕", F(17), C_DIM, rx, 405);
+    DrawTxt(gr, L"影片字幕", F(17), C_DIM, rx, 409);
     DrawComboFrame(gr, ComboRect(), SUBS_LABEL[st.subs], st.hot == ID_COMBO_SUBS);
     if (st.comboOpen == 0) {
       for (int k = 0; k < 3; k++) {
-        RectF ir = ComboItemRect(k);
+        RectF ir = ItemRect(ComboRect(), k);
         FillRR(gr, ir, 6, (st.hot == 100 + k) ? C_ACCENT : C_HILITE);
         DrawTxt(gr, SUBS_LABEL[k], F(16), C_TEXT, ir.X + 12, ir.Y + 7);
       }
@@ -442,6 +490,7 @@ static const wchar_t* DetectLang() {
     if (e != std::string::npos && (j == std::string::npos || e < j)) { wcscpy_s(buf, L"EN"); return buf; }
     if (j != std::string::npos) { wcscpy_s(buf, L"JP"); return buf; }
   }
+  // 退化：按存档目录判断
   wcscpy_s(buf, (!HasSaveDir(L"eng") && HasSaveDir(L"jpn")) ? L"JP" : L"EN");
   return buf;
 }
@@ -468,8 +517,10 @@ static int HitTest(int x, int y) {
   auto in = [&](const RectF& r) {
     return x >= r.X && x <= r.GetRight() && y >= r.Y && y <= r.GetBottom();
   };
-  if (st.comboOpen == 0) for (int k = 0; k < 3; k++) if (in(ComboItemRect(k))) return 100 + k;
+  if (st.comboOpen == 1) for (int k = 0; k < OUTFIT_N; k++) if (in(ItemRect(OutfitRect(), k))) return 400 + k;
+  if (st.comboOpen == 0) for (int k = 0; k < 3; k++) if (in(ItemRect(ComboRect(), k))) return 100 + k;
   if (in(StartRect())) return ID_START;
+  if (in(OutfitRect())) return ID_COMBO_OUTFIT;
   if (in(ComboRect())) return ID_COMBO_SUBS;
   for (int i = 0; i < OPT_COUNT; i++) {
     RectF r = OptRect(i);
@@ -495,7 +546,9 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
       bool saveNow = false;
       if (id >= 0 && id < OPT_COUNT) { st.on[id] = !st.on[id]; InvalidateRect(h, nullptr, FALSE); saveNow = true; }
       else if (id >= 100 && id < 103) { st.subs = id - 100; st.comboOpen = -1; InvalidateRect(h, nullptr, FALSE); saveNow = true; }
+      else if (id >= 400 && id < 400 + OUTFIT_N) { st.outfit = id - 400; st.comboOpen = -1; InvalidateRect(h, nullptr, FALSE); saveNow = true; }
       else if (id == ID_COMBO_SUBS) { st.comboOpen = (st.comboOpen == 0) ? -1 : 0; InvalidateRect(h, nullptr, FALSE); }
+      else if (id == ID_COMBO_OUTFIT) { st.comboOpen = (st.comboOpen == 1) ? -1 : 1; InvalidateRect(h, nullptr, FALSE); }
       else if (id == ID_START) { LaunchGame(); }
       // 立刻落盘：玩家可能在这里改完就关窗口、再用 Steam 或 boot.bat 直启游戏
       if (saveNow) SaveConfig();

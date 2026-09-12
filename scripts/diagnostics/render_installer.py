@@ -72,16 +72,16 @@ def render(state, out):
     # 游戏目录标签
     text(dr, "游戏目录", font(13), C_DIM, PAD, 62)
 
-    # 目录框
-    focus = state == "empty"
-    rr(dr, (PAD, 84, PAD + CW - 76, 84 + 34), 4, fill=C_FIELD,
-       outline=C_ACCENT if focus else C_BORDER, width=2 if focus else 1)
+    # 目录框：原生 EDIT（WS_EX_CLIENTEDGE 观感 = 白底 + 1px 灰边 + 左对齐文字）
+    # 空时显示灰色占位（真实程序另有一层提示文字，这里直接画在框内）
+    rr(dr, (PAD, 84, PAD + CW - 76, 84 + 34), 2, fill=C_FIELD,
+       outline=(160, 160, 160) if state == "empty" else C_BORDER, width=1)
     if state == "empty":
-        text(dr, "选择或粘贴游戏目录（内含 Game.exe）", font(13), C_MUTED, PAD + 8, 84 + 17,
+        text(dr, "输入或粘贴游戏目录，或点右侧浏览", font(13), C_MUTED, PAD + 6, 84 + 17,
              anchor="lm")
     else:
         text(dr, r"D:\Ruanjian\Steam\...\ROBOTICS;NOTES DaSH", font(13), C_TEXT,
-             PAD + 8, 84 + 17, anchor="lm")
+             PAD + 6, 84 + 17, anchor="lm")
 
     # 浏览按钮
     rr(dr, (PAD + CW - 68, 84, PAD + CW, 84 + 34), 4, fill=C_BG,

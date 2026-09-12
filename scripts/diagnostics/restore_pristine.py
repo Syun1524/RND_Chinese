@@ -20,8 +20,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 MASTER = r"D:/Ruanjian/Steam/steamapps/common/ROBOTICS;NOTES DaSH -原版英文 副本"
 TARGET = r"D:/Ruanjian/Steam/steamapps/common/RND_DaSH_en_copy"
-KILLER = r"D:/DATA/tran/agent tran/9.6文本外工作/tmp_128/rndkill.exe"
-OUT = r"D:/DATA/tran/agent tran/9.6文本外工作/tmp_128/rndkill_out.txt"
+KILLER = r"D:/DATA/tran/agent tran/9.6文本外工作/scripts/diagnostics/rndkill.exe"
+OUT = r"D:/DATA/tran/agent tran/9.6文本外工作/scripts/diagnostics/rndkill_out.txt"
 
 SKIP_DIRS = {"fonts"}
 

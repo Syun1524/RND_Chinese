@@ -27,7 +27,7 @@ INSTALLS = [
 ART = ["dinput8.dll", "VSFilter.dll", "RNDZhLauncher.exe", "d3d9", "d3d10", "d3d10_1",
        "d3d10core", "d3d11", "dxgi", "安装说明.txt", "_cn_patch_boot_orig.bat",
        "languagebarrier", os.path.join("NOTES DaSH", "dinput8.dll")]
-KILLER = r"D:/DATA/tran/agent tran/9.6文本外工作/tmp_128/rndkill.exe"
+KILLER = r"D:/DATA/tran/agent tran/9.6文本外工作/scripts/diagnostics/rndkill.exe"
 
 
 def kill_all():

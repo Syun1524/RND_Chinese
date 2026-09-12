@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Create ASCII junction entry points for the CJK-named game folders.
 
-Root cause (verified with modscan32 on the live process, see tmp_128/):
+Root cause (verified with modscan32 on the live process, see scripts/diagnostics/):
   A local proxy dinput8.dll is only picked up when the game is reached through a path
   that is pure ASCII. Launching the very same directory via an ASCII junction flips the
   loader back to the local DLL:

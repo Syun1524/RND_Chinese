@@ -279,3 +279,56 @@ LanguageBarrier **只在游戏实际用到某字号时才烘焙它**，且 `save
 - 字体缓存（`font_*.dds` / `fontData.bin`）**不建议预置**在发布包中，
   让用户在本地按其所拿到的 `patchdef.json` 生成，可从机制上避免
   "生成时字符集 ≠ 运行时字符集"这类问题
+
+---
+
+## 2026-09-12 安装包漏打包 9 个归档文件（`_` 前缀误判）
+
+### 症状
+
+安装包能装、能启动、`log.txt` 零错误，**但游戏里部分界面/提示直接失效**：
+`languagebarrier/enscript/` 少了 8 个 `.msb`、`c0data/` 少了 `_nobg.png`，
+而 `enscript.cls` / `c0data.cls` 仍然点名它们。
+MES00/MES01 整个归档被重定向到 `languagebarrier/enscript`，
+所以游戏按索引打开这些文件时**根本不存在**（不是回退到原版，是找不到）。
+
+### 根因
+
+`setup/build/build_installer.py` 的垃圾过滤规则里有 `n.startswith('_')`
+（本意是排除 `_stage` / `_bak` / 临时目录）。但**游戏资源本身就有下划线开头的名字**：
+
+```
+languagebarrier/c0data/_nobg.png          ← bg fileId 0，被 fileRedirection 点名
+languagebarrier/enscript/_anime_00.msb
+                        /_ar_00.msb
+                        /_geotag_00.msb
+                        /_mail_00.msb
+                        /_startup_ps4_00.msb
+                        /_system_00.msb     ← 系统消息
+                        /_tips_00.msb       ← TIPS 词条
+                        /_twipo_00.msb      ← Twipo（聊天）界面
+```
+
+CoZ 原版补丁里这 8 个 `.msb` 同样存在，是**正常资源命名**，不是临时文件。
+
+### 为什么一直没被发现
+
+- 构建只打印「共 N 个文件」，**不校验**文件是否齐；
+- `final_accept.py` 的判据是「装完能启动 + 卸载回纯净」，漏几个数据文件它看不出来；
+- 验收只看 `rnd_01_01_00.msb` 的中文条数，那个文件恰好没被漏掉。
+
+### 修法
+
+1. 删掉 `startswith('_')` 这条规则，只保留明确的垃圾特征
+   （`.bak` / `.obj` / `.res` / `.pdb` / `.ilk` / `silent_log` / `.log` / `__pycache__`）。
+2. 打包后新增**归档清单门禁**：逐行读 `c0data.cls` 与 `enscript.cls`，
+   点名而 stage 里不存在的文件一律报错退出。
+   这类"清单与内容不一致"的 bug 由门禁兜住，不再依赖人眼。
+3. `scripts/deploy_patch.py --dry-run` 的 `verify()` 也能抓到同样的不一致
+   （`cls 指向但 c0data/ 缺失`），部署前可先跑。
+
+### 验证
+
+- 解包成品安装包：`enscript/` 322 个、`c0data/` 88 个，`_` 开头 9 个文件全部在。
+- `final_accept.py` 全流程：安装 6 秒 → `log.txt` 5385 B / 0 错误 → 卸载 14 秒 → 回纯净、无残留。
+- 实机安装后确认 `_system_00.msb` 等确实落到游戏目录。
