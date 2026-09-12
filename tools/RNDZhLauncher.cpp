@@ -53,10 +53,10 @@ using namespace Gdiplus;
 // 布局：左栏是主题图（主视觉），右栏是选项。
 // **左栏宽度按主题图的实际比例算**（见 ApplyThemeGeometry）：图有多宽，栏就多宽，
 // 图按栏高等比缩放、正好铺满，不变形也不留黑边。换一张不同比例的图也不用改代码。
-static int WIN_H  = 620;      // 窗口高（逻辑像素）——固定值，由它反推左栏宽
-static int LEFT_W = 465;      // 左栏宽（初值是 540x720 算出来的，运行时按实际图覆盖）
-static int WIN_W  = 925;      // 窗口宽 = 左栏 + 右栏(460)
-static const int RIGHT_W = 460;   // 右栏固定宽度（放选项）
+static int WIN_H  = 500;      // 窗口高（逻辑像素）——固定值，由它反推左栏宽
+static int LEFT_W = 375;      // 左栏宽（初值是 540x720 算出来的，运行时按实际图覆盖）
+static int WIN_W  = 800;      // 窗口宽 = 左栏 + 右栏(425)
+static const int RIGHT_W = 425;   // 右栏固定宽度（放选项）
 
 // 产品版本。⚠ 改版本要同步三处：这里、成品ing/setup/src/RNDZhSetup.cpp 的 VER、
 // 成品ing/setup/build/build_installer.py 的 VERSION（决定包文件名）。
@@ -469,7 +469,7 @@ static void DrawCheck(Graphics& g, const RectF& box, bool on, bool hot) {
 static void DrawComboFrame(Graphics& g, const RectF& cr, const wchar_t* value, bool hot) {
   FillRR(g, cr, 7, C_FIELD);
   StrokeRR(g, cr, 7, hot ? C_ACCENT : C_BORDER, hot ? 1.4f : 1.f);
-  DrawTxt(g, value, F(16), C_TEXT, cr.X + 14, cr.Y + 8);
+  DrawTxt(g, value, F(14), C_TEXT, cr.X + 14, cr.Y + 8);
   float cx = cr.GetRight() - 18, cy = cr.Y + 18;
   SolidBrush db(C_DIM); PointF tri[3] = { {cx-5,cy-2},{cx+5,cy-2},{cx,cy+3} };
   g.FillPolygon(&db, tri, 3);
@@ -484,18 +484,18 @@ static void DrawComboItems(Graphics& g, const RectF& base, int n,
 // 左栏宽度由**主题图的比例**决定（见顶部 LEFT_W 的推导），窗口高度固定 620。
 // 右栏所有控件从右边界反推 —— 以前这里是一堆手写死坐标，
 // StartRect() 的右边界曾超出窗口 10px（「开始游戏」被切），现在不会再有这种问题。
-static const float PAD_R = 32.f;                   // 右栏右边距
-static const float RXL   = (float)LEFT_W + 36.f;   // 右栏内容左边界
+static const float PAD_R = 24.f;                   // 右栏右边距
+static const float RXL   = (float)LEFT_W + 28.f;   // 右栏内容左边界
 static const float RW    = (float)WIN_W - PAD_R;   // 右栏内容右边界
 
-// 4 个复选框：行高 46（标题 17px + 灰色说明 12px）
-static RectF OptRect(int i)   { return RectF(RXL, 66.f + i * 46.f, RW - RXL, 30.f); }
-// 两个下拉：标签在左，控件在右（控件左边界 = RXL + 110，留够「cosplay 模式」的宽度）
+// 4 个复选框：行高 42（标题 15px + 灰色说明 11px）
+static RectF OptRect(int i)   { return RectF(RXL, 56.f + i * 42.f, RW - RXL, 26.f); }
+// 两个下拉：标签在左，控件在右
 static const float COMBO_X = 110.f;
-static RectF OutfitRect()     { return RectF(RXL + COMBO_X, 300.f, RW - (RXL + COMBO_X), 36.f); }
-static RectF ComboRect()      { return RectF(RXL + COMBO_X, 400.f, RW - (RXL + COMBO_X), 36.f); }
-// 主按钮：右下角对齐，宽 220 高 52，离底 28
-static RectF StartRect()      { return RectF(RW - 220.f, (float)WIN_H - 28.f - 52.f, 220.f, 52.f); }
+static RectF OutfitRect()     { return RectF(RXL + COMBO_X, 252.f, RW - (RXL + COMBO_X), 34.f); }
+static RectF ComboRect()      { return RectF(RXL + COMBO_X, 324.f, RW - (RXL + COMBO_X), 34.f); }
+// 主按钮：右下角对齐，宽 200 高 46，离底 24
+static RectF StartRect()      { return RectF(RW - 200.f, (float)WIN_H - 24.f - 46.f, 200.f, 46.f); }
 // 下拉一律【向下】展开。换装 5 项、字幕 3 项，展开时下面要留得下 ——
 // 窗口高度按「字幕框底 + 3 项 + 主按钮」反推（见 WIN_H）。
 static RectF ItemRect(const RectF& base, int k) {
@@ -513,7 +513,7 @@ static void DrawComboItems(Graphics& g, const RectF& base, int n,
     bool isHot = (hot == idBase + k);
     Color bg = isHot ? C_HILITE : (k == sel ? C_SEL : C_FIELD);
     FillRR(g, RectF(ir.X + 1, ir.Y, ir.Width - 2, ir.Height), k == 0 ? 5.f : 0.f, bg);
-    DrawTxt(g, labels[k], F(16), k == sel ? C_ACCENT : C_TEXT, ir.X + 12, ir.Y + 7);
+    DrawTxt(g, labels[k], F(14), k == sel ? C_ACCENT : C_TEXT, ir.X + 12, ir.Y + 7);
   }
   StrokeRR(g, box, 6, C_BORDER, 1.f);
 }
@@ -562,43 +562,42 @@ static void Paint(HDC hdc) {
       DrawTxt(gr, (std::wstring(L"v") + VER).c_str(), F(12), C_WHITE, vb.X, vb.Y);
     }
 
+    // ── 右上角小字：实现方式 + 署名（右对齐，一眼能看到出处）──
+    // 两人工作量五五开，「x」刻意不分先后。
+    DrawTxt(gr, L"基于CoZ LanguageBarrier·Gemini3.0Flash·人工精校",
+            F(10), C_MUTED, RW, 14, 2);
+    DrawTxt(gr, L"汉化仓式同学◆xEight_tide",
+            F(10), C_MUTED, RW, 29, 2);
+
     // ── 右：选项 ──
-    DrawTxt(gr, L"选项", F(13), C_MUTED, RXL, 36);
+    DrawTxt(gr, L"选项", F(12), C_MUTED, RXL, 30);
     for (int i = 0; i < OPT_COUNT; i++) {
       RectF r = OptRect(i);
       bool on = st.on[i];
-      DrawCheck(gr, RectF(r.X, r.Y + 3, 22, 22), on, st.hot == i);
-      DrawTxt(gr, OPT_LABEL[i], F(17), on ? C_TEXT : C_DIM, r.X + 34, r.Y + 3);
+      DrawCheck(gr, RectF(r.X, r.Y + 2, 22, 22), on, st.hot == i);
+      DrawTxt(gr, OPT_LABEL[i], F(15), on ? C_TEXT : C_DIM, r.X + 32, r.Y + 1);
       // 说明行统一走折行版：宽度给 0 时 GDI+ 不折行，太长会被窗口裁掉
-      DrawTxtW(gr, OPT_HINT[i], F(12), C_MUTED, r.X + 34, r.Y + 24, RW - (r.X + 34));
+      DrawTxtW(gr, OPT_HINT[i], F(11), C_MUTED, r.X + 32, r.Y + 19, RW - (r.X + 32));
     }
 
     // ── cosplay 模式 ──
-    Pen sep0(C_BORDER, 1.f); gr.DrawLine(&sep0, RXL, 276.f, RW, 276.f);
-    DrawTxt(gr, L"cosplay 模式", F(17), C_TEXT, RXL, 309);
+    Pen sep0(C_BORDER, 1.f); gr.DrawLine(&sep0, RXL, 232.f, RW, 232.f);
+    DrawTxt(gr, L"cosplay 模式", F(15), C_TEXT, RXL, 261);
     DrawComboFrame(gr, OutfitRect(), OUTFIT_LABEL[st.outfit], st.hot == ID_COMBO_OUTFIT);
-    DrawTxtW(gr, OUTFIT_HINT, F(12), C_MUTED, RXL, 344, RW - RXL);
+    DrawTxtW(gr, OUTFIT_HINT, F(11), C_MUTED, RXL, 292, RW - RXL);
 
-    Pen sep(C_BORDER, 1.f); gr.DrawLine(&sep, RXL, 376.f, RW, 376.f);
-    DrawTxt(gr, L"影片字幕", F(17), C_TEXT, RXL, 409);
+    Pen sep(C_BORDER, 1.f); gr.DrawLine(&sep, RXL, 312.f, RW, 312.f);
+    DrawTxt(gr, L"影片字幕", F(15), C_TEXT, RXL, 333);
     DrawComboFrame(gr, ComboRect(), SUBS_LABEL[st.subs], st.hot == ID_COMBO_SUBS);
-    DrawTxtW(gr, SUBS_HINT, F(12), C_MUTED, RXL, 444, RW - RXL);
+    DrawTxtW(gr, SUBS_HINT, F(11), C_MUTED, RXL, 364, RW - RXL);
 
     // ── 主按钮 ──
     { RectF sr = StartRect();
       FillRR(gr, sr, 8, (st.hot == ID_START) ? C_ACCENTH : C_ACCENT);
       SolidBrush w(C_WHITE); StringFormat sf;
       sf.SetAlignment(StringAlignmentCenter); sf.SetLineAlignment(StringAlignmentCenter);
-      gr.DrawString(L"开始游戏", -1, F(19,true), sr, &sf, &w); }
+      gr.DrawString(L"开始游戏", -1, F(17,true), sr, &sf, &w); }
 
-    // ── 底部小字：实现方式 + 署名 ──
-    // 放在主按钮上方的空档（字幕说明与按钮之间），10px 弱化色，不抢界面。
-    // 署名用「×」连接 —— 两人工作量五五开，刻意不分先后。
-    // 位置对过：按钮顶在 y=WIN_H-80，这两行在它上方，不会叠到按钮上。
-    DrawTxt(gr, L"基于 CoZ LanguageBarrier · AI 翻译 Gemini 3.0 Flash · 人工精校",
-            F(10), C_MUTED, RXL, 478);
-    DrawTxt(gr, L"汉化 仓式同学◆ × Eight_tide",
-            F(10), C_MUTED, RXL, 493);
 
     // ── 下拉列表最后画 ──
     // 必须放在所有控件之后：展开的选项会盖住下面的分隔线与主按钮，
@@ -689,7 +688,7 @@ static BOOL CALLBACK FindGameWnd(HWND hwnd, LPARAM) {
 }
 
 static int RunSetTitle(DWORD pid) {
-  const wchar_t* title = L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校";
+  const wchar_t* title = L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校版";
   g_settitlePid = pid;
   for (int i = 0; i < 3600; i++) {             // 最多约 1 小时，随游戏退出结束
     // 前期窗口出现得快（几秒内），盯紧些；之后放宽，别空转
@@ -868,7 +867,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   AdjustWindowRect(&r, style, FALSE);
   int ww = r.right - r.left, wh = r.bottom - r.top;
   int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
-  g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校",
+  g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校版",
                            style, (sw - ww) / 2, (sh - wh) / 2, ww, wh,
                            nullptr, nullptr, hInst, nullptr);
   ShowWindow(g_hwnd, SW_SHOW); UpdateWindow(g_hwnd);

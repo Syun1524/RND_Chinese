@@ -747,7 +747,7 @@ static void Paint(HDC hdc) {
       g.DrawImage(g_iconBmp, (INT)ib.X, (INT)ib.Y, (INT)ib.Width, (INT)ib.Height);
       g.ResetClip();
     }
-    Txt(g, L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校", F(16, true), C_TEXT, PAD + 36, 18);
+    Txt(g, L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校版", F(15, true), C_TEXT, PAD + 36, 19);
     // 版本号右对齐放同一条栏的右端（整串连排太挤，实测 389/396 px）
     TxtR(g, (std::wstring(L"v") + VER).c_str(), F(12), C_DIM,
          RectF(PAD, 22.f, CW, 18.f), 2, 1);
@@ -1185,7 +1185,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   RECT r{ 0, 0, cw, ch };
   AdjustWindowRect(&r, style, FALSE);
   int ww = r.right - r.left, wh = r.bottom - r.top;
-  g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校 v1.1 · 安装程序",
+  g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校版 v1.1 · 安装程序",
                            style, (sw - ww) / 2, (sh - wh) / 2, ww, wh,
                            nullptr, nullptr, hInst, nullptr);
 
