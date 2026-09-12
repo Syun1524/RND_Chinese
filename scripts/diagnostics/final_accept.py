@@ -17,7 +17,7 @@ import time
 sys.stdout.reconfigure(encoding="utf-8")
 
 SETUP = (r"D:\DATA\tran\agent tran\9.6文本外工作\成品ing\setup"
-         r"\RNDZh-Setup-v1.1.exe")
+         r"\RNDZh-Setup-v1.22.exe")
 MASTER = r"D:\Ruanjian\Steam\steamapps\common\ROBOTICS;NOTES DaSH -原版英文 副本"
 TARGET = r"D:\Ruanjian\Steam\steamapps\common\RND_DaSH_en_copy"
 TEMP = os.environ.get("TEMP") or ""
@@ -160,7 +160,16 @@ print("\n[3] 启动验证（补丁是否真的加载 + 文本是否中文）")
 log = os.path.join(TARGET, "languagebarrier", "log.txt")
 if os.path.exists(log):
     os.remove(log)
-subprocess.run(["taskkill", "/F", "/IM", "Game.exe"], capture_output=True)
+
+def kill_target_game():
+    """只杀 exe 路径位于目标目录（或其 junction 真实指向）下的 Game.exe。
+    绝不能按映像名全杀 —— 用户可能正开着别的目录的游戏实例（2026-09-13 实况）。"""
+    ps = ("Get-Process Game.exe -ErrorAction SilentlyContinue | "
+          "Where-Object { $_.Path -like '%s*' -or $_.Path -like '%s*' } | "
+          "Stop-Process -Force" % (TARGET, os.path.realpath(TARGET)))
+    subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True)
+
+kill_target_game()
 time.sleep(2)
 p = subprocess.Popen([os.path.join(TARGET, "Game.exe"), "roboticsnotesd", "EN"],
                      cwd=TARGET, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -173,7 +182,7 @@ for _ in range(60):
         break
     time.sleep(1)
 p.kill()
-subprocess.run(["taskkill", "/F", "/IM", "Game.exe"], capture_output=True)
+kill_target_game()
 print("  log.txt: %s" % ("✓ %d B" % os.path.getsize(log) if loaded else "★无（未加载）"))
 if loaded:
     txt = open(log, encoding="utf-8", errors="replace").read()

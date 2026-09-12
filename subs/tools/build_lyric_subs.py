@@ -80,9 +80,12 @@ def filler_zh(en):
     if en == "One more time!":
         return "再来一次！"
     if en == "Frau-tan, c'mon!":
-        return "芙兰碳，来吧！"
+        return "芙劳炭，来吧！"
     if en.startswith("Enako-chan"):
-        return "Enako，来和我们一起跳！"
+        # "Enako" is CoZ's ear-transcription of a shout in the MV audio; the name
+        # appears nowhere in the game's text (all encodings searched).  Ship the
+        # name-free call so no unverifiable Latin name lands in a Chinese line.
+        return "来和我们一起跳吧！"
     if en.startswith("Oh man, now I really wanna dance"):
         return "糟了，我也真想跳起来……"
     if en.startswith("Ah, I'm beat"):
@@ -245,91 +248,121 @@ def render_entry(dialogue, rows):
     return filler_zh(dialogue["en"])
 
 
-# --- karaoke timing ----------------------------------------------------------------
+# --- karaoke: left-to-right sweep locked to the JP syllable timeline ---------------
 def s2cs(seconds):
-    """ASS \\k units are centiseconds."""
+    """ASS timing in centiseconds."""
     return int(round(seconds * 100))
 
 
-def karaoke_entry(dialogue, rows):
-    """Per-line karaoke payload: every Chinese character gets a \\kf duration.
-
-    \\kf units start counting from the LINE start, so any window where nothing
-    is sung (before the first row, or between rows) is folded into the unit
-    that is on screen during it: the lead-in joins character 1, an inter-row
-    pause joins the last character of the previous row.  The visible payload is
-    therefore exactly the Chinese text.  The spreadsheet carries the real sung
-    time per row (start/end), so each row spans exactly its own duration.
-    Inside a row, characters share that row's duration evenly (syllable time
-    distributed over the Chinese text); inter-character spaces get a short
-    unit so word gaps stay visible.
-
-    Returns (payload, total_cs) or (None, 0) when there is nothing to time."""
-    if not rows:
-        return None, 0
-    line_start = s2cs(dialogue["start"])
-    units = []          # (char, cs)
-
-    prev_end = 0
-    for r in rows:
-        st = s2cs(r["start"]) - line_start
-        en = s2cs(r["end"]) - line_start
-        zh = r["zh"]
-        n = sum(1 for c in zh if not c.isspace())
-        if n == 0:
-            prev_end = max(prev_end, en)
+def parse_kanji_timelines(path):
+    r"""Per-line syllable timelines from the combined track's Kanji karaoke
+    comments: (start_cs, end_cs, [\k durations]).  This is the melody the
+    romaji layer flashes to, and what our sweep speed follows."""
+    BS = chr(92)
+    KT = re.compile(re.escape(BS) + r'k(?:f|o)?(\d+)')
+    out = []
+    for ln in io.open(path, encoding='utf-8-sig', newline='').read().splitlines():
+        if not ln.startswith('Comment:'):
             continue
-        hold_first = False
-        join_space_cs = 0
-        if st > prev_end:
-            gap = st - prev_end
-            if units:
-                # inter-row pause: sweep holds on the previous character.  The
-                # visible join space between rows is emitted as its own unit,
-                # so reserve its share from the gap instead of adding on top.
-                join_space_cs = max(1, int(round(gap * 0.15)))
-                units[-1] = (units[-1][0], units[-1][1] + (gap - join_space_cs))
-            elif zh.lstrip():
-                # lead-in: the sweep holds on character 1 until the vocal
-                units.append((zh.lstrip()[0], gap))
-                hold_first = True
-        dur = max(n, en - st)
-        # Weighted share: non-space characters split most of `dur`; spaces get
-        # a short unit.  Shares normalize so the WHOLE row lands exactly on
-        # `dur` (spaces consume sweep time too); the last non-space character
-        # absorbs the rounding residue.
-        ns_units = max(1, sum(1 for c in zh if not c.isspace()))
-        sp_units = sum(1 for c in zh if c.isspace())
-        sp_weight = 0.15
-        weight_sum = ns_units + sp_weight * sp_units
-        scale = dur / weight_sum
-        alloc = [max(1, int(round(scale * (sp_weight if c.isspace() else 1))))
-                 for c in zh]
-        idx_ns = [i for i, c in enumerate(zh) if not c.isspace()]
-        spent = sum(alloc)
-        if spent != dur and idx_ns:
-            alloc[idx_ns[-1]] = max(1, alloc[idx_ns[-1]] + (dur - spent))
-        emit = list(zip(zh, alloc))
-        if hold_first:
-            # char 1's lead-holding unit is already in `units`; fold char 1's
-            # own share into it so the row total stays exact
-            first_share = alloc[0] if zh[0] not in (' ',) else alloc[1]
-            units[-1] = (units[-1][0], units[-1][1] + first_share)
-            skip = 1 if zh[0] == units[-1][0] else 0
-            emit = emit[skip:]
-        elif units and not zh.startswith(' '):
-            # multi-row join: render_entry separates rows with a single space;
-            # emit that space as its own unit, funded from the reserved gap
-            units.append((' ', join_space_cs or
-                          max(1, int(round(0.15 * dur / max(1, weight_sum))))))
-        for c, k in emit:
-            units.append((c, k))
-        prev_end = max(prev_end, en)
+        f = ln.rstrip().split(',', 9)
+        if len(f) < 10:
+            continue
+        style = f[3].strip()
+        if not style.lower().startswith('kanji'):
+            continue
+        if 'karaoke' not in f[8]:
+            continue
+        ks = [int(x) for x in KT.findall(f[9])]
+        if not ks:
+            continue
+        out.append((s2cs(t2s(f[1])), s2cs(t2s(f[2])), ks))
+    return out
+
+
+def row_bounds(row, timelines, line_start):
+    """Cumulative syllable boundaries (cs rel. to line start) for one sheet row,
+    rescaled to land exactly on the row's sung window.  None when the Japanese
+    timeline for that row is missing (falls back to even sweep)."""
+    target = s2cs(row["start"])
+    best = None
+    for t0, t1, ks in timelines:
+        if best is None or abs(t0 - target) < abs(best[0] - target):
+            best = (t0, t1, ks)
+    if best is None or abs(best[0] - target) > 30:
+        return None
+    rs, re_, ks = s2cs(row["start"]) - line_start, s2cs(row["end"]) - line_start, best[2]
+    raw = [0]
+    acc = 0
+    for k in ks:
+        acc += k
+        raw.append(acc)
+    span = max(1, raw[-1])
+    return [rs + (re_ - rs) * b / span for b in raw]
+
+
+def interp(bounds, f):
+    M = len(bounds) - 1
+    x = min(max(f, 0.0), 1.0) * M
+    j = min(int(x), M - 1)
+    return bounds[j] + (bounds[j + 1] - bounds[j]) * (x - j)
+
+
+def kf_overlay(dialogue, rows, timelines):
+    r"""Payload for the sweep overlay: the Chinese line where each character
+    carries a \kf duration read off the Japanese syllable timeline (via its
+    text-position fraction), so the fill sweeps fast where the melody is fast
+    and holds through held notes and inter-row pauses.
+
+    Returns (payload, total_cs)."""
+    BS = chr(92)
+    K = BS + 'kf'
+    line_start = s2cs(dialogue["start"])
+    units = []
+    prev_end = None
+    for r in rows:
+        zh = r["zh"]
+        if not zh:
+            continue
+        rs = s2cs(r["start"]) - line_start
+        re_ = s2cs(r["end"]) - line_start
+        bounds = row_bounds(r, timelines, line_start)
+        if bounds is None:
+            bounds = [rs + (re_ - rs) * i / len(zh) for i in range(len(zh) + 1)]
+        if prev_end is not None:
+            # the join space between two rows: sweep sits there for the pause
+            # (emit it even when the rows butt together, or the overlay text
+            # loses a column and drifts against the ghost)
+            units.append((' ', max(1, rs - prev_end)))
+        L = len(zh)
+        for i, c in enumerate(zh):
+            d = interp(bounds, (i + 1) / L) - interp(bounds, i / L)
+            if prev_end is None and i == 0:
+                d += rs                     # lead-in: hold until the vocal
+            units.append((c, max(1, int(round(d)))))
+        prev_end = max(prev_end or 0, re_)
     if not units:
         return None, 0
-    total = sum(k for _, k in units)
-    payload = "".join("{\\kf%d}%s" % (k, c) for c, k in units)
-    return payload, total
+    payload = "".join("{%s%d}%s" % (K, k, c) for c, k in units)
+    return payload, sum(k for _, k in units)
+
+
+def sweep_colors(prefix):
+    """(secondary, primary_override) for the sweep overlay, borrowing CoZ's
+    karaoke palette: their flash fills pure WHITE over the dim ghost, so on
+    dark-base lines the sung side goes FFFFFF while the unsung side stays the
+    line's own colour (seamless against the ghost).  On light-base lines
+    (white/near-white fills) white-on-white would be invisible, so the unsung
+    side dims to ~45% instead and the sweep reveals the normal colour."""
+    BS = chr(92)
+    m = re.search(re.escape(BS) + r'c&H([0-9A-Fa-f]{6})&', prefix)
+    fill = m.group(1).upper() if m else 'FFFFFF'
+    b, g, r = int(fill[0:2], 16), int(fill[2:4], 16), int(fill[4:6], 16)
+    lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0
+    if lum <= 0.85:
+        return fill, 'FFFFFF'          # dark base: sweep into the flash white
+    f = 0.45
+    dim = '%02X%02X%02X' % (int(b * f), int(g * f), int(r * f))
+    return dim, None                   # light base: dim unsung, normal sung
 
 
 
@@ -389,6 +422,7 @@ def fit_size(text, dialogue, st, playres_w, bump, margin=6.0):
 
 def main():
     write = "--write" in sys.argv
+    timelines = {}                       # song -> JP syllable timelines
     if "--font" in sys.argv:
         globals()["FONT_NAME"] = sys.argv[sys.argv.index("--font") + 1]
     if "--font-file" in sys.argv:
@@ -440,6 +474,14 @@ def main():
         print("PINNED (kept inside margin box):")
         for row in pinned_total:
             print("   ", row)
+    if globals()["KARAOKE"]:
+        # load the JP syllable timelines once (from each song's combined track)
+        for base in SONGS:
+            timelines[base] = parse_kanji_timelines(
+                os.path.join(TEMPLATE, base + ".ass"))
+        n = sum(len(v) for v in timelines.values())
+        print("syllable timelines loaded: %d Japanese lines across %d songs"
+              % (n, len(timelines)))
     if not write:
         print("dry run only; pass --write to emit files.")
         return
@@ -450,6 +492,7 @@ def main():
         report = build_song(base, os.path.join(ROOT, xlsx))
         for suf, (lines, dialogues, tgts, _m, _v, _u, styles, playres) in report.items():
             new = list(lines)
+            extras = {}                      # ghost idx -> overlay lines to insert
             changed_styles = False
             for d, rows in zip(dialogues, tgts):
                 zh = render_entry(d, rows)
@@ -465,15 +508,27 @@ def main():
                     size, pinned = fit_size(zh, d, st, playres[0], globals()["SIZE_SCALE"])
                     if pinned:
                         fs_override = size
-                if globals()["KARAOKE"] and rows and zh:
-                    payload, total_cs = karaoke_entry(d, rows)
-                    if payload:
-                        zh = payload
                 p[9] = prefix + zh
                 if fs_override is not None:
                     # line-local size cap, in its own override block
                     p[9] = prefix + "{\\fs%g}" % round(fs_override, 1) + zh
                 new[d["idx"]] = ",".join(p) + d["eol"]
+                # sweep overlay: a copy of the line that fills left-to-right at
+                # the speed of the Japanese syllable timeline.  Colours borrow
+                # CoZ's karaoke palette (see sweep_colors): dark-base lines sweep
+                # into their flash white; light-base lines sweep out of a dim.
+                if globals()["KARAOKE"] and rows and zh:
+                    payload, total_cs = kf_overlay(d, rows, timelines[base])
+                    if payload and total_cs:
+                        sec, prim = sweep_colors(prefix)
+                        tag = "{\\2c&H" + sec + "&"
+                        if prim:
+                            tag += "\\1c&H" + prim + "&"
+                        op = list(p)
+                        op[9] = (prefix + tag + "}"
+                                 + (("{\\fs%g}" % round(fs_override, 1)) if fs_override else "")
+                                 + payload)
+                        extras[d["idx"]] = [",".join(op) + d["eol"]]
             for i, ln in enumerate(new):
                 body = ln.rstrip("\r\n")
                 if body.startswith("Style: "):
@@ -488,9 +543,14 @@ def main():
                             changed_styles = True
                         new[i] = "Style: " + ",".join(fields) + ln[len(body):]
             assert len(new) == len(lines)
+            # interleave the sweep overlays right after their ghost lines
+            out_lines = []
+            for i, ln in enumerate(new):
+                out_lines.append(ln)
+                out_lines.extend(extras.get(i, []))
             out_path = os.path.join(OUT, base + suf)
             with io.open(out_path, "w", encoding="utf-8-sig", newline="") as fh:
-                fh.write("".join(new))
+                fh.write("".join(out_lines))
             # install; keep exactly one pristine English rollback per track, and
             # only on the first conversion (the English templates stay in TEMPLATE
             # anyway, so repeated builds must not pile up backups)

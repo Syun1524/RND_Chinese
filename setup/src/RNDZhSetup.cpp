@@ -36,7 +36,7 @@ using namespace Gdiplus;
 static const int WIN_W = 480, WIN_H = 268;
 // 产品版本。⚠ 改版本要同步三处：这里、launcher/RNDZhLauncher.cpp 的 VER、
 // 成品ing/setup/build/build_installer.py 的 VERSION（决定包文件名）。
-static const wchar_t* VER = L"1.1";
+static const wchar_t* VER = L"1.22";
 static const Color
   C_BG      (255, 255, 255, 255),   // 窗口底
   C_PANEL   (255, 245, 246, 248),   // 顶部标题条
@@ -791,12 +791,19 @@ static void Paint(HDC hdc) {
 
     // 按钮（右对齐）
     {
-      bool can = !g_gameDir.empty() && !g_done && g_pct < 0;
       RectF ir = InstallRect();
-      Color ic = !can ? C_TRACK : (g_hot == 2 ? C_ACCENTH : C_ACCENT);
-      FillRR(g, ir, 4, ic);
-      TxtR(g, g_done ? L"已完成" : L"安装", F(14, true),
-           can || g_done ? C_WHITE : C_MUTED, ir, 1, 1);
+      if (g_done) {
+        // 完成态：蓝色「启动游戏」= 真按钮。以前这里是灰色「已完成」，
+        // 占着主按钮的位置却什么都干不了（用户：还不如显示启动游戏）。
+        bool hot = (g_hot == 2);
+        FillRR(g, ir, 4, hot ? C_ACCENTH : C_ACCENT);
+        TxtR(g, L"启动游戏", F(14, true), C_WHITE, ir, 1, 1);
+      } else {
+        bool can = !g_gameDir.empty() && g_pct < 0;
+        Color ic = !can ? C_TRACK : (g_hot == 2 ? C_ACCENTH : C_ACCENT);
+        FillRR(g, ir, 4, ic);
+        TxtR(g, L"安装", F(14, true), can ? C_WHITE : C_MUTED, ir, 1, 1);
+      }
 
       RectF cr = CancelRect();
       bool ch = (g_hot == 3);
@@ -815,7 +822,9 @@ static int Hit(int px, int py) {
   auto in = [&](const RectF& r) {
     return x >= r.X && x <= r.GetRight() && y >= r.Y && y <= r.GetBottom();
   };
-  if (!g_done && g_pct < 0) {
+  if (g_done) {
+    if (in(InstallRect())) return 2;    // 完成态 = 「启动游戏」
+  } else if (g_pct < 0) {
     if (in(InstallRect())) return 2;
     if (in(FieldRect())) return 4;      // 点目录框 = 聚焦编辑
   }
@@ -933,6 +942,26 @@ static void OnInstall() {
   UpdateWindow(g_hwnd);
 }
 
+// 完成态的「启动游戏」。Steam 库安装走 steam:// 协议 —— 客户端没开时会自动
+// 先拉起 Steam 再进游戏（直接跑 Game.exe 只会弹英文模态框且主窗口不出来）；
+// 盗版等非 Steam 目录直接启动 Game.exe。
+static void LaunchGameFromSetup() {
+  if (g_gameDir.empty()) return;
+  std::wstring low = g_gameDir;
+  for (auto& c : low) c = (wchar_t)towlower(c);
+  if (low.find(L"steamapps") != std::wstring::npos) {
+    ShellExecuteW(g_hwnd, L"open", L"steam://rungameid/1111390", nullptr, nullptr, SW_SHOWNORMAL);
+  } else {
+    std::wstring exe = g_gameDir + L"\\Game.exe";
+    SHELLEXECUTEINFOW si{ sizeof(si) };
+    si.fMask = SEE_MASK_NOASYNC;
+    si.lpFile = exe.c_str();
+    si.lpDirectory = g_gameDir.c_str();
+    si.nShow = SW_SHOWNORMAL;
+    ShellExecuteExW(&si);
+  }
+}
+
 static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
   switch (m) {
   case WM_MOUSEMOVE: {
@@ -952,7 +981,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
       if (PtInRect(&er, p)) return DefWindowProcW(h, m, w, l);
     }
     POINT p; GetCursorPos(&p); ScreenToClient(h, &p);
-    if (g_pct < 0 && !g_done) {
+    if (g_pct < 0 || g_done) {   // 完成态也要给「启动游戏」手型光标
       int id = Hit(p.x, p.y);
       if (id == 4) SetCursor(LoadCursor(nullptr, IDC_IBEAM));      // 目录框 = I 型
       else if (id >= 0) SetCursor(LoadCursor(nullptr, IDC_HAND));  // 按钮 = 手型
@@ -969,7 +998,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
   case WM_LBUTTONUP: {
     int id = Hit(GET_X_LPARAM(l), GET_Y_LPARAM(l));
     if (id == 1) { PickFolder(); }
-    else if (id == 2) { OnInstall(); }
+    else if (id == 2) { if (g_done) LaunchGameFromSetup(); else OnInstall(); }
     else if (id == 3) { PostMessageW(h, WM_CLOSE, 0, 0); }
     else if (id == 4) {
       if (g_hEdit) SetFocus(g_hEdit);
@@ -1185,7 +1214,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   RECT r{ 0, 0, cw, ch };
   AdjustWindowRect(&r, style, FALSE);
   int ww = r.right - r.left, wh = r.bottom - r.top;
-  g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校版 v1.1 · 安装程序",
+  g_hwnd = CreateWindowExW(0, wc.lpszClassName, (std::wstring(L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校版 v") + VER + L" · 安装程序").c_str(),
                            style, (sw - ww) / 2, (sh - wh) / 2, ww, wh,
                            nullptr, nullptr, hInst, nullptr);
 

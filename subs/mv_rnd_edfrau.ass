@@ -1201,26 +1201,44 @@ Dialogue: 0,0:00:02.14,0:00:05.94,translation,,0,0,0,fx,{\fad(300,250)\pos(50,67
 Dialogue: 0,0:00:05.80,0:00:09.61,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}嘟 嘟噜 嘟噜 嘟♪ 哒哩哒哩呀啊啊♪
 Dialogue: 0,0:00:09.52,0:00:13.28,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}嘟 嘟噜 嘟噜 嘟♪ 嘟 嘟噜 嘟噜 嘟♪
 Dialogue: 0,0:00:13.23,0:00:16.19,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}嘟嘟噜 啦啦啦啦♪
-Dialogue: 0,0:00:16.92,0:00:20.22,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf68}讨{\kf38}厌{\kf38}是{\kf38}喜{\kf38}欢{\kf38}的{\kf38}反{\kf34}面
-Dialogue: 0,0:00:20.11,0:00:24.17,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf64}那{\kf34}喜{\kf34}欢{\kf34}又{\kf34}是{\kf34}什{\kf34}么{\kf34}的{\kf34}反{\kf34}面{\kf36}?
-Dialogue: 0,0:00:24.32,0:00:27.57,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf67}思{\kf37}维{\kf37}回{\kf37}路{\kf37}立{\kf37}刻{\kf37}死{\kf36}机
-Dialogue: 0,0:00:27.51,0:00:30.86,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf63}嘛{\kf5} {\kf33}算{\kf33}了{\kf5} {\kf33}反{\kf33}正{\kf33}也{\kf33}不{\kf33}出{\kf31}门
-Dialogue: 0,0:00:31.41,0:00:35.33,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf60}平{\kf30}淡{\kf30}无{\kf30}奇{\kf30}的{\kf30}日{\kf30}常{\kf30}里{\kf4} {\kf30}终{\kf30}有{\kf30}一{\kf28}天
-Dialogue: 0,0:00:35.17,0:00:38.70,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf84}电{\kf54}波{\kf54}传{\kf54}了{\kf54}过{\kf53}来
-Dialogue: 0,0:00:37.97,0:00:39.16,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,630)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf60}哔{\kf30}哔{\kf29}哔
-Dialogue: 0,0:00:38.64,0:00:44.27,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf83}难{\kf53}道{\kf53}这{\kf8} {\kf53}才{\kf53}是{\kf53}恋{\kf53}爱{\kf53}的{\kf53}开{\kf48}始
-Dialogue: 0,0:00:44.36,0:00:45.21,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf48}哈{\kf18}?{\kf19}!
+Dialogue: 0,0:00:16.92,0:00:20.22,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}讨厌是喜欢的反面
+Dialogue: 0,0:00:16.92,0:00:20.22,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf68}讨{\kf36}厌{\kf22}是{\kf38}喜{\kf34}欢{\kf64}的{\kf31}反{\kf37}面
+Dialogue: 0,0:00:20.11,0:00:24.17,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}那喜欢又是什么的反面?
+Dialogue: 0,0:00:20.11,0:00:24.17,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf63}那{\kf18}喜{\kf26}欢{\kf36}又{\kf60}是{\kf15}什{\kf49}么{\kf42}的{\kf18}反{\kf54}面{\kf25}?
+Dialogue: 0,0:00:24.32,0:00:27.57,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}思维回路立刻死机
+Dialogue: 0,0:00:24.32,0:00:27.57,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf68}思{\kf41}维{\kf27}回{\kf24}路{\kf40}立{\kf58}刻{\kf27}死{\kf39}机
+Dialogue: 0,0:00:27.51,0:00:30.86,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}嘛 算了 反正也不出门
+Dialogue: 0,0:00:27.51,0:00:30.86,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf57}嘛{\kf17} {\kf14}算{\kf18}了{\kf26} {\kf17}反{\kf35}正{\kf23}也{\kf43}不{\kf64}出{\kf20}门
+Dialogue: 0,0:00:31.41,0:00:35.33,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}平淡无奇的日常里 终有一天
+Dialogue: 0,0:00:31.41,0:00:35.33,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf92}平{\kf25}淡{\kf29}无{\kf26}奇{\kf21}的{\kf36}日{\kf32}常{\kf27}里{\kf31} {\kf29}终{\kf18}有{\kf1}一{\kf25}天
+Dialogue: 0,0:00:35.17,0:00:38.70,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}电波传了过来
+Dialogue: 0,0:00:35.17,0:00:38.70,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf93}电{\kf40}波{\kf49}传{\kf47}了{\kf70}过{\kf53}来
+Dialogue: 0,0:00:37.97,0:00:39.16,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,630)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}哔哔哔
+Dialogue: 0,0:00:37.97,0:00:39.16,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,630)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf63}哔{\kf25}哔{\kf31}哔
+Dialogue: 0,0:00:38.64,0:00:44.27,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}难道这 才是恋爱的开始
+Dialogue: 0,0:00:38.64,0:00:44.27,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf48}难{\kf45}道{\kf40}这{\kf35} {\kf30}才{\kf34}是{\kf58}恋{\kf48}爱{\kf42}的{\kf96}开{\kf88}始
+Dialogue: 0,0:00:44.36,0:00:45.21,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}哈?!
+Dialogue: 0,0:00:44.36,0:00:45.21,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf50}哈{\kf18}?{\kf17}!
 Dialogue: 0,0:00:45.04,0:00:46.49,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}和我一起跳吧
-Dialogue: 0,0:00:46.23,0:00:49.74,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf70}比{\kf40}烦{\kf40}恼{\kf40}抑{\kf40}郁{\kf40}的{\kf40}推{\kf41}文
-Dialogue: 0,0:00:49.73,0:00:53.65,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf75}通{\kf45}宵{\kf45}共{\kf45}舞{\kf45}才{\kf45}是{\kf45}正{\kf47}解
-Dialogue: 0,0:00:53.63,0:00:57.20,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf76}牵{\kf46}起{\kf46}手{\kf7} {\kf46}踩{\kf46}准{\kf46}节{\kf44}拍
-Dialogue: 0,0:00:57.09,0:00:59.85,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf61}相{\kf31}视{\kf31}而{\kf31}笑{\kf31}便{\kf31}是{\kf31}胜{\kf29}利
+Dialogue: 0,0:00:46.23,0:00:49.74,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}比烦恼抑郁的推文
+Dialogue: 0,0:00:46.23,0:00:49.74,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf92}比{\kf25}烦{\kf66}恼{\kf38}抑{\kf32}郁{\kf34}的{\kf28}推{\kf36}文
+Dialogue: 0,0:00:49.73,0:00:53.65,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}通宵共舞才是正解
+Dialogue: 0,0:00:49.73,0:00:53.65,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf62}通{\kf30}宵{\kf32}共{\kf44}舞{\kf43}才{\kf62}是{\kf72}正{\kf47}解
+Dialogue: 0,0:00:53.63,0:00:57.20,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}牵起手 踩准节拍
+Dialogue: 0,0:00:53.63,0:00:57.20,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf66}牵{\kf40}起{\kf69}手{\kf22} {\kf39}踩{\kf34}准{\kf49}节{\kf38}拍
+Dialogue: 0,0:00:57.09,0:00:59.85,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}相视而笑便是胜利
+Dialogue: 0,0:00:57.09,0:00:59.85,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf53}相{\kf26}视{\kf21}而{\kf22}笑{\kf22}便{\kf40}是{\kf67}胜{\kf25}利
 Dialogue: 0,0:00:59.83,0:01:01.26,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}和我一起跳吧
-Dialogue: 0,0:01:00.98,0:01:08.28,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf76}来{\kf46}一{\kf46}点{\kf46}禁{\kf46}忌{\kf46}的{\kf69}爱{\kf4} {\kf44}试{\kf44}着{\kf44}用{\kf44}乘{\kf44}法{\kf44}去{\kf44}跨{\kf43}越
-Dialogue: 0,0:01:08.39,0:01:11.85,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf70}连{\kf40}本{\kf40}该{\kf40}无{\kf40}聊{\kf40}的{\kf40}时{\kf36}光
-Dialogue: 0,0:01:11.55,0:01:15.30,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf68}也{\kf38}化{\kf38}作{\kf38}快{\kf38}乐{\kf6} {\kf38}快{\kf38}乐{\kf38}起{\kf35}来
-Dialogue: 0,0:01:15.31,0:01:18.94,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf57}就{\kf27}让{\kf27}它{\kf27}变{\kf27}成{\kf27}快{\kf27}乐{\kf4} {\kf27}快{\kf27}活{\kf27}的{\kf27}模{\kf32}样
-Dialogue: 0,0:01:18.97,0:01:21.70,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,630)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\kf65}啊{\kf35}—{\kf35}—{\kf35}呼{\kf35}—{\kf35}—{\kf33}↑
+Dialogue: 0,0:01:00.98,0:01:08.28,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}来一点禁忌的爱 试着用乘法去跨越
+Dialogue: 0,0:01:00.98,0:01:08.28,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf95}来{\kf30}一{\kf67}点{\kf40}禁{\kf50}忌{\kf30}的{\kf42}爱{\kf25} {\kf22}试{\kf29}着{\kf40}用{\kf40}乘{\kf35}法{\kf55}去{\kf75}跨{\kf55}越
+Dialogue: 0,0:01:08.39,0:01:11.85,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}连本该无聊的时光
+Dialogue: 0,0:01:08.39,0:01:11.85,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf91}连{\kf67}本{\kf38}该{\kf17}无{\kf24}聊{\kf36}的{\kf41}时{\kf33}光
+Dialogue: 0,0:01:11.55,0:01:15.30,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}也化作快乐 快乐起来
+Dialogue: 0,0:01:11.55,0:01:15.30,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf55}也{\kf34}化{\kf31}作{\kf20}快{\kf26}乐{\kf32} {\kf30}快{\kf23}乐{\kf80}起{\kf43}来
+Dialogue: 0,0:01:15.31,0:01:18.94,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}就让它变成快乐 快活的模样
+Dialogue: 0,0:01:15.31,0:01:18.94,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf43}就{\kf17}让{\kf37}它{\kf16}变{\kf12}成{\kf21}快{\kf30}乐{\kf29} {\kf21}快{\kf19}活{\kf25}的{\kf70}模{\kf23}样
+Dialogue: 0,0:01:18.97,0:01:21.70,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,630)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}啊——呼——↑
+Dialogue: 0,0:01:18.97,0:01:21.70,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,630)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}{\2c&H727272&}{\kf51}啊{\kf21}—{\kf55}—{\kf73}呼{\kf52}—{\kf11}—{\kf11}↑
 Dialogue: 0,0:01:19.68,0:01:23.42,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}嘟 嘟噜 嘟噜 嘟♪ 嘟 嘟噜 嘟噜 嘟♪
 Dialogue: 0,0:01:23.39,0:01:27.13,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}嘟 嘟噜 嘟噜 嘟♪ 哒哩哒哩呀啊啊♪
 Dialogue: 0,0:01:27.06,0:01:30.81,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\c&HFFFFFF&\3c&H000000&\shad0\3a&H66&\blur3}嘟 嘟噜 嘟噜 嘟♪ 嘟 嘟噜 嘟噜 嘟♪

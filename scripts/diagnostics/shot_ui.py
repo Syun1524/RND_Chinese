@@ -88,7 +88,7 @@ def shoot(exe, cwd, title, out, wait=4):
 if what == "launcher":
     exe = os.path.join(GAME, "RNDZhLauncher.exe")
     print("启动器（非提权，直接抓）")
-    shoot(exe, GAME, "简体中文补丁", OUT)
+    shoot(exe, GAME, "简中补丁", OUT)   # 2026-09-13 标题改为「…简中补丁 AI人工精校版 v<VER>」
 
 elif what == "setup":
     print("安装器")

@@ -60,7 +60,10 @@ static const int RIGHT_W = 425;   // 右栏固定宽度（放选项）
 
 // 产品版本。⚠ 改版本要同步三处：这里、成品ing/setup/src/RNDZhSetup.cpp 的 VER、
 // 成品ing/setup/build/build_installer.py 的 VERSION（决定包文件名）。
-static const wchar_t* VER = L"1.1";
+static const wchar_t* VER = L"1.22";
+// 产品标题（用户要求结尾带版本号）。窗口标题与游戏窗口标题劫持共用这一份。
+static const std::wstring APP_TITLE =
+    std::wstring(L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校版 v") + VER;
 
 static const Color
   C_BG      (255, 255, 255, 255),   // 窗口底
@@ -74,6 +77,8 @@ static const Color
   C_ACCENTH (255,  10,  95, 176),   // 主按钮悬停
   C_HILITE  (255, 236, 240, 245),   // 下拉项悬停底
   C_SEL     (255, 226, 238, 252),   // 下拉项"当前选中"底
+  C_HOVER   (255, 233, 237, 242),   // 悬停底（下拉项/主按钮）——要比 C_HILITE 明显，
+                                    // 否则玩家感觉"没有反馈"（2026-09-13 用户反馈）
   C_WHITE   (255, 255, 255, 255);
 
 // ── DPI 缩放 ──
@@ -87,32 +92,34 @@ static inline float unscale(int v) { return (float)v / S; }   // 鼠标坐标 �
 
 // 设置项（「cosplay 模式」是下拉，不在这组复选里）
 //
-// ★ 标签措辞原则：玩家话 + 直说做什么，**不写"（而不是键盘）"这类绕弯的解释**，
-//   也不写实现术语。下面三条的文案都对着 LB 源码的真实行为核过：
+// ★ 标签措辞原则：功能就是功能，直说做什么；不写"（而不是键盘）""也可……"
+//   这类绕弯解释，也不写实现术语。文案都对着 LB 源码的真实行为核过：
 //
 //   scrollDownToAdvanceText  → CustomInputRND.cpp:1808
 //       `ScrollDownToAdvanceText && (mouseButtons & MouseScrollWheelDown) → PAD1A`
 //       即**滚轮向下**推进文本。以前标签写"滚轮向上推进文本"是错的 ——
 //       既与配置键名（scroll**Down**ToAdvanceText）相反，也与自己下面的灰字矛盾。
 //   disableScrollDownToCloseBacklog → CustomInputRND.cpp:1211
-//       `ScrollDownToCloseBacklog && ...(MouseScrollWheelDown) → PAD1B`（PAD1B=返回）
-//       即**滚轮向下**在已读记录底部时关闭记录。
+//       `ScrollDownToCloseBacklog && 已翻到底 && ...(MouseScrollWheelDown) → PAD1B`
+//       （PAD1B=返回）即**滚轮向下**在历史记录翻到底部时退出记录。
+//   两个滚轮项的标签本身就是那句话，不再配灰字（2026-09-13 用户拍板：
+//   「也可点左键或 Auto」这类补充是好笨的写法）。
 enum Opt { OPT_MOUSE=0, OPT_SCROLL_ADV, OPT_SCROLL_CLOSE, OPT_DXVK, OPT_COUNT };
 static const wchar_t* OPT_LABEL[OPT_COUNT] = {
-  L"鼠标控制", L"滚轮向下推进文本", L"滚轮向下关闭已读记录", L"启用 DXVK"
+  L"鼠标控制", L"滚轮向下推进文本", L"滚轮向下可退出历史记录", L"启用 DXVK"
 };
 static const wchar_t* OPT_KEY[OPT_COUNT] = {
   L"mouseControls", L"scrollDownToAdvanceText", L"disableScrollDownToCloseBacklog",
   L"enableDxvk"
 };
 static const wchar_t* OPT_HINT[OPT_COUNT] = {
-  L"在 ADV 场景里用鼠标控制视角与推进",
-  L"滚轮向下推文本，也可点左键或 Auto",
-  L"滚轮向下可退出已读记录",
+  L"开启原版不支持的鼠标操作功能",
+  L"",
+  L"",
   L"用 Vulkan 转译渲染，缓解新显卡上的兼容问题"
 };
 // 注意：disableScrollDownToCloseBacklog 在配置里是"禁用"语义。
-// 界面写正向「滚轮向下关闭已读记录」，勾选=启用该功能=写 false。
+// 界面写正向「滚轮向下可退出历史记录」，勾选=启用该功能=写 false。
 static bool OPT_INVERT[OPT_COUNT] = { false, false, true, false };
 static bool OPT_DEF[OPT_COUNT]    = { true,  true,  true, false };
 
@@ -137,7 +144,7 @@ static const wchar_t* OUTFIT_HINT =
 
 static const wchar_t* SUBS_LABEL[3] = { L"卡拉OK + 翻译", L"仅卡拉OK", L"仅翻译" };
 static const wchar_t* SUBS_VALUE[3] = { L"all", L"karaonly", L"tlonly" };
-static const wchar_t* SUBS_HINT = L"影片播放时叠加的字幕轨";
+static const wchar_t* SUBS_HINT = L"mv播放时叠加的字幕轨";
 
 static const wchar_t* SET_KEY = L"zzOutfitSet";
 
@@ -205,7 +212,11 @@ static void ApplyThemeGeometry() {
   WIN_W = LEFT_W + RIGHT_W;
 }
 
-static FontFamily* g_ff = nullptr;   // 从系统字体取
+static FontFamily* g_ff = nullptr;   // 从系统字体取（中文正文）
+// 主按钮英文用的字体：Bahnschrift（DIN 1451 的后继，Win10+ 自带），
+// 工业感/机械感贴 ROBOTICS;NOTES 的气质。找不到依次退 Segoe UI / Arial，
+// 最后退中文字体 —— 任何机器上都不会画不出来。
+static FontFamily* g_ffTech = nullptr;
 static std::wstring g_dir;           // 启动器所在目录
 
 static void LoadThemeImage() {
@@ -408,23 +419,70 @@ static Font* F(float sz, bool bold = false) {
   cache[key] = f; return f;
 }
 
+// 主按钮英文字（g_ffTech），同样缓存
+static Font* FTech(float sz, bool bold = true) {
+  static std::map<std::pair<int,bool>, Font*> cache;
+  auto key = std::make_pair((int)(sz * 10), bold);
+  auto it = cache.find(key);
+  if (it != cache.end()) return it->second;
+  Font* f = new Font(g_ffTech, sz, bold ? FontStyleBold : FontStyleRegular, UnitPixel);
+  cache[key] = f; return f;
+}
+
+// 逐字排 + 固定字距，在 r 内水平垂直居中。
+// GDI+ 没有字距（tracking）概念，整串 DrawString 排出来太挤，
+// 「START!」这种按钮字逐字摆才有科技感。
+static void DrawTrackedCentered(Graphics& g, const wchar_t* s, Font* f,
+                                const Color& c, const RectF& r, float track) {
+  int n = (int)wcslen(s);
+  if (n <= 0 || n > 32) return;
+  float ws[32], total = 0;
+  StringFormat sf; sf.SetFormatFlags(StringFormatFlagsNoWrap);
+  for (int i = 0; i < n; i++) {
+    RectF m; g.MeasureString(s + i, 1, f, PointF(0, 0), &sf, &m);
+    ws[i] = m.Width; total += m.Width;
+  }
+  total += track * (n - 1);
+  float x = r.X + (r.Width - total) / 2.f;
+  SolidBrush b(c);
+  sf.SetLineAlignment(StringAlignmentCenter);
+  for (int i = 0; i < n; i++) {
+    RectF lay(x, r.Y, ws[i] + 2, r.Height);
+    g.DrawString(s + i, 1, f, lay, &sf, &b);
+    x += ws[i] + track;
+  }
+}
+
 static void FillRR(Graphics& g, const RectF& r, float rad, const Color& c) {
-  GraphicsPath p; float d = rad * 2;
-  p.AddArc(r.X, r.Y, d, d, 180, 90);
-  p.AddArc(r.GetRight() - d, r.Y, d, d, 270, 90);
-  p.AddArc(r.GetRight() - d, r.GetBottom() - d, d, d, 0, 90);
-  p.AddArc(r.X, r.GetBottom() - d, d, d, 90, 90);
-  p.CloseFigure();
+  GraphicsPath p;
+  // ★ rad=0 不能走 AddArc：GDI+ 对零尺寸圆弧返回 InvalidParameter，
+  //   整条路径作废 → FillPath 静默画不出任何东西。下拉第 1 项起的悬停高亮
+  //   （圆角 0）就是这么"消失"的（2026-09-13 查实）。直角一律 AddRectangle。
+  if (rad > 0.5f) {
+    float d = rad * 2;
+    p.AddArc(r.X, r.Y, d, d, 180, 90);
+    p.AddArc(r.GetRight() - d, r.Y, d, d, 270, 90);
+    p.AddArc(r.GetRight() - d, r.GetBottom() - d, d, d, 0, 90);
+    p.AddArc(r.X, r.GetBottom() - d, d, d, 90, 90);
+    p.CloseFigure();
+  } else {
+    p.AddRectangle(r);
+  }
   SolidBrush b(c); g.FillPath(&b, &p);
 }
 
 static void StrokeRR(Graphics& g, const RectF& r, float rad, const Color& c, float w) {
-  GraphicsPath p; float d = rad * 2;
-  p.AddArc(r.X, r.Y, d, d, 180, 90);
-  p.AddArc(r.GetRight() - d, r.Y, d, d, 270, 90);
-  p.AddArc(r.GetRight() - d, r.GetBottom() - d, d, d, 0, 90);
-  p.AddArc(r.X, r.GetBottom() - d, d, d, 90, 90);
-  p.CloseFigure();
+  GraphicsPath p;
+  if (rad > 0.5f) {
+    float d = rad * 2;
+    p.AddArc(r.X, r.Y, d, d, 180, 90);
+    p.AddArc(r.GetRight() - d, r.Y, d, d, 270, 90);
+    p.AddArc(r.GetRight() - d, r.GetBottom() - d, d, d, 0, 90);
+    p.AddArc(r.X, r.GetBottom() - d, d, d, 90, 90);
+    p.CloseFigure();
+  } else {
+    p.AddRectangle(r);
+  }
   Pen pen(c, w); g.DrawPath(&pen, &p);
 }
 
@@ -511,8 +569,13 @@ static void DrawComboItems(Graphics& g, const RectF& base, int n,
   for (int k = 0; k < n; k++) {
     RectF ir = ItemRect(base, k);
     bool isHot = (hot == idBase + k);
-    Color bg = isHot ? C_HILITE : (k == sel ? C_SEL : C_FIELD);
-    FillRR(g, RectF(ir.X + 1, ir.Y, ir.Width - 2, ir.Height), k == 0 ? 5.f : 0.f, bg);
+    Color bg = isHot ? C_HOVER : (k == sel ? C_SEL : C_FIELD);
+    float rad = k == 0 ? 5.f : 0.f;
+    RectF rr(ir.X + 1, ir.Y, ir.Width - 2, ir.Height);
+    FillRR(g, rr, rad, bg);
+    // 悬停反馈要一眼能看出来（2026-09-13 用户反馈"没有鼓起来的感觉"）：
+    // 只变一点底色太淡，再加一圈主题色描边。
+    if (isHot) StrokeRR(g, rr, rad, C_ACCENT, 1.2f);
     DrawTxt(g, labels[k], F(14), k == sel ? C_ACCENT : C_TEXT, ir.X + 12, ir.Y + 7);
   }
   StrokeRR(g, box, 6, C_BORDER, 1.f);
@@ -558,15 +621,16 @@ static void Paint(HDC hdc) {
     {
       RectF vb(12, (float)WIN_H - 30, 80, 20);
       SolidBrush sh(Color(90, 0, 0, 0));
-      gr.FillRectangle(&sh, RectF(vb.X + 1, vb.Y + 1, 46, 18));
+      gr.FillRectangle(&sh, RectF(vb.X + 1, vb.Y + 1, 58, 18));
       DrawTxt(gr, (std::wstring(L"v") + VER).c_str(), F(12), C_WHITE, vb.X, vb.Y);
     }
 
     // ── 右上角小字：实现方式 + 署名（右对齐，一眼能看到出处）──
-    // 两人工作量五五开，「x」刻意不分先后。
+    // 两人工作量五五开，「x」刻意不分先后；「汉化:」与名字之间要留空格
+    // （2026-09-13 用户指定格式「汉化: aaa x bbb」）。
     DrawTxt(gr, L"基于CoZ LanguageBarrier·Gemini3.0Flash·人工精校",
             F(10), C_MUTED, RW, 14, 2);
-    DrawTxt(gr, L"汉化仓式同学◆xEight_tide",
+    DrawTxt(gr, L"汉化: 仓式同学◆ x Eight_tide",
             F(10), C_MUTED, RW, 29, 2);
 
     // ── 右：选项 ──
@@ -592,11 +656,16 @@ static void Paint(HDC hdc) {
     DrawTxtW(gr, SUBS_HINT, F(11), C_MUTED, RXL, 364, RW - RXL);
 
     // ── 主按钮 ──
+    // 浅色极简 + **直角**（2026-09-13 用户指定：棱角分明，不再圆角）。
+    // 字用「START!」+ Bahnschrift（DIN 风格）逐字排字距，机械感；
+    // 悬停底色加深 + 边框加深。沿用现有色板，不引入新颜色。
     { RectF sr = StartRect();
-      FillRR(gr, sr, 8, (st.hot == ID_START) ? C_ACCENTH : C_ACCENT);
-      SolidBrush w(C_WHITE); StringFormat sf;
-      sf.SetAlignment(StringAlignmentCenter); sf.SetLineAlignment(StringAlignmentCenter);
-      gr.DrawString(L"开始游戏", -1, F(17,true), sr, &sf, &w); }
+      bool hot = (st.hot == ID_START);
+      SolidBrush fillb(hot ? C_HOVER : C_PANEL);
+      gr.FillRectangle(&fillb, sr);
+      Pen bp(hot ? C_DIM : C_BORDER, 1.f);
+      gr.DrawRectangle(&bp, sr);
+      DrawTrackedCentered(gr, L"START!", FTech(20, false), C_TEXT, sr, 1.2f); }
 
 
     // ── 下拉列表最后画 ──
@@ -688,7 +757,7 @@ static BOOL CALLBACK FindGameWnd(HWND hwnd, LPARAM) {
 }
 
 static int RunSetTitle(DWORD pid) {
-  const wchar_t* title = L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校版";
+  const wchar_t* title = APP_TITLE.c_str();
   g_settitlePid = pid;
   for (int i = 0; i < 3600; i++) {             // 最多约 1 小时，随游戏退出结束
     // 前期窗口出现得快（几秒内），盯紧些；之后放宽，别空转
@@ -721,7 +790,7 @@ static void LaunchGame() {
   // 检测不到进程时不拦 —— 免得误伤（比如改名版 Steam）。
   if (IsSteamInstall() && !SteamRunning()) {
     MessageBoxW(g_hwnd,
-        L"请先启动 Steam，再点「开始游戏」。\n\n也可以直接从 Steam 库里启动游戏。",
+        L"请先启动 Steam，再点「START!」。\n\n也可以直接从 Steam 库里启动游戏。",
         L"Steam 未运行", MB_ICONINFORMATION | MB_OK);
     return;
   }
@@ -777,8 +846,10 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
   case WM_MOUSEMOVE: {
     int id = HitTest(GET_X_LPARAM(l), GET_Y_LPARAM(l));
     if (id != st.hot) { st.hot = id; InvalidateRect(h, nullptr, FALSE); }
+#ifndef RND_DBG_NOLEAVE   // 调试版可关掉：光标不在客户区时 TrackMouseEvent 会立刻
     TRACKMOUSEEVENT t{ sizeof(t) }; t.dwFlags = TME_LEAVE; t.hwndTrack = h;
-    TrackMouseEvent(&t);
+    TrackMouseEvent(&t);  // 补发 WM_MOUSELEAVE，把假鼠标消息模拟出的悬停态清掉
+#endif
     return 0;
   }
   case WM_MOUSELEAVE: st.hot = -1; InvalidateRect(h, nullptr, FALSE); return 0;
@@ -838,6 +909,15 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
     }
     if (!g_ff) { g_ff = new FontFamily(L"Arial"); }
   }
+  {
+    const wchar_t* cand[] = { L"Bahnschrift", L"Segoe UI", L"Arial" };
+    for (auto nm : cand) {
+      FontFamily* f = new FontFamily(nm);
+      if (f->IsAvailable()) { g_ffTech = f; break; }
+      delete f;
+    }
+    if (!g_ffTech) g_ffTech = g_ff;   // 兜底的兜底：中文字体也能画拉丁字母
+  }
   LoadAppIconFromResource();
   LoadThemeImage();
   // ★ 必须在建窗口之前：窗口尺寸取决于左栏宽度，而左栏宽度由主题图比例算出来。
@@ -867,7 +947,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   AdjustWindowRect(&r, style, FALSE);
   int ww = r.right - r.left, wh = r.bottom - r.top;
   int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
-  g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校版",
+  g_hwnd = CreateWindowExW(0, wc.lpszClassName, APP_TITLE.c_str(),
                            style, (sw - ww) / 2, (sh - wh) / 2, ww, wh,
                            nullptr, nullptr, hInst, nullptr);
   ShowWindow(g_hwnd, SW_SHOW); UpdateWindow(g_hwnd);
