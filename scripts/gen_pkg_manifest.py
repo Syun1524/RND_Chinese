@@ -23,10 +23,14 @@ LISTING = os.path.join(ROOT, "成品ing", "补丁包_文件清单.txt")
 # 这两份哈希是安装/卸载闭环的判据，必须与包内实际文件一致
 HASHED = {"RNDZhLauncher.exe": "launcher_md5", "dinput8.dll": "dinput8_md5"}
 
+# 不进玩家包的开发/归档目录（与 build_installer.py 的排除规则保持一致）
+SKIP_DIRS = {"废弃图片"}
+
 
 def walk_pkg():
     out = {}
-    for root, _dirs, files in os.walk(PKG):
+    for root, dirs, files in os.walk(PKG):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
         for f in files:
             p = os.path.join(root, f)
             out[os.path.relpath(p, PKG).replace("\\", "/")] = os.path.getsize(p)

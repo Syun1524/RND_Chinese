@@ -81,7 +81,8 @@ def main():
         drop = []
         for n in names:
             low = n.lower()
-            if ('.bak' in low                           # patchdef.json.bak_*
+            if (n == '废弃图片'                          # 已废弃图归档，不进玩家包
+                    or '.bak' in low                    # patchdef.json.bak_*
                     or low.endswith(('.obj', '.res', '.pdb', '.ilk'))
                     or 'silent_log' in low              # 诊断日志
                     or low.endswith('.log')

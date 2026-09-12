@@ -13,6 +13,7 @@
 #include <gdiplus.h>
 #include <shlobj.h>
 #include <shellapi.h>
+#include <tlhelp32.h>
 #include <commctrl.h>
 #include <string>
 #include <vector>
@@ -148,8 +149,63 @@ static bool ValidGameDir(const std::wstring& d) {
 }
 
 // 在常见位置找游戏
+// 取「启动本程序的进程」所在目录。
+//
+// 单文件安装包运行时，SFX 是安装器的父进程，而 SFX 就位于用户放置安装包的目录，
+// 所以父进程的目录 = 用户期望的游戏目录（若用户确实把它放进了游戏目录）。
+// 这是从 SFX 场景反推"原始位置"最可靠的手段 —— 环境变量/argv/cwd 都拿不到。
+static std::wstring ParentProcessDir() {
+  DWORD me = GetCurrentProcessId();
+  DWORD parent = 0;
+  HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  if (snap != INVALID_HANDLE_VALUE) {
+    PROCESSENTRY32W pe;
+    pe.dwSize = sizeof(pe);
+    if (Process32FirstW(snap, &pe)) {
+      do {
+        if (pe.th32ProcessID == me) { parent = pe.th32ParentProcessID; break; }
+      } while (Process32NextW(snap, &pe));
+    }
+    CloseHandle(snap);
+  }
+  if (!parent) return L"";
+  HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, parent);
+  if (!h) return L"";
+  wchar_t path[MAX_PATH] = {0};
+  DWORD sz = MAX_PATH;
+  std::wstring dir;
+  if (QueryFullProcessImageNameW(h, 0, path, &sz) && sz > 0) {
+    std::wstring p = path;
+    size_t q = p.find_last_of(L'\\');
+    if (q != std::wstring::npos) dir = p.substr(0, q);
+  }
+  CloseHandle(h);
+  return dir;
+}
+
 static std::wstring AutoDetectGame() {
-  // 1) 本程序所在目录的上层（万一被手动解压到游戏里）
+  // 从单文件安装包运行时，SFX 把本程序解压到 %TEMP%zXXXX\ 再启动，
+  // 因此 cwd / g_srcDir 都是临时目录，**看不到安装包原本放在哪**。
+  // 定位顺序：
+  //   1) 父进程目录 —— SFX 是父进程，它就是安装包的真实位置（最可靠）
+  //   2) 自身目录/上级 —— 手动把补丁解压进游戏目录时有效
+  //   3) Steam 库扫描 —— 兜底
+  // 父进程目录：从单文件安装包启动时，SFX 是父进程，它的位置就是
+  // 用户放置安装包的目录 —— 正是用户期望的目标游戏目录。
+  // （实测：SFX 场景下 cwd/srcDir 全是 %TEMP%zXXXX\，只有父进程路径可用。）
+  {
+    std::wstring pd = ParentProcessDir();
+    if (!pd.empty()) {
+      if (ValidGameDir(pd)) return pd;
+      size_t q = pd.find_last_of(L'\\');
+      if (q != std::wstring::npos) {
+        std::wstring up = pd.substr(0, q);
+        if (ValidGameDir(up)) return up;
+      }
+    }
+  }
+
+  // 自身所在目录及其上级（手动把补丁解压进游戏目录时有效）
   if (ValidGameDir(g_srcDir)) return g_srcDir;
   std::wstring parent = g_srcDir;
   size_t p = parent.find_last_of(L'\\');
@@ -673,9 +729,21 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
   }
   case WM_MOUSELEAVE: g_hot = -1; InvalidateRect(h, nullptr, FALSE); return 0;
   case WM_SETCURSOR: {
+    // 若鼠标在 EDIT 子控件上，交给它自己设光标（文本区标准是 I 型）。
+    // 父窗口若在这里抢着设，就会把手绘时代的"手型"盖到输入框上 ——
+    // 用户反馈"移到地址框变手型而不是 I 型"就是这个原因。
+    if (LOWORD(l) == HTCLIENT && g_hEdit) {
+      POINT p; GetCursorPos(&p);
+      RECT er; GetWindowRect(g_hEdit, &er);
+      if (PtInRect(&er, p)) return DefWindowProcW(h, m, w, l);
+    }
     POINT p; GetCursorPos(&p); ScreenToClient(h, &p);
-    if (g_pct < 0 && !g_done && Hit(p.x, p.y) >= 0) SetCursor(LoadCursor(nullptr, IDC_HAND));
-    else SetCursor(LoadCursor(nullptr, IDC_ARROW));
+    if (g_pct < 0 && !g_done) {
+      int id = Hit(p.x, p.y);
+      if (id == 4) SetCursor(LoadCursor(nullptr, IDC_IBEAM));      // 目录框 = I 型
+      else if (id >= 0) SetCursor(LoadCursor(nullptr, IDC_HAND));  // 按钮 = 手型
+      else SetCursor(LoadCursor(nullptr, IDC_ARROW));
+    } else SetCursor(LoadCursor(nullptr, IDC_ARROW));
     return TRUE;
   }
   case WM_LBUTTONDOWN: {
@@ -818,6 +886,25 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
         auto putb = [&](const char* k, bool b) { out << k << (b ? "1" : "0") << "\n"; };
         if (out) {
           put("target=", target);
+          {
+            wchar_t cw[MAX_PATH] = {0};
+            GetCurrentDirectoryW(MAX_PATH, cw);
+            put("cwd=", cw);
+            wchar_t mp[MAX_PATH] = {0};
+            GetModuleFileNameW(nullptr, mp, MAX_PATH);
+            put("module=", mp);
+            put("srcDir=", g_srcDir);
+            wchar_t lb[MAX_PATH] = {0};
+            DWORD ln = GetEnvironmentVariableW(L"RNDZH_LAUNCH_DIR", lb, MAX_PATH);
+            put("env_launch_dir=", (ln > 0 && ln < MAX_PATH) ? std::wstring(lb) : L"(none)");
+            std::wstring autoDir = AutoDetectGame();
+            put("detected_auto=", autoDir);
+            // 对自动探测到的目录也判一次语言 —— 这才是"用户双击安装包"时
+            // 真正会被使用的值（target 为空表示没传参数）。
+            put("auto_lang=", DetectLangFrom(autoDir));
+            putb("auto_valid=", ValidGameDir(autoDir));
+            putb("auto_patched=", Exists(Join(autoDir, L"languagebarrier\patchdef.json")));
+          }
           putb("exists=", IsDir(target));
           putb("validGameDir=", ValidGameDir(target));
           put("detectedLang=", DetectLangFrom(target));

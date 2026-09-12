@@ -12,11 +12,13 @@ Chinese localization of Robotics;Notes DaSH. Based on the patch by Committee of 
 | `sc3tools_jp/`、`sc3tools_rndchs/` | 日文提取 / 中文回写工具链 |
 | `tools/`、`setup/` | 启动器、安装器、卸载器源码与构建脚本 |
 | `图片汉化/` | **成品中文图集**（`bg/` `system/` `manual/`，与补丁包 `c0data/` 逐字节一致） |
-| `scripts/` | 构建与部署脚本（`deploy_patch.py`、`gen_pkg_manifest.py` 等） |
+| `废弃图片/` | 已从补丁撤下的图（不随补丁发布，仅留存备查；见该目录 `README.md`） |
+| `scripts/` | 构建与部署脚本（`deploy_patch.py`、`sync_images.py`、`gen_pkg_manifest.py` 等） |
 | `docs/` | 交接文档、打包清单、设计说明 |
 
 > `图片汉化/` 里的文件名带 `_zh` 后缀（便于与解包原图区分）；进补丁包时按
-> `c0data.cls` 的原始资源名（去掉 `_zh`）落位，`scripts/rebuild_c0data.py` 负责这件事。
+> `c0data.cls` 的原始资源名（去掉 `_zh`）落位，`scripts/sync_images.py` 负责这件事。
+> 撤下已废弃的图用 `scripts/drop_deprecated.py`（会重排 `c0data.cls` 索引）。
 
 ## sc3tools 版本说明 (IMPORTANT)
 
