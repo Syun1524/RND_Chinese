@@ -117,6 +117,8 @@ static void CollectPatchFiles() {
     L"dinput8.dll", L"VSFilter.dll", L"RNDZhLauncher.exe", L"RNDZhUninstall.exe",
     L"d3d9", L"d3d10", L"d3d10_1", L"d3d10core", L"d3d11", L"dxgi",
     L"proton_boot_fix.sh", L"安装说明.txt", L"_cn_patch_boot_orig.bat",
+    // 早期版本调试用的日志；万一旧副本里有，卸载时一并清掉
+    L"RNDZhSetup_silent_log.txt",
   };
   for (auto f : files) {
     std::wstring p = Join(g_dir, f);

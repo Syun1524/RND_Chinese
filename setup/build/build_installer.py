@@ -28,13 +28,16 @@ import shutil
 import subprocess
 import sys
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(os.path.abspath(__file__))     # .../setup/build
+SETUP_DIR = os.path.dirname(HERE)                      # ...\setup
 SDK = os.path.join(HERE, 'sdk')
 SEVENZR = os.path.join(SDK, '7zr.exe')            # SDK 自带，支持 -mf=BCJ2
 SFX = os.path.join(SDK, '7zSD_custom.sfx')        # 安装器版 SFX（已换我方图标）
-# setup/ 位于 成品ing/ 内，补丁包是它的兄弟目录
-PKG = os.path.abspath(os.path.join(HERE, '..', '补丁包'))
-SETUP = os.path.join(HERE, 'RNDZhSetup.exe')
+# 补丁包是 setup/ 的兄弟目录（都在 成品ing/ 下）
+PKG = os.path.abspath(os.path.join(SETUP_DIR, '..', '补丁包'))
+SETUP = os.path.join(SETUP_DIR, 'bin', 'RNDZhSetup.exe')
+# 成品安装包直接输出到 setup/ 根，方便取用
+OUT_DIR = SETUP_DIR
 
 VERSION = '0.1'
 TITLE = 'ROBOTICS;NOTES DaSH 简体中文补丁'
@@ -54,19 +57,44 @@ def main():
             sys.exit('缺少 %s：%s' % (what, p))
 
     out_name = 'RNDZh-Setup-v%s.exe' % VERSION
-    out_path = os.path.join(HERE, out_name)
-    stage = os.path.join(HERE, '_stage')
-    payload = os.path.join(HERE, 'payload.7z')
-    cfg_path = os.path.join(HERE, 'sfx_config.txt')
+    out_path = os.path.join(OUT_DIR, out_name)
+    # 中间产物一律放系统临时目录，源码树保持干净
+    tmp = os.environ.get('TEMP') or os.path.join(HERE, '_tmp')
+    stage = os.path.join(tmp, 'rnd_stage')
+    payload = os.path.join(tmp, 'rnd_payload.7z')
+    cfg_path = os.path.join(tmp, 'rnd_sfx_config.txt')
 
-    # 1) 准备 stage：补丁包全部内容 + 安装器
+    # 1) 准备 stage：补丁包全部内容（剔除垃圾）+ 安装器
     log('[1/4] 准备临时目录…')
     if os.path.isdir(stage):
         shutil.rmtree(stage)
-    shutil.copytree(PKG, stage)
+
+    # 排除规则：这些是开发/历史产物，绝不能进玩家拿到的包。
+    # 用 copytree(ignore=...) 而不是先拷后删 —— 免得漏删。
+    def _ignore(dirpath, names):
+        drop = []
+        for n in names:
+            low = n.lower()
+            if (n.startswith('_')                       # _stage/_bak/临时
+                    or '.bak' in low                    # patchdef.json.bak_*
+                    or low.endswith(('.obj', '.res', '.pdb', '.ilk'))
+                    or 'silent_log' in low              # 诊断日志
+                    or low.endswith('.log')
+                    or n == '__pycache__'):
+                drop.append(n)
+        return drop
+
+    shutil.copytree(PKG, stage, ignore=_ignore)
     shutil.copy2(SETUP, os.path.join(stage, 'RNDZhSetup.exe'))
     total = sum(len(f) for _, _, f in os.walk(stage))
     log('      共 %d 个文件' % total)
+
+    # 自检：stage 里不该出现任何垃圾
+    junk = [os.path.relpath(os.path.join(dp, f), stage)
+            for dp, _, fs in os.walk(stage) for f in fs
+            if '.bak' in f.lower() or 'silent_log' in f.lower()]
+    if junk:
+        sys.exit('★ stage 里混入垃圾：%s' % junk)
 
     # 2) 用 7zr 压缩（官方安装器示例即 7zr + BCJ2）
     log('[2/4] 压缩中…（约需 20-60 秒）')
