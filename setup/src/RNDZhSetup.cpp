@@ -27,13 +27,25 @@
 
 using namespace Gdiplus;
 
-// ───────────────────────── 外观常量（与启动器一致） ─────────────────────────
-static const int WIN_W = 660, WIN_H = 360;
+// ───────────────────────── 外观常量（纯白极简） ─────────────────────────
+// 配色刻意贴近 Windows 原生安装程序：白底、浅灰边框、深灰文字、蓝色主按钮。
+// 不用深色/霓虹色 —— 安装器只是走个过场，不该抢游戏本身的风头。
+static const int WIN_W = 480, WIN_H = 268;
 static const Color
-  C_BG(255, 24, 27, 34), C_PANEL(255, 33, 38, 48), C_HILITE(255, 44, 50, 63),
-  C_LINE(255, 62, 70, 86), C_TEXT(255, 233, 236, 242), C_DIM(255, 150, 158, 172),
-  C_MUTED(255, 104, 113, 128), C_ACCENT(255, 64, 150, 255), C_WHITE(255, 255, 255, 255),
-  C_OK(255, 96, 200, 130), C_WARN(255, 235, 180, 80), C_ERR(255, 235, 100, 100);
+  C_BG      (255, 255, 255, 255),   // 窗口底
+  C_PANEL   (255, 245, 246, 248),   // 顶部标题条
+  C_FIELD   (255, 255, 255, 255),   // 输入框底
+  C_BORDER  (255, 216, 220, 227),   // 边框
+  C_TEXT    (255,  31,  35,  40),   // 正文
+  C_DIM     (255, 107, 114, 128),   // 次要文字
+  C_MUTED   (255, 156, 163, 175),   // 更淡（禁用态）
+  C_ACCENT  (255,  11, 107, 203),   // 主按钮
+  C_ACCENTH (255,  10,  95, 176),   // 主按钮悬停
+  C_TRACK   (255, 232, 235, 240),   // 进度条底槽
+  C_WHITE   (255, 255, 255, 255),
+  C_OK      (255,  26, 127,  55),   // 成功
+  C_WARN    (255, 154, 103,   0),   // 警告
+  C_ERR     (255, 207,  34,  46);   // 失败
 
 static HWND g_hwnd;
 static FontFamily* g_ff = nullptr;
@@ -41,11 +53,15 @@ static Gdiplus::Bitmap* g_iconBmp = nullptr;
 static std::wstring g_srcDir;      // 本程序所在目录（= 补丁文件所在）
 static std::wstring g_gameDir;     // 目标游戏目录
 static std::wstring g_lang = L"JP";
-static std::wstring g_status = L"安装前请先完全关闭游戏，然后点击「开始安装」";
+static std::wstring g_status = L"点击「安装」开始（请先完全关闭游戏）";
 static int g_pct = -1;             // -1 = 未开始
 static bool g_done = false, g_failed = false;
 static int g_hot = -1;
-static std::wstring g_gameVer;     // 检测到的版本描述
+static std::wstring g_gameVer;     // 一行状态提示（如「已找到游戏（日文版）」）
+// 目录框是可编辑的：用户能直接打字/粘贴路径，也能拖放文件夹进来。
+// 不需要单独的"编辑中"状态 —— 每次按键就直接改 g_gameDir，简化状态机。
+static int  g_caret = 0;           // 光标位置（字符下标）
+static bool g_focusField = false;  // 目录框是否获得焦点（决定是否画光标）
 
 // ───────────────────────── 工具 ─────────────────────────
 static bool Exists(const std::wstring& p) {
@@ -352,6 +368,9 @@ static bool RunInstall() {
   // 6) 复制
   g_copied = 0;
   for (auto& t : g_tasks) {
+    // 安装器自己不需要进游戏目录 —— 卸载靠 RNDZhUninstall.exe，
+    // 重装直接再跑一次安装包即可。留着它只是多一个看不懂的文件。
+    if (t.second == L"f" && FileName(t.first) == L"RNDZhSetup.exe") continue;
     if (!CopyOne(t.first, t.second == L"d")) {
       std::wstring msg = L"复制失败：\n" + t.first +
                          L"\n\n可能原因：游戏正在运行、文件被占用、或无写入权限。";
@@ -371,6 +390,21 @@ static bool RunInstall() {
     std::wstring bb = Join(g_gameDir, L"boot.bat");
     std::ofstream f(bb, std::ios::binary | std::ios::trunc);
     f << "@echo off\r\n\r\nstart launcher.exe " << (lang == L"EN" ? "EN" : "JP") << "\r\n";
+  }
+
+  // 8) 清掉历史安装留下的安装器副本。
+  //    旧版本会把 RNDZhSetup.exe 一起拷进游戏目录；它没有任何用处
+  //    （卸载靠 RNDZhUninstall.exe，重装直接再跑一次安装包）。
+  //    只删「不是我正在运行的那一份」—— 比较**完整路径**，不能只比文件名，
+  //    否则从游戏目录内运行时会把两者视为同一个而永远跳过。
+  {
+    wchar_t self[MAX_PATH]; GetModuleFileNameW(nullptr, self, MAX_PATH);
+    std::wstring stale = Join(g_gameDir, L"RNDZhSetup.exe");
+    std::wstring selfPath = self;
+    if (Exists(stale) && _wcsicmp(stale.c_str(), selfPath.c_str()) != 0) {
+      SetFileAttributesW(stale.c_str(), FILE_ATTRIBUTE_NORMAL);
+      DeleteFileW(stale.c_str());
+    }
   }
 
   SetStatus(L"安装完成", 100);
@@ -394,6 +428,14 @@ static void FillRR(Graphics& g, const RectF& r, float rad, const Color& c) {
   p.AddArc(r.X, r.GetBottom() - d, d, d, 90, 90);
   p.CloseFigure(); SolidBrush b(c); g.FillPath(&b, &p);
 }
+static void StrokeRR(Graphics& g, const RectF& r, float rad, const Color& c, float w) {
+  GraphicsPath p; float d = rad * 2;
+  p.AddArc(r.X, r.Y, d, d, 180, 90);
+  p.AddArc(r.GetRight() - d, r.Y, d, d, 270, 90);
+  p.AddArc(r.GetRight() - d, r.GetBottom() - d, d, d, 0, 90);
+  p.AddArc(r.X, r.GetBottom() - d, d, d, 90, 90);
+  p.CloseFigure(); Pen pen(c, w); g.DrawPath(&pen, &p);
+}
 static void Txt(Graphics& g, const wchar_t* s, Font* f, const Color& c, float x, float y, int align = 0) {
   SolidBrush b(c); StringFormat sf; sf.SetAlignment((StringAlignment)align);
   g.DrawString(s, -1, f, RectF(x, y, 0, 0), &sf, &b);
@@ -405,9 +447,19 @@ static void TxtR(Graphics& g, const wchar_t* s, Font* f, const Color& c, const R
   g.DrawString(s, -1, f, r, &sf, &b);
 }
 
-static RectF BrowseRect() { return RectF(WIN_W - 130.f, 96.f, 100.f, 34.f); }
-static RectF InstallRect() { return RectF(WIN_W - 350.f, WIN_H - 78.f, 150.f, 48.f); }
-static RectF CancelRect() { return RectF(WIN_W - 180.f, WIN_H - 78.f, 150.f, 48.f); }
+// ── 布局（单一栅格：左边距 24，内容宽 432）──
+// 所有控件都从这几个常量推导，改窗口大小时不会散架。
+static const float PAD = 24.f;                       // 左右边距
+static const float CW  = (float)WIN_W - PAD * 2;     // 内容宽度
+static RectF TitleRect()   { return RectF(PAD, 18.f, CW, 26.f); }
+static RectF DirLabelRect(){ return RectF(PAD, 62.f, CW, 18.f); }
+static RectF FieldRect()   { return RectF(PAD, 84.f, CW - 76.f, 34.f); }
+static RectF BrowseRect()  { return RectF(PAD + CW - 68.f, 84.f, 68.f, 34.f); }
+static RectF HintRect()    { return RectF(PAD, 124.f, CW, 18.f); }
+static RectF TrackRect()   { return RectF(PAD, 152.f, CW, 6.f); }
+static RectF StatusRect()  { return RectF(PAD, 166.f, CW, 18.f); }
+static RectF InstallRect() { return RectF(PAD + CW - 196.f, WIN_H - 54.f, 96.f, 34.f); }
+static RectF CancelRect()  { return RectF(PAD + CW - 92.f, WIN_H - 54.f, 92.f, 34.f); }
 
 static void Paint(HDC hdc) {
   RECT rc; GetClientRect(g_hwnd, &rc);
@@ -420,11 +472,11 @@ static void Paint(HDC hdc) {
     g.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
     SolidBrush bg(C_BG); g.FillRectangle(&bg, 0, 0, rc.right, rc.bottom);
 
-    // 顶部标题栏
-    SolidBrush panel(C_PANEL); g.FillRectangle(&panel, 0, 0, rc.right, 76);
+    // 顶部标题条（浅灰 + 图标 + 标题一行）
+    SolidBrush panel(C_PANEL); g.FillRectangle(&panel, 0, 0, rc.right, 54);
     if (g_iconBmp) {
-      GraphicsPath clip; float d0 = 16;
-      RectF ib(24, 18, 40, 40);
+      GraphicsPath clip; float d0 = 10;
+      RectF ib(PAD, 14, 26, 26);
       clip.AddArc(ib.X, ib.Y, d0, d0, 180, 90);
       clip.AddArc(ib.GetRight()-d0, ib.Y, d0, d0, 270, 90);
       clip.AddArc(ib.GetRight()-d0, ib.GetBottom()-d0, d0, d0, 0, 90);
@@ -433,98 +485,147 @@ static void Paint(HDC hdc) {
       g.DrawImage(g_iconBmp, (INT)ib.X, (INT)ib.Y, (INT)ib.Width, (INT)ib.Height);
       g.ResetClip();
     }
-    Txt(g, L"ROBOTICS;NOTES DaSH 简体中文补丁", F(19, true), C_TEXT, 78, 20);
-    Txt(g, L"安装程序", F(13), C_DIM, 80, 46);
+    Txt(g, L"ROBOTICS;NOTES DaSH 简体中文补丁", F(16, true), C_TEXT, PAD + 36, 18);
 
-    // 游戏目录
-    Txt(g, L"游戏目录", F(14), C_DIM, 32, 96);
+    // 游戏目录（可编辑框）
+    Txt(g, L"游戏目录", F(13), C_DIM, DirLabelRect().X, DirLabelRect().Y);
     {
-      RectF er(32, 118, (float)WIN_W - 200, 40);
-      FillRR(g, er, 8, C_HILITE);
-      Pen pn(C_LINE, 1.f); g.DrawRectangle(&pn, er.X, er.Y, er.Width, er.Height);
-      TxtR(g, g_gameDir.empty() ? L"（未自动找到，请点「浏览」选择含 Game.exe 的文件夹）" : g_gameDir.c_str(),
-           F(14), g_gameDir.empty() ? C_WARN : C_TEXT, RectF(er.X + 12, er.Y, er.Width - 24, er.Height), 0, 1);
-      RectF br = BrowseRect();
-      FillRR(g, br, 8, (g_hot == 1) ? C_ACCENT : C_HILITE);
-      TxtR(g, L"浏览…", F(14), C_TEXT, br, 1, 1);
-    }
+      RectF fr = FieldRect();
+      FillRR(g, fr, 4, C_FIELD);
+      StrokeRR(g, fr, 4, g_focusField ? C_ACCENT : C_BORDER, g_focusField ? 1.6f : 1.f);
 
-    // 状态区
-    {
-      Color sc = g_failed ? C_ERR : (g_done ? C_OK : (g_gameDir.empty() ? C_WARN : C_DIM));
-      if (g_gameDir.empty()) {
-        Txt(g, L"未找到游戏目录", F(14), C_WARN, 32, 180);
-      } else if (!g_gameVer.empty()) {
-        Txt(g, g_gameVer.c_str(), F(14), C_OK, 32, 180);
-      }
+      // 文字从左边距内缩 8px；空时显示占位提示
+      bool empty = g_gameDir.empty();
+      const wchar_t* shown = empty ? L"选择或粘贴游戏目录（内含 Game.exe）" : g_gameDir.c_str();
+      TxtR(g, shown, F(13), empty ? C_MUTED : C_TEXT,
+           RectF(fr.X + 8, fr.Y, fr.Width - 16, fr.Height), 0, 1);
 
-      // 进度条
-      if (g_pct >= 0) {
-        RectF bg2(32, 232, (float)WIN_W - 64, 12);
-        FillRR(g, bg2, 6, C_HILITE);
-        if (g_pct > 0) {
-          RectF fg2(bg2.X, bg2.Y, bg2.Width * g_pct / 100.f, bg2.Height);
-          FillRR(g, fg2, 6, g_failed ? C_ERR : C_ACCENT);
+      // 光标（仅聚焦时画）：按字符宽度估算位置，够用且不需要精确排版
+      if (g_focusField && !empty) {
+        std::wstring pre = g_gameDir.substr(0, g_caret);
+        RectF mb; Font* f = F(13);
+        g.MeasureString(pre.c_str(), -1, f, RectF(0,0,4000,40), &mb);
+        float cx = fr.X + 8 + mb.Width;
+        if (cx < fr.GetRight() - 6) {
+          Pen cp(C_TEXT, 1.f);
+          g.DrawLine(&cp, cx, fr.Y + 8, cx, fr.GetBottom() - 8);
         }
-        Txt(g, g_status.c_str(), F(13), g_failed ? C_ERR : C_DIM, 32, 252);
-        wchar_t pb[32]; wsprintfW(pb, L"%d%%", g_pct);
-        TxtR(g, pb, F(13), C_DIM, RectF(32, 252, (float)WIN_W - 64, 18), 2, 1);
-      } else {
-        Txt(g, g_status.c_str(), F(13), C_DIM, 32, 252);
       }
+
+      RectF br = BrowseRect();
+      bool hot = (g_hot == 1);
+      FillRR(g, br, 4, hot ? C_PANEL : C_BG);
+      StrokeRR(g, br, 4, hot ? C_DIM : C_BORDER, 1.f);
+      TxtR(g, L"浏览…", F(13), C_TEXT, br, 1, 1);
     }
 
-    // 按钮
+    // 一行提示（找到/没找到/装过）
+    if (!g_gameVer.empty()) {
+      Color hc = g_failed ? C_ERR : (g_done ? C_OK : C_DIM);
+      if (g_gameDir.empty()) hc = C_WARN;
+      Txt(g, g_gameVer.c_str(), F(12), hc, HintRect().X, HintRect().Y);
+    }
+
+    // 进度条（未开始时只显示状态文字，不画空槽，避免界面看起来"半成品"）
+    if (g_pct >= 0) {
+      RectF tr = TrackRect();
+      FillRR(g, tr, 3, C_TRACK);
+      if (g_pct > 0) {
+        RectF fg(tr.X, tr.Y, tr.Width * g_pct / 100.f, tr.Height);
+        FillRR(g, fg, 3, g_failed ? C_ERR : C_ACCENT);
+      }
+    }
+    if (!g_status.empty())
+      Txt(g, g_status.c_str(), F(12), g_failed ? C_ERR : C_DIM,
+          StatusRect().X, StatusRect().Y);
+
+    // 按钮（右对齐）
     {
       bool can = !g_gameDir.empty() && !g_done && g_pct < 0;
       RectF ir = InstallRect();
-      FillRR(g, ir, 10, can ? ((g_hot == 2) ? Color(255,96,178,255) : C_ACCENT) : C_HILITE);
-      TxtR(g, g_done ? L"已完成" : L"开始安装", F(17, true),
+      Color ic = !can ? C_TRACK : (g_hot == 2 ? C_ACCENTH : C_ACCENT);
+      FillRR(g, ir, 4, ic);
+      TxtR(g, g_done ? L"已完成" : L"安装", F(14, true),
            can || g_done ? C_WHITE : C_MUTED, ir, 1, 1);
-      RectF cr = CancelRect();
-      FillRR(g, cr, 10, (g_hot == 3) ? C_HILITE : Color(255,38,44,56));
-      TxtR(g, g_done ? L"关闭" : L"取消", F(17), C_TEXT, cr, 1, 1);
-    }
 
+      RectF cr = CancelRect();
+      bool ch = (g_hot == 3);
+      FillRR(g, cr, 4, ch ? C_PANEL : C_BG);
+      StrokeRR(g, cr, 4, ch ? C_DIM : C_BORDER, 1.f);
+      TxtR(g, g_done ? L"关闭" : L"取消", F(14), C_TEXT, cr, 1, 1);
+    }
   }
   BitBlt(hdc, 0, 0, rc.right, rc.bottom, mem, 0, 0, SRCCOPY);
   SelectObject(mem, old); DeleteObject(bmp); DeleteDC(mem);
 }
 
 static int Hit(int x, int y) {
-  if (!g_gameDir.empty() && !g_done && g_pct < 0) {
-    RectF r = InstallRect();
-    if (x >= r.X && x <= r.GetRight() && y >= r.Y && y <= r.GetBottom()) return 2;
+  auto in = [&](const RectF& r) {
+    return x >= r.X && x <= r.GetRight() && y >= r.Y && y <= r.GetBottom();
+  };
+  if (!g_done && g_pct < 0) {
+    if (in(InstallRect())) return 2;
+    if (in(FieldRect())) return 4;      // 点目录框 = 聚焦编辑
   }
-  { RectF r = CancelRect();
-    if (x >= r.X && x <= r.GetRight() && y >= r.Y && y <= r.GetBottom()) return 3; }
-  { RectF r = BrowseRect();
-    if (x >= r.X && x <= r.GetRight() && y >= r.Y && y <= r.GetBottom()) return 1; }
+  if (in(CancelRect())) return 3;
+  if (!g_done && g_pct < 0 && in(BrowseRect())) return 1;
   return -1;
 }
 
-static void PickFolder() {
-  BROWSEINFOW bi{}; bi.hwndOwner = g_hwnd; bi.lpszTitle = L"请选择游戏目录（内含 Game.exe）";
-  bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
-  LPITEMIDLIST id = SHBrowseForFolderW(&bi);
-  if (!id) return;
-  wchar_t path[MAX_PATH];
-  if (SHGetPathFromIDListW(id, path)) {
-    g_gameDir = path;
-    if (ValidGameDir(g_gameDir)) {
-      std::wstring lg = DetectLangFrom(g_gameDir);
-      g_gameVer = L"✓ 游戏目录有效";
-      if (!lg.empty()) g_gameVer += (lg == L"EN") ? L"（英文版，存档目录 eng）" : L"（日文版，存档目录 jpn）";
-      // 检查是否已装过
-      if (Exists(Join(g_gameDir, L"languagebarrier\\patchdef.json")))
-        g_gameVer += L"　· 检测到已安装过补丁，将覆盖";
-    } else {
-      g_gameVer = L"⚠ 该目录没有 Game.exe / script.cpk，请重新选择";
-    }
-    g_status = L"请点击「开始安装」";
-    InvalidateRect(g_hwnd, nullptr, FALSE);
+// 校验并刷新目录框下方那行提示。文本刻意保持简短 ——
+// 玩家只需要知道"找到了没有"，不需要知道存档目录叫什么。
+static void RefreshDirHint() {
+  if (g_gameDir.empty()) { g_gameVer.clear(); return; }
+  if (!ValidGameDir(g_gameDir)) {
+    g_gameVer = L"这里没有 Game.exe，请选择游戏根目录";
+    return;
   }
-  CoTaskMemFree(id);
+  std::wstring lg = DetectLangFrom(g_gameDir);
+  g_gameVer = (lg == L"EN") ? L"已找到游戏（英文版）" : L"已找到游戏（日文版）";
+  if (Exists(Join(g_gameDir, L"languagebarrier\\patchdef.json")))
+    g_gameVer += L"，已装过补丁，将覆盖";
+}
+
+static void PickFolder() {
+  // 用 IFileDialog（Vista+ 的"选择文件夹"）而不是 95 年代的 SHBrowseForFolder ——
+  // 前者就是用户在资源管理器里熟悉的那个界面：左侧导航栏、能粘贴路径、能新建文件夹。
+  IFileDialog* dlg = nullptr;
+  HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER,
+                                IID_PPV_ARGS(&dlg));
+  if (FAILED(hr) || !dlg) return;
+  DWORD opts = 0;
+  if (SUCCEEDED(dlg->GetOptions(&opts)))
+    dlg->SetOptions(opts | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST);
+  dlg->SetTitle(L"请选择游戏目录（内含 Game.exe）");
+  if (SUCCEEDED(dlg->Show(g_hwnd))) {
+    IShellItem* item = nullptr;
+    if (SUCCEEDED(dlg->GetResult(&item)) && item) {
+      PWSTR psz = nullptr;
+      if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &psz)) && psz) {
+        g_gameDir = psz;
+        g_caret = (int)g_gameDir.size();
+        CoTaskMemFree(psz);
+      }
+      item->Release();
+    }
+  }
+  dlg->Release();
+  RefreshDirHint();
+  g_status = g_gameDir.empty() ? L"点击「安装」开始（请先完全关闭游戏）"
+                               : L"点击「安装」开始（请先完全关闭游戏）";
+  InvalidateRect(g_hwnd, nullptr, FALSE);
+}
+
+// 把编辑框里输入的路径规范化后写入 g_gameDir，并刷新提示。
+// 用户可能粘贴带引号的路径（从资源管理器复制地址栏会带引号）。
+static void CommitTypedDir() {
+  std::wstring d = g_gameDir;
+  while (!d.empty() && (d.front() == L'"' || d.front() == L' ')) d.erase(d.begin());
+  while (!d.empty() && (d.back() == L'"' || d.back() == L' ' || d.back() == L'\r')) d.pop_back();
+  for (auto& c : d) if (c == L'/') c = L'\\';
+  g_gameDir = d;
+  if (g_caret > (int)g_gameDir.size()) g_caret = (int)g_gameDir.size();
+  RefreshDirHint();
 }
 
 static void OnInstall() {
@@ -552,9 +653,73 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
   }
   case WM_LBUTTONUP: {
     int id = Hit(GET_X_LPARAM(l), GET_Y_LPARAM(l));
-    if (id == 1) PickFolder();
-    else if (id == 2) OnInstall();
-    else if (id == 3) PostMessageW(h, WM_CLOSE, 0, 0);
+    if (id == 1) { PickFolder(); }
+    else if (id == 2) { OnInstall(); }
+    else if (id == 3) { PostMessageW(h, WM_CLOSE, 0, 0); }
+    else if (id == 4) {
+      // 点目录框：聚焦并进入编辑，光标放到末尾
+      if (!g_focusField) { g_focusField = true; g_caret = (int)g_gameDir.size(); }
+      SetFocus(h);
+      InvalidateRect(h, nullptr, FALSE);
+    } else if (g_focusField && !g_done && g_pct < 0) {
+      // 点别处：取消聚焦
+      g_focusField = false;
+      InvalidateRect(h, nullptr, FALSE);
+    }
+    return 0;
+  }
+  // ── 目录框的键盘编辑 ──
+  case WM_CHAR: {
+    if (!g_focusField || g_done || g_pct >= 0) break;
+    wchar_t c = (wchar_t)w;
+    if (c == L'\r') { CommitTypedDir(); return 0; }
+    if (c == L'\b') {                                  // 退格
+      if (g_caret > 0) { g_gameDir.erase(g_caret - 1, 1); g_caret--; }
+    } else if (c == 1) {                               // Ctrl+A 全选 → 等价清空重输
+      g_gameDir.clear(); g_caret = 0;
+    } else if (c >= L' ') {                            // 可打印字符
+      g_gameDir.insert(g_caret, 1, c); g_caret++;
+    } else {
+      return 0;
+    }
+    InvalidateRect(h, nullptr, FALSE);
+    return 0;
+  }
+  case WM_KEYDOWN: {
+    if (!g_focusField) break;
+    if (w == VK_LEFT  && g_caret > 0) { g_caret--; InvalidateRect(h, nullptr, FALSE); return 0; }
+    if (w == VK_RIGHT && g_caret < (int)g_gameDir.size()) { g_caret++; InvalidateRect(h, nullptr, FALSE); return 0; }
+    if (w == VK_HOME) { g_caret = 0; InvalidateRect(h, nullptr, FALSE); return 0; }
+    if (w == VK_END)  { g_caret = (int)g_gameDir.size(); InvalidateRect(h, nullptr, FALSE); return 0; }
+    if (w == VK_DELETE) {
+      if (g_caret < (int)g_gameDir.size()) g_gameDir.erase(g_caret, 1);
+      InvalidateRect(h, nullptr, FALSE); return 0;
+    }
+    if (w == VK_RETURN) { CommitTypedDir(); InvalidateRect(h, nullptr, FALSE); return 0; }
+    break;
+  }
+  case WM_SETFOCUS: if (g_focusField) { InvalidateRect(h, nullptr, FALSE); } return 0;
+  case WM_KILLFOCUS: g_focusField = false; InvalidateRect(h, nullptr, FALSE); return 0;
+  // 支持把文件夹从资源管理器拖进窗口
+  case WM_DROPFILES: {
+    HDROP dp = (HDROP)w;
+    wchar_t path[MAX_PATH] = {0};
+    if (DragQueryFileW(dp, 0, path, MAX_PATH)) {
+      std::wstring d = path;
+      // 拖进来的可能是个子文件/子目录，往上找到含 Game.exe 的那层
+      if (!ValidGameDir(d)) {
+        size_t pos = d.find_last_of(L'\\');
+        if (pos != std::wstring::npos) {
+          std::wstring up = d.substr(0, pos);
+          if (ValidGameDir(up)) d = up;
+        }
+      }
+      g_gameDir = d;
+      g_caret = (int)g_gameDir.size();
+      RefreshDirHint();
+      InvalidateRect(h, nullptr, FALSE);
+    }
+    DragFinish(dp);
     return 0;
   }
   case WM_PAINT: { PAINTSTRUCT ps; HDC dc = BeginPaint(h, &ps); Paint(dc); EndPaint(h, &ps); return 0; }
@@ -653,11 +818,9 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   }
 
   if (!g_gameDir.empty()) {
-    std::wstring lg = DetectLangFrom(g_gameDir);
-    g_gameVer = L"✓ 已自动找到游戏目录";
-    if (!lg.empty()) g_gameVer += (lg == L"EN") ? L"（英文版，存档目录 eng）" : L"（日文版，存档目录 jpn）";
-    if (Exists(Join(g_gameDir, L"languagebarrier\\patchdef.json")))
-      g_gameVer += L"　· 检测到已安装过，将覆盖";
+    RefreshDirHint();
+  } else {
+    g_gameVer = L"未自动找到游戏，请点「浏览…」或直接把游戏文件夹拖进来";
   }
 
   WNDCLASSEXW wc{ sizeof(wc) };
@@ -675,6 +838,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"ROBOTICS;NOTES DaSH 简体中文补丁 · 安装程序",
                            style, (sw - ww) / 2, (sh - wh) / 2, ww, wh,
                            nullptr, nullptr, hInst, nullptr);
+  DragAcceptFiles(g_hwnd, TRUE);     // 允许把游戏文件夹拖进窗口
   ShowWindow(g_hwnd, SW_SHOW); UpdateWindow(g_hwnd);
 
   MSG msg;
