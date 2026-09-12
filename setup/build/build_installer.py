@@ -81,11 +81,16 @@ def main():
         drop = []
         for n in names:
             low = n.lower()
+            # 注意：**绝不能**用「文件名以 _ 开头」当垃圾判据 ——
+            # 游戏资源本身就有下划线开头的名字（c0data/_nobg.png、
+            # enscript/_system_00.msb 等 9 个），它们是 cls 点名的正经数据。
+            # 曾用该规则把它们整批漏掉，包能装能启动、log.txt 零错误，
+            # 但游戏里这些归档直接找不到。现在的判据只看明确的开发残留特征。
             if ('.bak' in low                           # patchdef.json.bak_*
                     or low.endswith(('.obj', '.res', '.pdb', '.ilk'))
                     or 'silent_log' in low              # 诊断日志
                     or low.endswith('.log')
-                    or n == '__pycache__'):
+                    or n in ('__pycache__', '废弃图片', '_stage')):
                 drop.append(n)
         return drop
 

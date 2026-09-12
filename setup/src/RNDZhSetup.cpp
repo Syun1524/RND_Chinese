@@ -65,9 +65,11 @@ static std::wstring g_gameVer;     // 一行状态提示（如「已找到游戏
 // 之前手绘输入框只能处理 ASCII 按键，打中文/粘贴都不行。
 static const int ID_EDIT_DIR = 1001;   // 目录 EDIT 控件 ID
 static LRESULT CALLBACK EditSubclass(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
+static std::wstring PathLoadWarning(const std::wstring& d);
 static void RefreshDirHint();          // EditSubclass 会用到
 static HWND g_hEdit = nullptr;
 static bool g_syncingEdit = false;   // 防止 文本变更 与 设置文本 互相触发
+static bool g_pathBad = false;      // 目标路径会导致补丁加载不了（含分号+长）
 
 // ───────────────────────── 工具 ─────────────────────────
 static bool Exists(const std::wstring& p) {
@@ -146,6 +148,29 @@ static std::wstring DetectLangFrom(const std::wstring& gameDir) {
 
 static bool ValidGameDir(const std::wstring& d) {
   return Exists(Join(d, L"Game.exe")) && Exists(Join(d, L"script.cpk"));
+}
+
+// 检查目标路径是否会【静默失效】—— 本补丁最重要的环境前提。
+//
+// 游戏静态导入 DINPUT8.dll，靠 Windows 加载器在 exe 所在目录找到我们的代理 DLL。
+// 实测（modscan32 扫描运行中进程的已加载模块）：
+//
+//   启动路径                                      实际加载的 dinput8
+//   ...\common\RND_probe_noSemi\（无分号）        本地的 ✓
+//   ...\ROBOTICS;NOTES DaSH -原版英文 副本 - 副本   C:\WINDOWS\SYSTEM32\  ✗
+//
+// 即：**路径含分号 `;` 且较长时，加载器跳过本地 DLL**，补丁从未启动 ——
+// 不崩溃、不报错，只是游戏显示原版语言。因为 Steam 目录名本身带 `;`
+// （ROBOTICS;NOTES DaSH），从它复制出来的副本几乎都会中招。
+//
+// 返回空 = 没问题；否则返回给用户的提示。
+static std::wstring PathLoadWarning(const std::wstring& d) {
+  if (d.find(L';') == std::wstring::npos) return L"";   // 无分号 → 安全
+  // 路径短时实测可正常加载（Steam 正本即如此），只有长路径才踩雷。
+  if (d.size() <= 55) return L"";
+  return L"⚠ 路径含分号（;）且较长，补丁可能加载不了。\n"
+         L"请改用不含分号的短路径启动游戏：把游戏目录改名，或建一个 ASCII 入口（junction）。\n"
+         L"这是 Windows 加载器行为，补丁侧无法规避。";
 }
 
 // 在常见位置找游戏
@@ -669,6 +694,7 @@ static LRESULT CALLBACK EditSubclass(HWND h, UINT m, WPARAM w, LPARAM l,
 // 校验并刷新目录框下方那行提示。文本刻意保持简短 ——
 // 玩家只需要知道"找到了没有"，不需要知道存档目录叫什么。
 static void RefreshDirHint() {
+  g_pathBad = false;
   if (g_gameDir.empty()) { g_gameVer.clear(); return; }
   if (!ValidGameDir(g_gameDir)) {
     g_gameVer = L"这里没有 Game.exe，请选择游戏根目录";
@@ -678,6 +704,11 @@ static void RefreshDirHint() {
   g_gameVer = (lg == L"EN") ? L"已找到游戏（英文版）" : L"已找到游戏（日文版）";
   if (Exists(Join(g_gameDir, L"languagebarrier\\patchdef.json")))
     g_gameVer += L"，已装过补丁，将覆盖";
+  // 路径会让补丁静默失效时明确提示（原因见 PathLoadWarning 的注释）
+  if (!PathLoadWarning(g_gameDir).empty()) {
+    g_pathBad = true;
+    g_gameVer = L"⚠ 该路径含分号且较长，补丁装了也加载不了（点「安装」看解决办法）";
+  }
 }
 
 static void PickFolder() {
@@ -712,6 +743,16 @@ static void PickFolder() {
 
 
 static void OnInstall() {
+  // 路径有问题时，先把"装上也加载不了"讲清楚，让用户自己决定。
+  // 不做静默阻止 —— 万一将来 Windows 改了行为，用户仍能选择继续。
+  std::wstring warn = PathLoadWarning(g_gameDir);
+  if (!warn.empty()) {
+    std::wstring msg = warn +
+        L"\n\n仍然要继续安装吗？（装完后需要从未含分号的路径启动游戏）";
+    if (MessageBoxW(g_hwnd, msg.c_str(), L"路径会导致补丁失效",
+                    MB_YESNO | MB_ICONWARNING) != IDYES)
+      return;
+  }
   g_pct = 0; g_failed = false;
   if (!RunInstall()) { g_failed = true; g_done = false; }
   else g_done = true;
