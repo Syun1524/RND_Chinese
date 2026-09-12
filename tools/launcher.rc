@@ -1,0 +1,8 @@
+#include <windows.h>
+
+101 ICON "icon/game.ico"
+
+// 左侧品牌区主题图（Robotics;Notes DaSH 主视觉，540x720 = 3:4）。
+// 用 RCDATA 而不是 BITMAP/ICON：GDI+ 能直接从内存流解码 JPEG，
+// 不需要额外转换工具，也避免 rc 对位图格式的限制。
+102 RCDATA "icon/theme.jpg"

@@ -48,13 +48,18 @@ using namespace Gdiplus;
 // ───────────────────────── 配置（颜色/布局常量） ─────────────────────────
 // 配色与安装器/卸载器保持一致（纯白极简）：白底、浅灰边框、深灰字、蓝色主按钮。
 // 三个窗口是一套东西，色调必须统一 —— 启动器以前是深色霓虹风，跟安装器对不上。
-static const int WIN_W = 820;
-static const int WIN_H = 580;
-static const int LEFT_W = 280;
+//
+// 布局：左栏是主题图（主视觉），右栏是选项。
+// **左栏宽度按主题图的实际比例算**（见 ApplyThemeGeometry）：图有多宽，栏就多宽，
+// 图按栏高等比缩放、正好铺满，不变形也不留黑边。换一张不同比例的图也不用改代码。
+static int WIN_H  = 620;      // 窗口高（逻辑像素）——固定值，由它反推左栏宽
+static int LEFT_W = 465;      // 左栏宽（初值是 540x720 算出来的，运行时按实际图覆盖）
+static int WIN_W  = 925;      // 窗口宽 = 左栏 + 右栏(460)
+static const int RIGHT_W = 460;   // 右栏固定宽度（放选项）
 
 static const Color
   C_BG      (255, 255, 255, 255),   // 窗口底
-  C_PANEL   (255, 245, 246, 248),   // 左侧品牌区 / 悬停底
+  C_PANEL   (255, 245, 246, 248),   // 悬停底
   C_FIELD   (255, 255, 255, 255),   // 输入/下拉底色
   C_BORDER  (255, 216, 220, 227),   // 边框
   C_TEXT    (255,  31,  35,  40),   // 正文
@@ -75,19 +80,30 @@ static const Color
 static float S = 1.0f;                 // 缩放系数 = 窗口DPI / 96
 static inline float unscale(int v) { return (float)v / S; }   // 鼠标坐标 → 逻辑坐标
 
-// 设置项（「换装」是下拉，不在这组复选里）
+// 设置项（「cosplay 模式」是下拉，不在这组复选里）
+//
+// ★ 标签措辞原则：玩家话 + 直说做什么，**不写"（而不是键盘）"这类绕弯的解释**，
+//   也不写实现术语。下面三条的文案都对着 LB 源码的真实行为核过：
+//
+//   scrollDownToAdvanceText  → CustomInputRND.cpp:1808
+//       `ScrollDownToAdvanceText && (mouseButtons & MouseScrollWheelDown) → PAD1A`
+//       即**滚轮向下**推进文本。以前标签写"滚轮向上推进文本"是错的 ——
+//       既与配置键名（scroll**Down**ToAdvanceText）相反，也与自己下面的灰字矛盾。
+//   disableScrollDownToCloseBacklog → CustomInputRND.cpp:1211
+//       `ScrollDownToCloseBacklog && ...(MouseScrollWheelDown) → PAD1B`（PAD1B=返回）
+//       即**滚轮向下**在已读记录底部时关闭记录。
 enum Opt { OPT_MOUSE=0, OPT_SCROLL_ADV, OPT_SCROLL_CLOSE, OPT_DXVK, OPT_COUNT };
 static const wchar_t* OPT_LABEL[OPT_COUNT] = {
-  L"鼠标控制", L"滚轮向上推进文本", L"滚轮向下关闭已读记录", L"启用 DXVK"
+  L"鼠标控制", L"滚轮向下推进文本", L"滚轮向下关闭已读记录", L"启用 DXVK"
 };
 static const wchar_t* OPT_KEY[OPT_COUNT] = {
   L"mouseControls", L"scrollDownToAdvanceText", L"disableScrollDownToCloseBacklog",
   L"enableDxvk"
 };
 static const wchar_t* OPT_HINT[OPT_COUNT] = {
-  L"用鼠标（而不是键盘）在 ADV 场景里控制视角与推进",
-  L"滚轮向下推文本；关闭后只能点左键/Auto",
-  L"关闭后滚轮向下不会退出已读记录",
+  L"在 ADV 场景里用鼠标控制视角与推进",
+  L"滚轮向下推文本，也可点左键或 Auto",
+  L"滚轮向下可退出已读记录",
   L"用 Vulkan 转译渲染，缓解新显卡上的兼容问题"
 };
 // 注意：disableScrollDownToCloseBacklog 在配置里是"禁用"语义。
@@ -95,15 +111,28 @@ static const wchar_t* OPT_HINT[OPT_COUNT] = {
 static bool OPT_INVERT[OPT_COUNT] = { false, false, true, false };
 static bool OPT_DEF[OPT_COUNT]    = { true,  true,  true, false };
 
-// ── 换装主题 ──
+// ── cosplay 模式（界面名）──
+// 玩家看到的叫「cosplay 模式」；实现上是全员换一套衣服。
 // 值必须与 patchdef.json -> settings.zzOutfitSet.choices 的键一致。
-// none = 不换装（各角色穿默认服）。
+// none = 保持原样（各角色穿默认服）。
 static const wchar_t* OUTFIT_LABEL[5] = { L"原版", L"和服", L"泳装", L"体操服", L"猫耳" };
 static const wchar_t* OUTFIT_VALUE[5] = { L"none", L"kimono", L"swimsuit", L"gym", L"nekomimi" };
 static const int OUTFIT_N = 5;
 
+// 下拉框下方那行灰字。**这是刻意写技术说明的地方**：
+// 玩家问"为什么换个装就能改立绘"时，这行给出准确答案，
+// 而不是"全员换成这套服装（各角色只换自己有的那套）"那种把玩家当傻子的废话。
+//
+// 实现细节（对着源码核过，别凭印象写）：
+//   LB 的 mgsFileOpenHook 拦下模型归档的打开请求，按 fileIdRemap 把
+//   「默认服装的 model fileId」重指向「目标服装的 fileId」；
+//   命中即 return，不落到 fileRedirection。所以这是运行时重定向，不改任何游戏文件。
+static const wchar_t* OUTFIT_HINT =
+    L"LanguageBarrier 重定向模型归档，运行时切换该套立绘";
+
 static const wchar_t* SUBS_LABEL[3] = { L"卡拉OK + 翻译", L"仅卡拉OK", L"仅翻译" };
 static const wchar_t* SUBS_VALUE[3] = { L"all", L"karaonly", L"tlonly" };
+static const wchar_t* SUBS_HINT = L"影片播放时叠加的字幕轨";
 
 static const wchar_t* SET_KEY = L"zzOutfitSet";
 
@@ -152,8 +181,52 @@ static void LoadAppIconFromResource() {
     DestroyIcon(ico);
   }
 }
+// 左侧主题图（资源 ID 102，RCDATA 里是一份 JPEG）。
+// 直接从内存流解码，不需要外部文件 —— 启动器被拷来拷去也不会丢图。
+static Gdiplus::Bitmap* g_themeBmp = nullptr;
+
+// 按主题图的**实际比例**反推左栏宽度与窗口尺寸。
+// 换一张不同比例的图（比如 16:9 的宽幅主视觉）不用改任何常量 —— 这里会自己算。
+// 必须在建窗口之前调用（窗口尺寸取决于它）。
+static void ApplyThemeGeometry() {
+  if (g_themeBmp) {
+    int iw = (int)g_themeBmp->GetWidth();
+    int ih = (int)g_themeBmp->GetHeight();
+    if (iw > 0 && ih > 0) {
+      // 图按「窗口高」等比缩放到左栏宽；四舍五入免得差一像素露白边
+      LEFT_W = (int)((double)WIN_H * iw / ih + 0.5);
+    }
+  }
+  WIN_W = LEFT_W + RIGHT_W;
+}
+
 static FontFamily* g_ff = nullptr;   // 从系统字体取
 static std::wstring g_dir;           // 启动器所在目录
+
+static void LoadThemeImage() {
+  HRSRC hr = FindResourceW(nullptr, MAKEINTRESOURCEW(102), RT_RCDATA);
+  if (!hr) return;
+  DWORD sz = SizeofResource(nullptr, hr);
+  HGLOBAL hg = LoadResource(nullptr, hr);
+  if (!hg || !sz) return;
+  void* p = LockResource(hg);
+  if (!p) return;
+  // GDI+ 需要一个 IStream：把资源字节包成内存流交给 Bitmap
+  HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, sz);
+  if (!hMem) return;
+  void* dst = GlobalLock(hMem);
+  memcpy(dst, p, sz);
+  GlobalUnlock(hMem);
+  IStream* is = nullptr;
+  if (SUCCEEDED(CreateStreamOnHGlobal(hMem, TRUE, &is)) && is) {
+    Gdiplus::Bitmap* b = new Gdiplus::Bitmap(is);
+    if (b->GetLastStatus() == Ok) g_themeBmp = b;
+    else delete b;
+    is->Release();
+  } else {
+    GlobalFree(hMem);
+  }
+}
 
 // ───────────────────────── 小工具 ─────────────────────────
 static std::wstring ExeDir() {
@@ -350,11 +423,28 @@ static void StrokeRR(Graphics& g, const RectF& r, float rad, const Color& c, flo
   Pen pen(c, w); g.DrawPath(&pen, &p);
 }
 
-static void DrawTxt(Graphics& g, const wchar_t* s, Font* f, const Color& c, float x, float y, int align = 0) {
+// 画一行文字。
+//
+// ★ wrapW > 0 时自动换行 —— 这是防"文案太长被窗口裁掉"的兜底。
+//   以前固定传 RectF(x, y, 0, 0)，宽度 0 = 不约束，GDI+ 把整句画成一行，
+//   超出部分被窗口边缘直接裁掉，看起来像文字凭空断掉（踩过：
+//   「用 LanguageBarrier 重定向模型归档…」那句就出界了）。
+//   需要的地方传可用宽度即可折行，不会再"看不到后半句"。
+static void DrawTxtW(Graphics& g, const wchar_t* s, Font* f, const Color& c,
+                     float x, float y, float wrapW, int align = 0) {
   SolidBrush b(c);
   StringFormat sf; sf.SetAlignment((StringAlignment)align);
   sf.SetLineAlignment(StringAlignmentNear);
-  g.DrawString(s, -1, f, RectF(x, y, 0, 0), &sf, &b);
+  if (wrapW > 0) {
+    // 中文没有空格，要显式允许"不按词断行"，否则 GDI+ 找不到断点就整句不折
+    sf.SetFormatFlags(StringFormatFlagsLineLimit);
+    g.DrawString(s, -1, f, RectF(x, y, wrapW, 0), &sf, &b);
+  } else {
+    g.DrawString(s, -1, f, RectF(x, y, 0, 0), &sf, &b);
+  }
+}
+static void DrawTxt(Graphics& g, const wchar_t* s, Font* f, const Color& c, float x, float y, int align = 0) {
+  DrawTxtW(g, s, f, c, x, y, 0, align);
 }
 
 // 勾选框（含对勾 / 空框）
@@ -386,18 +476,19 @@ static void DrawComboItems(Graphics& g, const RectF& base, int n,
                            const wchar_t* const* labels, int sel, int idBase, int hot);
 
 // ── 几何 ──
-// 统一栅格：右边距 PAD_R = 32，内容右边界 = WIN_W - 32 = 788。
-// 以前这里是一堆手写死坐标，StartRect() = X660 + 宽250 → 右边界 910，
-// 而窗口只有 900 宽 —— 「开始游戏」按钮右边被切掉 10 px（实机截图可见）。
-// 现在全部由右边界反推，改窗口尺寸不会再散架。
-static const float PAD_R = 32.f;
-static const float RX = (float)LEFT_W + 36.f;      // 右栏内容左边界
-static const float RW = (float)WIN_W - PAD_R;      // 右栏内容右边界
+// 左栏宽度由**主题图的比例**决定（见顶部 LEFT_W 的推导），窗口高度固定 620。
+// 右栏所有控件从右边界反推 —— 以前这里是一堆手写死坐标，
+// StartRect() 的右边界曾超出窗口 10px（「开始游戏」被切），现在不会再有这种问题。
+static const float PAD_R = 32.f;                   // 右栏右边距
+static const float RXL   = (float)LEFT_W + 36.f;   // 右栏内容左边界
+static const float RW    = (float)WIN_W - PAD_R;   // 右栏内容右边界
 
 // 4 个复选框：行高 46（标题 17px + 灰色说明 12px）
-static RectF OptRect(int i)   { return RectF(RX, 64.f + i * 46.f, RW - RX, 30.f); }
-static RectF OutfitRect()     { return RectF(RX + 92.f, 292.f, RW - (RX + 92.f), 36.f); }
-static RectF ComboRect()      { return RectF(RX + 92.f, 386.f, RW - (RX + 92.f), 36.f); }
+static RectF OptRect(int i)   { return RectF(RXL, 66.f + i * 46.f, RW - RXL, 30.f); }
+// 两个下拉：标签在左，控件在右（控件左边界 = RXL + 110，留够「cosplay 模式」的宽度）
+static const float COMBO_X = 110.f;
+static RectF OutfitRect()     { return RectF(RXL + COMBO_X, 300.f, RW - (RXL + COMBO_X), 36.f); }
+static RectF ComboRect()      { return RectF(RXL + COMBO_X, 400.f, RW - (RXL + COMBO_X), 36.f); }
 // 主按钮：右下角对齐，宽 220 高 52，离底 28
 static RectF StartRect()      { return RectF(RW - 220.f, (float)WIN_H - 28.f - 52.f, 220.f, 52.f); }
 // 下拉一律【向下】展开。换装 5 项、字幕 3 项，展开时下面要留得下 ——
@@ -442,50 +533,51 @@ static void Paint(HDC hdc) {
     S = sx;
     gr.ScaleTransform(sx, sy);
 
-    SolidBrush bg(C_BG); gr.FillRectangle(&bg, 0, 0, rc.right, rc.bottom);
-    SolidBrush panel(C_PANEL); gr.FillRectangle(&panel, 0, 0, LEFT_W, rc.bottom);
-    Pen edge(C_BORDER, 1.f); gr.DrawLine(&edge, LEFT_W, 0, LEFT_W, rc.bottom);
+    SolidBrush bg(C_BG); gr.FillRectangle(&bg, 0, 0, WIN_W, WIN_H);
 
-    // ── 左：品牌 ──
-    if (g_iconBmp) {
-      GraphicsPath clip; float d0 = 24;
-      RectF ib(LEFT_W/2.f - 56, 96, 112, 112);
-      clip.AddArc(ib.X, ib.Y, d0, d0, 180, 90);
-      clip.AddArc(ib.GetRight()-d0, ib.Y, d0, d0, 270, 90);
-      clip.AddArc(ib.GetRight()-d0, ib.GetBottom()-d0, d0, d0, 0, 90);
-      clip.AddArc(ib.X, ib.GetBottom()-d0, d0, d0, 90, 90);
-      clip.CloseFigure();
-      gr.SetClip(&clip);
-      gr.DrawImage(g_iconBmp, (INT)ib.X, (INT)ib.Y, (INT)ib.Width, (INT)ib.Height);
-      gr.ResetClip();
+    // ── 左：主题图（铺满左栏）──
+    // 图是 3:4 竖版，左栏宽度就是按这个比例算的，所以直接铺满即可，
+    // 不会变形也不留黑边。找不到资源时退化成一个纯色块 + 文字提示。
+    if (g_themeBmp) {
+      // 目标矩形 = 整个左栏；源矩形 = 整张图。图的比例与左栏一致（见 LEFT_W
+      // 的推导），所以等比缩放后正好铺满，不会变形。
+      RectF dst(0, 0, (float)LEFT_W, (float)WIN_H);
+      RectF src(0, 0, (float)g_themeBmp->GetWidth(), (float)g_themeBmp->GetHeight());
+      gr.DrawImage(g_themeBmp, dst, src.X, src.Y, src.Width, src.Height, UnitPixel);
     } else {
-      FillRR(gr, RectF(LEFT_W/2.f - 56, 96, 112, 112), 14, C_HILITE);
-      DrawTxt(gr, L"图标", F(14), C_MUTED, LEFT_W/2.f, 146, 1);
+      SolidBrush ph(C_PANEL); gr.FillRectangle(&ph, 0, 0, LEFT_W, WIN_H);
+      DrawTxt(gr, L"主题图", F(14), C_MUTED, LEFT_W / 2.f, WIN_H / 2.f, 1);
     }
-    DrawTxt(gr, L"ROBOTICS;NOTES DaSH", F(17,true), C_TEXT, LEFT_W/2.f, 234, 1);
-    DrawTxt(gr, L"简体中文补丁", F(17,true), C_ACCENT, LEFT_W/2.f, 262, 1);
-    DrawTxt(gr, L"v0.1", F(12), C_MUTED, LEFT_W/2.f, rc.bottom - 28, 1);
+    Pen edge(C_BORDER, 1.f); gr.DrawLine(&edge, LEFT_W, 0, LEFT_W, WIN_H);
+    // 版本号压在图上：左下角，图上多半是深色，用白字加一层淡阴影保证可读
+    {
+      RectF vb(12, (float)WIN_H - 30, 80, 20);
+      SolidBrush sh(Color(90, 0, 0, 0));
+      gr.FillRectangle(&sh, RectF(vb.X + 1, vb.Y + 1, 46, 18));
+      DrawTxt(gr, L"v0.1", F(12), C_WHITE, vb.X, vb.Y);
+    }
 
     // ── 右：选项 ──
-    DrawTxt(gr, L"选项", F(13), C_MUTED, RX, 34);
+    DrawTxt(gr, L"选项", F(13), C_MUTED, RXL, 36);
     for (int i = 0; i < OPT_COUNT; i++) {
       RectF r = OptRect(i);
       bool on = st.on[i];
       DrawCheck(gr, RectF(r.X, r.Y + 3, 22, 22), on, st.hot == i);
       DrawTxt(gr, OPT_LABEL[i], F(17), on ? C_TEXT : C_DIM, r.X + 34, r.Y + 3);
-      DrawTxt(gr, OPT_HINT[i], F(12), C_MUTED, r.X + 34, r.Y + 24);
+      // 说明行统一走折行版：宽度给 0 时 GDI+ 不折行，太长会被窗口裁掉
+      DrawTxtW(gr, OPT_HINT[i], F(12), C_MUTED, r.X + 34, r.Y + 24, RW - (r.X + 34));
     }
 
-    // ── 换装 ──
-    Pen sep0(C_BORDER, 1.f); gr.DrawLine(&sep0, RX, 272.f, RW, 272.f);
-    DrawTxt(gr, L"换装", F(17), C_TEXT, RX, 301);
+    // ── cosplay 模式 ──
+    Pen sep0(C_BORDER, 1.f); gr.DrawLine(&sep0, RXL, 276.f, RW, 276.f);
+    DrawTxt(gr, L"cosplay 模式", F(17), C_TEXT, RXL, 309);
     DrawComboFrame(gr, OutfitRect(), OUTFIT_LABEL[st.outfit], st.hot == ID_COMBO_OUTFIT);
-    DrawTxt(gr, L"全员换成这套服装（各角色只换自己有的那套）",
-            F(12), C_MUTED, RX, 336);
+    DrawTxtW(gr, OUTFIT_HINT, F(12), C_MUTED, RXL, 344, RW - RXL);
 
-    Pen sep(C_BORDER, 1.f); gr.DrawLine(&sep, RX, 366.f, RW, 366.f);
-    DrawTxt(gr, L"影片字幕", F(17), C_TEXT, RX, 395);
+    Pen sep(C_BORDER, 1.f); gr.DrawLine(&sep, RXL, 376.f, RW, 376.f);
+    DrawTxt(gr, L"影片字幕", F(17), C_TEXT, RXL, 409);
     DrawComboFrame(gr, ComboRect(), SUBS_LABEL[st.subs], st.hot == ID_COMBO_SUBS);
+    DrawTxtW(gr, SUBS_HINT, F(12), C_MUTED, RXL, 444, RW - RXL);
 
     // ── 主按钮 ──
     { RectF sr = StartRect();
@@ -634,6 +726,9 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
     if (!g_ff) { g_ff = new FontFamily(L"Arial"); }
   }
   LoadAppIconFromResource();
+  LoadThemeImage();
+  // ★ 必须在建窗口之前：窗口尺寸取决于左栏宽度，而左栏宽度由主题图比例算出来。
+  ApplyThemeGeometry();
   LoadConfig();
 
   WNDCLASSEXW wc{ sizeof(wc) };
