@@ -31,9 +31,26 @@ LINKS = [
     ("RND_DaSH_steam",    os.path.join(COMMON, "ROBOTICS;NOTES DaSH")),
     ("RND_DaSH_jp_copy",  os.path.join(COMMON, "ROBOTICS;NOTES DaSH -原版日语 副本 - 副本")),
     ("RND_DaSH_en_copy",  os.path.join(COMMON, "ROBOTICS;NOTES DaSH -原版英文 副本 - 副本")),
+    ("RND_EN_copy2",      os.path.join(COMMON, "ROBOTICS;NOTES DaSH -原版英文 副本 - 副本")),
 ]
-# 说明：两个「- 副本 - 副本」是原本就带中文名的，需要 ASCII 入口；
-#      Steam 正本与盗版(ZZGAME) 路径本来就是 ASCII，不需要。
+# 为什么必需 ASCII 入口 —— 实测结论（2026-09-12）：
+#
+# 触发条件是「路径含分号 `;` **且** 路径较长」，与中文无关：
+#
+#   路径                                            长度  加载
+#   ...\common\测试（短中文）                        37   ✓
+#   ...\common\RND_EN_copy_ascii_verylongdir...    85   ✓
+#   ...\common\ROBOTICS NOTES DaSH -abcdefg...      76   ✓（纯 ASCII，无分号）
+#   ...\common\ROBOTICS;NOTES DaSH -abcdefg...      76   ✗（纯 ASCII，有分号）
+#   ...\ROBOTICS;NOTES DaSH -原版英文 副本 - 副本       68   ✗（有分号）
+#
+# 即 `;` 是主因（Windows 视其为路径分隔符），长路径把它放大成加载失败。
+# 注意 Steam 正本 `...\ROBOTICS;NOTES DaSH` 也含分号但**路径短**，所以照常工作 ——
+# 这就是"正本能用、副本不能用"的真正原因。
+#
+# 另外两个已知异常：
+#   · 中文名（无分号）实测可加载，但为稳妥仍建议用 ASCII 入口
+#   · Steam 正本本身无需入口
 
 
 def run(*args):

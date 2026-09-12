@@ -12,7 +12,6 @@ Chinese localization of Robotics;Notes DaSH. Based on the patch by Committee of 
 | `sc3tools_jp/`、`sc3tools_rndchs/` | 日文提取 / 中文回写工具链 |
 | `tools/`、`setup/` | 启动器、安装器、卸载器源码与构建脚本 |
 | `图片汉化/` | **成品中文图集**（`bg/` `system/` `manual/`，与补丁包 `c0data/` 逐字节一致） |
-| `废弃图片/` | 已从补丁撤下的图（不随补丁发布，仅留存备查；见该目录 `README.md`） |
 | `scripts/` | 构建与部署脚本（`deploy_patch.py`、`sync_images.py`、`gen_pkg_manifest.py` 等） |
 | `docs/` | 交接文档、打包清单、设计说明 |
 
