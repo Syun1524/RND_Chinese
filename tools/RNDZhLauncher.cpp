@@ -24,6 +24,7 @@
 #include <objidl.h>
 #include <gdiplus.h>
 #include <shlobj.h>
+#include <tlhelp32.h>
 #include <string>
 #include <vector>
 #include <map>
@@ -56,6 +57,10 @@ static int WIN_H  = 620;      // 窗口高（逻辑像素）——固定值，�
 static int LEFT_W = 465;      // 左栏宽（初值是 540x720 算出来的，运行时按实际图覆盖）
 static int WIN_W  = 925;      // 窗口宽 = 左栏 + 右栏(460)
 static const int RIGHT_W = 460;   // 右栏固定宽度（放选项）
+
+// 产品版本。⚠ 改版本要同步三处：这里、成品ing/setup/src/RNDZhSetup.cpp 的 VER、
+// 成品ing/setup/build/build_installer.py 的 VERSION（决定包文件名）。
+static const wchar_t* VER = L"1.1";
 
 static const Color
   C_BG      (255, 255, 255, 255),   // 窗口底
@@ -554,7 +559,7 @@ static void Paint(HDC hdc) {
       RectF vb(12, (float)WIN_H - 30, 80, 20);
       SolidBrush sh(Color(90, 0, 0, 0));
       gr.FillRectangle(&sh, RectF(vb.X + 1, vb.Y + 1, 46, 18));
-      DrawTxt(gr, L"v0.1", F(12), C_WHITE, vb.X, vb.Y);
+      DrawTxt(gr, (std::wstring(L"v") + VER).c_str(), F(12), C_WHITE, vb.X, vb.Y);
     }
 
     // ── 右：选项 ──
@@ -585,6 +590,15 @@ static void Paint(HDC hdc) {
       SolidBrush w(C_WHITE); StringFormat sf;
       sf.SetAlignment(StringAlignmentCenter); sf.SetLineAlignment(StringAlignmentCenter);
       gr.DrawString(L"开始游戏", -1, F(19,true), sr, &sf, &w); }
+
+    // ── 底部小字：实现方式 + 署名 ──
+    // 放在主按钮上方的空档（字幕说明与按钮之间），10px 弱化色，不抢界面。
+    // 署名用「×」连接 —— 两人工作量五五开，刻意不分先后。
+    // 位置对过：按钮顶在 y=WIN_H-80，这两行在它上方，不会叠到按钮上。
+    DrawTxt(gr, L"基于 CoZ LanguageBarrier · AI 翻译 Gemini 3.0 Flash · 人工精校",
+            F(10), C_MUTED, RXL, 478);
+    DrawTxt(gr, L"汉化 仓式同学◆ × Eight_tide",
+            F(10), C_MUTED, RXL, 493);
 
     // ── 下拉列表最后画 ──
     // 必须放在所有控件之后：展开的选项会盖住下面的分隔线与主按钮，
@@ -635,16 +649,103 @@ static const wchar_t* DetectLang() {
   return buf;
 }
 
+// Steam 客户端在运行吗（查进程表里有没有 steam.exe）
+static bool SteamRunning() {
+  HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  if (snap == INVALID_HANDLE_VALUE) return true;    // 查不到就别拦，让它试
+  PROCESSENTRY32W pe; pe.dwSize = sizeof(pe);
+  bool found = false;
+  if (Process32FirstW(snap, &pe)) {
+    do {
+      if (_wcsicmp(pe.szExeFile, L"steam.exe") == 0) { found = true; break; }
+    } while (Process32NextW(snap, &pe));
+  }
+  CloseHandle(snap);
+  return found;
+}
+
+// 是 Steam 库安装吗：路径里有 steamapps 即是（盗版免 DVD 版不在，直接启动即可）
+static bool IsSteamInstall() {
+  std::wstring d = g_dir;
+  for (auto& c : d) c = (wchar_t)towlower(c);
+  return d.find(L"steamapps") != std::wstring::npos;
+}
+
+// /settitle <pid>：把该进程主窗口的标题换成补丁名。
+// 由「开始游戏」以分离方式再拉起一份自己（无窗口），随游戏退出自动结束。
+// 每 5 秒看一眼：游戏中途重建窗口（如全屏切换）也能补上；标题一致就不动。
+static DWORD g_settitlePid = 0;
+static HWND  g_gameHwnd = nullptr;
+
+static BOOL CALLBACK FindGameWnd(HWND hwnd, LPARAM) {
+  DWORD wpid = 0;
+  GetWindowThreadProcessId(hwnd, &wpid);
+  if (wpid == g_settitlePid && IsWindowVisible(hwnd)) {
+    wchar_t t[128] = {0};
+    GetWindowTextW(hwnd, t, 128);
+    if (t[0]) { g_gameHwnd = hwnd; return FALSE; }
+  }
+  return TRUE;
+}
+
+static int RunSetTitle(DWORD pid) {
+  const wchar_t* title = L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校";
+  g_settitlePid = pid;
+  for (int i = 0; i < 3600; i++) {             // 最多约 1 小时，随游戏退出结束
+    // 前期窗口出现得快（几秒内），盯紧些；之后放宽，别空转
+    Sleep(i < 60 ? 500 : 5000);
+    // 游戏退出了就结束（不留下一个常驻进程）
+    DWORD code = 0;
+    HANDLE gp = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!gp) return 0;
+    BOOL ok = GetExitCodeProcess(gp, &code);
+    CloseHandle(gp);
+    if (!ok || code != STILL_ACTIVE) return 0;
+    g_gameHwnd = nullptr;
+    EnumWindows(FindGameWnd, 0);
+    if (!g_gameHwnd) continue;
+    wchar_t cur[128] = {0};
+    GetWindowTextW(g_gameHwnd, cur, 128);
+    if (wcscmp(cur, title) != 0)
+      SendMessageW(g_gameHwnd, WM_SETTEXT, 0, (LPARAM)title);
+  }
+  return 0;
+}
+
 static void LaunchGame() {
   SaveConfig();
   ApplyDxvk(st.on[OPT_DXVK]);
   const wchar_t* lang = DetectLang();   // 跟随玩家原本的版本（存档目录随之）
 
+  // Steam 版必须先开 Steam 客户端，否则游戏会弹英文模态框
+  // （"You need to execute Steam system..."）且主窗口根本不出来。
+  // 检测不到进程时不拦 —— 免得误伤（比如改名版 Steam）。
+  if (IsSteamInstall() && !SteamRunning()) {
+    MessageBoxW(g_hwnd,
+        L"请先启动 Steam，再点「开始游戏」。\n\n也可以直接从 Steam 库里启动游戏。",
+        L"Steam 未运行", MB_ICONINFORMATION | MB_OK);
+    return;
+  }
+
   std::wstring cmd = L"Game.exe roboticsnotesd " + std::wstring(lang);
   STARTUPINFOW si{}; si.cb = sizeof(si);
   PROCESS_INFORMATION pi{};
   if (CreateProcessW(L"Game.exe", &cmd[0], nullptr, nullptr, FALSE, 0, nullptr, g_dir.c_str(), &si, &pi)) {
-    CloseHandle(pi.hThread); CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    // 把游戏窗口标题换成补丁标题：分离一份自己（无窗口）去做，随游戏退出结束。
+    {
+      wchar_t self[MAX_PATH]; GetModuleFileNameW(nullptr, self, MAX_PATH);
+      std::wstring c2 = std::wstring(L"\"") + self + L"\" /settitle "
+                        + std::to_wstring(pi.dwProcessId);
+      STARTUPINFOW si2{}; si2.cb = sizeof(si2);
+      si2.dwFlags = STARTF_USESHOWWINDOW; si2.wShowWindow = SW_HIDE;
+      PROCESS_INFORMATION pi2{};
+      if (CreateProcessW(nullptr, &c2[0], nullptr, nullptr, FALSE,
+                         CREATE_NO_WINDOW, nullptr, nullptr, &si2, &pi2)) {
+        CloseHandle(pi2.hThread); CloseHandle(pi2.hProcess);
+      }
+    }
+    CloseHandle(pi.hProcess);
     PostMessageW(g_hwnd, WM_CLOSE, 0, 0);
   } else {
     MessageBoxW(g_hwnd, L"未找到 Game.exe，请把本启动器放在游戏根目录。",
@@ -710,6 +811,19 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
 int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   g_dir = ExeDir();
 
+  // /settitle <pid>：游戏窗口标题劫持（「开始游戏」分离出来的隐藏实例）。
+  // 不建窗口，随游戏退出自动结束。必须放在一切窗口逻辑之前。
+  {
+    std::wstring cl = GetCommandLineW();
+    for (auto& c : cl) c = (wchar_t)towlower(c);
+    size_t p = cl.find(L"/settitle");
+    if (p != std::wstring::npos) {
+      DWORD pid = (DWORD)_wtoi(GetCommandLineW() + p + 9);
+      if (pid) return RunSetTitle(pid);
+      return 0;
+    }
+  }
+
   GdiplusStartupInput gi; ULONG_PTR token;
   GdiplusStartup(&token, &gi, nullptr);
 
@@ -754,7 +868,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   AdjustWindowRect(&r, style, FALSE);
   int ww = r.right - r.left, wh = r.bottom - r.top;
   int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
-  g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"ROBOTICS;NOTES DaSH 简体中文补丁",
+  g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校",
                            style, (sw - ww) / 2, (sh - wh) / 2, ww, wh,
                            nullptr, nullptr, hInst, nullptr);
   ShowWindow(g_hwnd, SW_SHOW); UpdateWindow(g_hwnd);

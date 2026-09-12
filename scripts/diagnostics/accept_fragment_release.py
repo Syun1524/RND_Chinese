@@ -25,7 +25,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 UNINSTALLER = "卸载汉化.exe"
 
 WS = r"D:\DATA\tran\agent tran\9.6文本外工作"
-SETUP = os.path.join(WS, "成品ing", "RNDZh-Setup-v0.1.exe")
+SETUP = os.path.join(WS, "成品ing", "RNDZh-Setup-v1.1.exe")
 MODSCAN = os.path.join(WS, "scripts", "diagnostics", "modscan32.exe")
 
 TARGET = r"D:\Ruanjian\Steam\steamapps\common\ROBOTICS;NOTES DaSH -原版英文 副本 - 副本"
@@ -51,7 +51,7 @@ FRAG = frag_of(TARGET)[0] if frag_of(TARGET) else ""
 
 # 安装/卸载工具自身会留在游戏目录（设计如此），比对时排除
 ALLOW = {"RNDZhLauncher.exe", "卸载汉化.exe", "RNDZhUninstall.exe", "RNDZhSetup.exe",
-         "RNDZh-Setup-v0.1.exe"}
+         "RNDZh-Setup-v1.1.exe"}
 
 # 卸载器**会把自己删掉**（RNDZhUninstall.cpp 的 ScheduleSelfDelete）——
 # 所以「卸载后少了 卸载汉化.exe」是**预期结果**，不是残留。
@@ -84,7 +84,7 @@ def snap(root):
 def killall():
     for exe in ("Game.exe", "launcher.exe", "RNDZhSetup.exe", "RNDZhUninstall.exe",
                 "卸载汉化.exe",
-                "RNDZh-Setup-v0.1.exe", "setup.tmp"):
+                "RNDZh-Setup-v1.1.exe", "setup.tmp"):
         subprocess.run(["taskkill", "/F", "/IM", exe], capture_output=True)
 
 
@@ -175,7 +175,7 @@ if os.path.isdir(os.path.join(TARGET, "languagebarrier")):
     time.sleep(2)
 else:
     print("  目录已纯净")
-for junk in ([FRAG] if FRAG else []) + ["RNDZh-Setup-v0.1.exe"]:
+for junk in ([FRAG] if FRAG else []) + ["RNDZh-Setup-v1.1.exe"]:
     p = os.path.join(TARGET, junk)
     if os.path.isdir(p):
         shutil.rmtree(p, ignore_errors=True)

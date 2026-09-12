@@ -34,6 +34,9 @@ using namespace Gdiplus;
 // 配色刻意贴近 Windows 原生安装程序：白底、浅灰边框、深灰文字、蓝色主按钮。
 // 不用深色/霓虹色 —— 安装器只是走个过场，不该抢游戏本身的风头。
 static const int WIN_W = 480, WIN_H = 268;
+// 产品版本。⚠ 改版本要同步三处：这里、launcher/RNDZhLauncher.cpp 的 VER、
+// 成品ing/setup/build/build_installer.py 的 VERSION（决定包文件名）。
+static const wchar_t* VER = L"1.1";
 static const Color
   C_BG      (255, 255, 255, 255),   // 窗口底
   C_PANEL   (255, 245, 246, 248),   // 顶部标题条
@@ -744,7 +747,10 @@ static void Paint(HDC hdc) {
       g.DrawImage(g_iconBmp, (INT)ib.X, (INT)ib.Y, (INT)ib.Width, (INT)ib.Height);
       g.ResetClip();
     }
-    Txt(g, L"ROBOTICS;NOTES DaSH 简体中文补丁", F(16, true), C_TEXT, PAD + 36, 18);
+    Txt(g, L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校", F(16, true), C_TEXT, PAD + 36, 18);
+    // 版本号右对齐放同一条栏的右端（整串连排太挤，实测 389/396 px）
+    TxtR(g, (std::wstring(L"v") + VER).c_str(), F(12), C_DIM,
+         RectF(PAD, 22.f, CW, 18.f), 2, 1);
 
     // 游戏目录：真正的 EDIT 子控件负责显示与编辑（见 g_hEdit），
     // 这里只画标签、外框和「浏览」按钮。
@@ -1179,7 +1185,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   RECT r{ 0, 0, cw, ch };
   AdjustWindowRect(&r, style, FALSE);
   int ww = r.right - r.left, wh = r.bottom - r.top;
-  g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"ROBOTICS;NOTES DaSH 简体中文补丁 · 安装程序",
+  g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校 v1.1 · 安装程序",
                            style, (sw - ww) / 2, (sh - wh) / 2, ww, wh,
                            nullptr, nullptr, hInst, nullptr);
 

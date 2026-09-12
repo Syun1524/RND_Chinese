@@ -39,8 +39,8 @@ SETUP = os.path.join(SETUP_DIR, 'bin', 'RNDZhSetup.exe')
 # 成品安装包直接输出到 setup/ 根，方便取用
 OUT_DIR = SETUP_DIR
 
-VERSION = '0.1'
-TITLE = 'ROBOTICS;NOTES DaSH 简体中文补丁'
+VERSION = '1.1'
+TITLE = 'ROBOTICS;NOTES DaSH 简中补丁 AI人工精校'
 # 一行说清「装什么 + 前提」。不做无意义的二次确认 ——
 # 真正需要用户确认的是安装器界面里的「开始安装」。
 PROMPT = '简体中文补丁，约需 1-2 分钟。\n\n安装前请先完全关闭游戏。'

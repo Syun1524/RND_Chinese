@@ -17,7 +17,7 @@ import time
 sys.stdout.reconfigure(encoding="utf-8")
 
 SETUP = (r"D:\DATA\tran\agent tran\9.6文本外工作\成品ing\setup"
-         r"\RNDZh-Setup-v0.1.exe")
+         r"\RNDZh-Setup-v1.1.exe")
 MASTER = r"D:\Ruanjian\Steam\steamapps\common\ROBOTICS;NOTES DaSH -原版英文 副本"
 TARGET = r"D:\Ruanjian\Steam\steamapps\common\RND_DaSH_en_copy"
 TEMP = os.environ.get("TEMP") or ""

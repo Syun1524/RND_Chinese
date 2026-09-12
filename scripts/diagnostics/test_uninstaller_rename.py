@@ -22,7 +22,7 @@ import time
 sys.stdout.reconfigure(encoding="utf-8")
 
 WS = r"D:\DATA\tran\agent tran\9.6文本外工作"
-SETUP = os.path.join(WS, "成品ing", "RNDZh-Setup-v0.1.exe")
+SETUP = os.path.join(WS, "成品ing", "RNDZh-Setup-v1.1.exe")
 PAYLOAD = os.path.join(WS, "成品ing", "补丁包")
 TARGET = r"D:\Ruanjian\Steam\steamapps\common\ROBOTICS;NOTES DaSH -原版英文 副本 - 副本"
 
