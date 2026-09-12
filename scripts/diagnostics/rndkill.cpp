@@ -16,6 +16,16 @@
 
 static const wchar_t* TARGETS[] = {
   L"RNDZhSetup.exe", L"RNDZhUninstall.exe", L"RNDZhLauncher.exe",
+  L"RNDZh-Setup-v0.1.exe",
+  L"test.exe",
+  L"t_stock.exe",
+  L"t_custom.exe",
+  L"v_A.exe",
+  L"v_B.exe",
+  L"v_C.exe",
+  L"v_D.exe",
+  L"v_E.exe",
+  L"v_F.exe",
   L"Game.exe", L"probe_import.exe",
 };
 
