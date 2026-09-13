@@ -146,9 +146,11 @@ pub fn encode_str(
         if let Char::Regular(c) = &ch {
             if convert_to_fullwidth && !gamedef.fullwidth_blocklist.contains(&*c) {
                 ch = Char::Regular(replace_halfwidth(*c));
-            } else if *c == '\u{20}' {
-                ch = Char::Regular(FULLWIDTH_SPACE);
             }
+            // 半角空格保持原样（经 charset[0] 编码，渲染端 widthData[0] =
+            // patchdef spaceWidthPixels 强制为窄空格）。旧逻辑在此处把
+            // '\u{20}' 无条件换成 U+3000，中文码表里 U+3000 走汉字字形步进，
+            // 导致 "Mr. Pleiades" 之类英文两侧出现一个汉字宽的间隔。
         }
         buf.push(encode_char(&ch, &gamedef)?);
     }
