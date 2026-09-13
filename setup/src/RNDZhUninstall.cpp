@@ -401,10 +401,22 @@ static void TxtR(Graphics& g, const wchar_t* s, Font* f, const Color& c, const R
   g.DrawString(s, -1, f, r, &sf, &b);
 }
 
+// 自绘关闭按钮（窗口无标题栏）：悬停给一层浅底，× 的线加粗变色
+static void DrawCloseBtn(Graphics& g, const RectF& r, bool hot) {
+  if (hot) { SolidBrush b(C_PANEL); g.FillRectangle(&b, r); }
+  Pen p(hot ? C_TEXT : C_DIM, 1.3f);
+  p.SetStartCap(LineCapRound); p.SetEndCap(LineCapRound);
+  const float m = 7.f;
+  g.DrawLine(&p, r.X + m, r.Y + m, r.GetRight() - m, r.GetBottom() - m);
+  g.DrawLine(&p, r.GetRight() - m, r.Y + m, r.X + m, r.GetBottom() - m);
+}
+
 static RectF OkRect()     { return RectF(WIN_W - 24.f - 150.f - 12.f - 100.f,
                                          WIN_H - 24.f - 40.f, 150.f, 40.f); }
 static RectF CancelRect() { return RectF(WIN_W - 24.f - 100.f, WIN_H - 24.f - 40.f,
                                          100.f, 40.f); }
+// 自绘关闭按钮：标题条右端（窗口无标题栏，得自己给一个「×」）
+static RectF CloseRect()  { return RectF((float)WIN_W - 22.f - 16.f, 20.f, 22.f, 22.f); }
 
 static void Paint(HDC hdc) {
   RECT rc; GetClientRect(g_hwnd, &rc);
@@ -436,6 +448,8 @@ static void Paint(HDC hdc) {
     }
     Txt(g, L"卸载汉化", F(16, true), C_TEXT, 72, 18);
     Txt(g, L"ROBOTICS;NOTES DaSH 简体中文补丁", F(12), C_DIM, 74, 44);
+    // 无标题栏 → 自己画一个关闭按钮
+    DrawCloseBtn(g, CloseRect(), g_hot == 3);
 
     Txt(g, L"游戏目录", F(13), C_DIM, 24, 92);
     {
@@ -482,6 +496,10 @@ static void Paint(HDC hdc) {
         TxtR(g, L"关闭", F(15), C_TEXT, c, 1, 1);
       }
     }
+
+    // 无标题栏：描一圈细边，把窗口从桌面上"切"出来
+    { Pen eb(C_BORDER, 1.f);
+      g.DrawRectangle(&eb, 0.f, 0.f, (float)WIN_W - 1.f, (float)WIN_H - 1.f); }
   }
   BitBlt(hdc, 0, 0, pw, ph, mem, 0, 0, SRCCOPY);
   SelectObject(mem, old); DeleteObject(bmp); DeleteDC(mem);
@@ -494,6 +512,7 @@ static int Hit(int px, int py) {
   };
   if (!g_done && g_pct < 0 && in(OkRect())) return 1;
   if (in(CancelRect())) return 2;
+  if (in(CloseRect())) return 3;       // 右上角关闭（无标题栏）
   return -1;
 }
 
@@ -509,6 +528,21 @@ static void OnUninstall() {
 
 static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
   switch (m) {
+  // 无标题栏窗口靠 WM_NCHITTEST 划分「可拖动区」：把非客户区当成标题栏（HTCAPTION），
+  // 系统就会给原生的拖动行为。顶部标题条是拖动区，其余归客户区；
+  // 关闭按钮必须显式留在客户区，否则它的点击会被拖动逻辑吞掉。
+  case WM_NCHITTEST: {
+    POINT p{ GET_X_LPARAM(l), GET_Y_LPARAM(l) };
+    ScreenToClient(h, &p);
+    int x = (int)unscale(p.x), y = (int)unscale(p.y);
+    RectF cb = CloseRect();
+    if (x >= cb.X && x <= cb.GetRight() && y >= cb.Y && y <= cb.GetBottom()) return HTCLIENT;
+    if (y < 72) return HTCAPTION;
+    return HTCLIENT;
+  }
+  case WM_NCLBUTTONDBLCLK:                 // 拖动区双击不要触发最大化
+    if (w == HTCAPTION) return 0;
+    break;
   case WM_MOUSEMOVE: {
     int id = (g_pct >= 0 && !g_done) ? -1 : Hit(GET_X_LPARAM(l), GET_Y_LPARAM(l));
     if (id != g_hot) { g_hot = id; InvalidateRect(h, nullptr, FALSE); }
@@ -520,6 +554,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
     int id = Hit(GET_X_LPARAM(l), GET_Y_LPARAM(l));
     if (id == 1) OnUninstall();
     else if (id == 2) PostMessageW(h, WM_CLOSE, 0, 0);
+    else if (id == 3) PostMessageW(h, WM_CLOSE, 0, 0);
     return 0;
   }
   case WM_PAINT: { PAINTSTRUCT ps; HDC dc = BeginPaint(h, &ps); Paint(dc); EndPaint(h, &ps); return 0; }
@@ -608,7 +643,10 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   wc.hIcon = LoadIconW(hInst, MAKEINTRESOURCEW(101)); wc.hIconSm = wc.hIcon;
   RegisterClassExW(&wc);
 
-  DWORD style = WS_OVERLAPPEDWINDOW & ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
+  // 无标题栏：WS_POPUP，客户区 == 窗口。拖动靠 WM_NCHITTEST 返回 HTCAPTION。
+  // 不加 WS_THICKFRAME：那会在客户区外留一圈 8px 边框，而我们只画客户区。
+  DWORD style = WS_POPUP;
+  DWORD exStyle = WS_EX_APPWINDOW;   // WS_POPUP 窗口默认不进任务栏，显式要求
   // DPI 感知：先声明，再按真实 DPI 换算客户区尺寸（否则 125% 下被位图拉伸变糊）
   SetProcessDPIAware();
   HDC screen = GetDC(nullptr);
@@ -618,10 +656,10 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   S = dpi / 96.f;
   int cw = (int)(WIN_W * S + 0.5f), ch = (int)(WIN_H * S + 0.5f);
   RECT r{ 0, 0, cw, ch };
-  AdjustWindowRect(&r, style, FALSE);
+  AdjustWindowRectEx(&r, style, FALSE, exStyle);
   int ww = r.right - r.left, wh = r.bottom - r.top;
   int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
-  g_hwnd = CreateWindowExW(0, wc.lpszClassName, L"卸载汉化 — ROBOTICS;NOTES DaSH 简体中文补丁",
+  g_hwnd = CreateWindowExW(exStyle, wc.lpszClassName, L"卸载汉化 — ROBOTICS;NOTES DaSH 简体中文补丁",
                            style, (sw - ww) / 2, (sh - wh) / 2, ww, wh,
                            nullptr, nullptr, hInst, nullptr);
   ShowWindow(g_hwnd, SW_SHOW); UpdateWindow(g_hwnd);

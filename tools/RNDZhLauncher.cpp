@@ -24,7 +24,9 @@
 #include <objidl.h>
 #include <gdiplus.h>
 #include <shlobj.h>
+#include <shellapi.h>
 #include <tlhelp32.h>
+#include <wininet.h>
 #include <string>
 #include <vector>
 #include <map>
@@ -34,6 +36,7 @@
 
 #pragma comment(lib, "gdiplus.lib")
 #pragma comment(lib, "shell32.lib")
+#pragma comment(lib, "wininet.lib")
 
 // 图标：编译时把 game.ico 嵌入 exe 资源（ID 101），窗口/任务栏都用它。
 // 资源文件 launcher.rc 引用，见 build_launcher.bat。
@@ -61,7 +64,7 @@ static const int RIGHT_W = 425;   // 右栏固定宽度（放选项）
 // 产品版本。⚠ 改版本要同步三处：这里、成品ing/setup/src/RNDZhSetup.cpp 的 VER、
 // 成品ing/setup/build/build_installer.py 的 VERSION（决定包文件名）。
 static const wchar_t* VER = L"1.0";
-// 产品标题（用户要求结尾带版本号）。窗口标题与游戏窗口标题劫持共用这一份。
+// 产品标题（用户要求结尾带版本号）。窗口标题用这一份（游戏窗口标题不再改写）。
 static const std::wstring APP_TITLE =
     std::wstring(L"ROBOTICS;NOTES DaSH 简体中文 AI人工精校版 v") + VER;
 
@@ -142,7 +145,7 @@ static const int OUTFIT_N = 5;
 static const wchar_t* OUTFIT_HINT =
     L"LanguageBarrier 重定向模型归档，运行时切换该套立绘";
 
-static const wchar_t* SUBS_LABEL[3] = { L"卡拉OK + 翻译", L"仅卡拉OK", L"仅翻译" };
+static const wchar_t* SUBS_LABEL[3] = { L"卡拉OK字幕 + 翻译", L"仅卡拉OK字幕", L"仅翻译" };
 static const wchar_t* SUBS_VALUE[3] = { L"all", L"karaonly", L"tlonly" };
 static const wchar_t* SUBS_HINT = L"mv播放时叠加的字幕轨";
 
@@ -213,9 +216,11 @@ static void ApplyThemeGeometry() {
 }
 
 static FontFamily* g_ff = nullptr;   // 从系统字体取（中文正文）
-// 主按钮英文用的字体：Bahnschrift（DIN 1451 的后继，Win10+ 自带），
-// 工业感/机械感贴 ROBOTICS;NOTES 的气质。找不到依次退 Segoe UI / Arial，
-// 最后退中文字体 —— 任何机器上都不会画不出来。
+// 主按钮用的字体：**微软雅黑 Bold**（用户 2026-09-13 指定）。
+// 按钮文字改成中文「开始游戏」后，原来那套拉丁字体（Bahnschrift）**画不出汉字**
+// —— GDI+ 遇到缺字会退化成方块/别的字体，所以必须换成能画汉字的中文字体。
+// 用「Microsoft YaHei」而不是「Microsoft YaHei UI」：前者有真正的 Bold 字面
+// （msyhbd.ttc），后者在 GDI+ 下加粗多为合成。找不到再依次退。
 static FontFamily* g_ffTech = nullptr;
 static std::wstring g_dir;           // 启动器所在目录
 
@@ -419,7 +424,7 @@ static Font* F(float sz, bool bold = false) {
   cache[key] = f; return f;
 }
 
-// 主按钮英文字（g_ffTech），同样缓存
+// 主按钮字（g_ffTech = 微软雅黑），同样缓存
 static Font* FTech(float sz, bool bold = true) {
   static std::map<std::pair<int,bool>, Font*> cache;
   auto key = std::make_pair((int)(sz * 10), bold);
@@ -427,30 +432,6 @@ static Font* FTech(float sz, bool bold = true) {
   if (it != cache.end()) return it->second;
   Font* f = new Font(g_ffTech, sz, bold ? FontStyleBold : FontStyleRegular, UnitPixel);
   cache[key] = f; return f;
-}
-
-// 逐字排 + 固定字距，在 r 内水平垂直居中。
-// GDI+ 没有字距（tracking）概念，整串 DrawString 排出来太挤，
-// 「START!」这种按钮字逐字摆才有科技感。
-static void DrawTrackedCentered(Graphics& g, const wchar_t* s, Font* f,
-                                const Color& c, const RectF& r, float track) {
-  int n = (int)wcslen(s);
-  if (n <= 0 || n > 32) return;
-  float ws[32], total = 0;
-  StringFormat sf; sf.SetFormatFlags(StringFormatFlagsNoWrap);
-  for (int i = 0; i < n; i++) {
-    RectF m; g.MeasureString(s + i, 1, f, PointF(0, 0), &sf, &m);
-    ws[i] = m.Width; total += m.Width;
-  }
-  total += track * (n - 1);
-  float x = r.X + (r.Width - total) / 2.f;
-  SolidBrush b(c);
-  sf.SetLineAlignment(StringAlignmentCenter);
-  for (int i = 0; i < n; i++) {
-    RectF lay(x, r.Y, ws[i] + 2, r.Height);
-    g.DrawString(s + i, 1, f, lay, &sf, &b);
-    x += ws[i] + track;
-  }
 }
 
 static void FillRR(Graphics& g, const RectF& r, float rad, const Color& c) {
@@ -510,6 +491,17 @@ static void DrawTxt(Graphics& g, const wchar_t* s, Font* f, const Color& c, floa
   DrawTxtW(g, s, f, c, x, y, 0, align);
 }
 
+// 在矩形内**水平+垂直居中**画一行字（按钮文字用）。
+static void DrawTxtCentered(Graphics& g, const wchar_t* s, Font* f, const Color& c,
+                            const RectF& r) {
+  SolidBrush b(c);
+  StringFormat sf;
+  sf.SetAlignment(StringAlignmentCenter);
+  sf.SetLineAlignment(StringAlignmentCenter);
+  sf.SetFormatFlags(StringFormatFlagsNoWrap);
+  g.DrawString(s, -1, f, r, &sf, &b);
+}
+
 // 勾选框（含对勾 / 空框）
 static void DrawCheck(Graphics& g, const RectF& box, bool on, bool hot) {
   if (on) {
@@ -521,6 +513,62 @@ static void DrawCheck(Graphics& g, const RectF& box, bool on, bool hot) {
     FillRR(g, box, 5, C_FIELD);
     StrokeRR(g, box, 5, hot ? C_DIM : C_BORDER, 1.4f);
   }
+}
+
+// ── GitHub 标志（octicon mark-github，16x16 视图框）──
+// ★ 本函数由 scripts/make_github_mark.py 从官方 SVG path 生成，**不要手改**；
+//   要调整请改脚本里的 PATH 再重新生成。
+// 单条闭合轮廓 + 非零环绕填充（FillModeWinding）形成中间镂空的猫形 ——
+// 位图做不到这点（要么带透明遮罩，要么自己写扫描线填充），
+// GraphicsPath 直接就能画对，而且任意缩放都清晰。
+static void GithubMarkPath(GraphicsPath& p, float ox, float oy, float s) {
+  p.SetFillMode(FillModeWinding);
+  p.StartFigure();
+  p.AddBezier(ox + s*8.f, oy, ox + s*3.58f, oy, ox, oy + s*3.58f, ox, oy + s*8.f);
+  p.AddBezier(ox, oy + s*8.f, ox, oy + s*11.54f, ox + s*2.29f, oy + s*14.53f, ox + s*5.47f, oy + s*15.59f);
+  p.AddBezier(ox + s*5.47f, oy + s*15.59f, ox + s*5.87f, oy + s*15.66f, ox + s*6.02f, oy + s*15.42f, ox + s*6.02f, oy + s*15.21f);
+  p.AddBezier(ox + s*6.02f, oy + s*15.21f, ox + s*6.02f, oy + s*15.02f, ox + s*6.01f, oy + s*14.39f, ox + s*6.01f, oy + s*13.72f);
+  p.AddBezier(ox + s*6.01f, oy + s*13.72f, ox + s*4.f, oy + s*14.09f, ox + s*3.48f, oy + s*13.23f, ox + s*3.32f, oy + s*12.78f);
+  p.AddBezier(ox + s*3.32f, oy + s*12.78f, ox + s*3.23f, oy + s*12.55f, ox + s*2.84f, oy + s*11.84f, ox + s*2.5f, oy + s*11.65f);
+  p.AddBezier(ox + s*2.5f, oy + s*11.65f, ox + s*2.22f, oy + s*11.5f, ox + s*1.82f, oy + s*11.13f, ox + s*2.49f, oy + s*11.12f);
+  p.AddBezier(ox + s*2.49f, oy + s*11.12f, ox + s*3.12f, oy + s*11.11f, ox + s*3.57f, oy + s*11.7f, ox + s*3.72f, oy + s*11.94f);
+  p.AddBezier(ox + s*3.72f, oy + s*11.94f, ox + s*4.44f, oy + s*13.15f, ox + s*5.59f, oy + s*12.81f, ox + s*6.05f, oy + s*12.6f);
+  p.AddBezier(ox + s*6.05f, oy + s*12.6f, ox + s*6.12f, oy + s*12.08f, ox + s*6.33f, oy + s*11.73f, ox + s*6.56f, oy + s*11.53f);
+  p.AddBezier(ox + s*6.56f, oy + s*11.53f, ox + s*4.78f, oy + s*11.33f, ox + s*2.92f, oy + s*10.64f, ox + s*2.92f, oy + s*7.58f);
+  p.AddBezier(ox + s*2.92f, oy + s*7.58f, ox + s*2.92f, oy + s*6.71f, ox + s*3.23f, oy + s*5.99f, ox + s*3.74f, oy + s*5.43f);
+  p.AddBezier(ox + s*3.74f, oy + s*5.43f, ox + s*3.66f, oy + s*5.23f, ox + s*3.38f, oy + s*4.41f, ox + s*3.82f, oy + s*3.31f);
+  p.AddBezier(ox + s*3.82f, oy + s*3.31f, ox + s*3.82f, oy + s*3.31f, ox + s*4.49f, oy + s*3.1f, ox + s*6.02f, oy + s*4.13f);
+  p.AddBezier(ox + s*6.02f, oy + s*4.13f, ox + s*6.66f, oy + s*3.95f, ox + s*7.34f, oy + s*3.86f, ox + s*8.02f, oy + s*3.86f);
+  p.AddBezier(ox + s*8.02f, oy + s*3.86f, ox + s*8.7f, oy + s*3.86f, ox + s*9.38f, oy + s*3.95f, ox + s*10.02f, oy + s*4.13f);
+  p.AddBezier(ox + s*10.02f, oy + s*4.13f, ox + s*11.55f, oy + s*3.09f, ox + s*12.22f, oy + s*3.31f, ox + s*12.22f, oy + s*3.31f);
+  p.AddBezier(ox + s*12.22f, oy + s*3.31f, ox + s*12.66f, oy + s*4.41f, ox + s*12.38f, oy + s*5.23f, ox + s*12.3f, oy + s*5.43f);
+  p.AddBezier(ox + s*12.3f, oy + s*5.43f, ox + s*12.81f, oy + s*5.99f, ox + s*13.12f, oy + s*6.7f, ox + s*13.12f, oy + s*7.58f);
+  p.AddBezier(ox + s*13.12f, oy + s*7.58f, ox + s*13.12f, oy + s*10.65f, ox + s*11.25f, oy + s*11.33f, ox + s*9.47f, oy + s*11.53f);
+  p.AddBezier(ox + s*9.47f, oy + s*11.53f, ox + s*9.76f, oy + s*11.78f, ox + s*10.01f, oy + s*12.26f, ox + s*10.01f, oy + s*13.01f);
+  p.AddBezier(ox + s*10.01f, oy + s*13.01f, ox + s*10.01f, oy + s*14.08f, ox + s*10.f, oy + s*14.94f, ox + s*10.f, oy + s*15.21f);
+  p.AddBezier(ox + s*10.f, oy + s*15.21f, ox + s*10.f, oy + s*15.42f, ox + s*10.15f, oy + s*15.67f, ox + s*10.55f, oy + s*15.59f);
+  p.AddArc(ox - s*0.02f, oy - s*0.01f, s*16.02f, s*16.02f, 71.361f, -71.362f);
+  p.AddBezier(ox + s*16.f, oy + s*8.f, ox + s*16.f, oy + s*3.58f, ox + s*12.42f, oy, ox + s*8.f, oy);
+  p.CloseFigure();
+}
+
+// 画 GitHub 标志：外接正方形边长 = 边长 side（16 单位视图框等比缩放）
+static void DrawGithubMark(Graphics& g, float cx, float cy, float side, const Color& c) {
+  float s = side / 16.f;
+  GraphicsPath p;
+  GithubMarkPath(p, cx - side / 2.f, cy - side / 2.f, s);
+  SolidBrush b(c);
+  g.FillPath(&b, &p);
+}
+
+// 自绘关闭按钮（窗口无标题栏）：悬停给一层浅底，× 的线加粗变色
+static void DrawCloseBtn(Graphics& g, const RectF& r, bool hot) {
+  if (hot) { SolidBrush b(C_HOVER); g.FillRectangle(&b, r); }
+  Pen p(hot ? C_TEXT : C_DIM, 1.4f);
+  p.SetStartCap(LineCapRound); p.SetEndCap(LineCapRound);
+  const float m = 8.f;
+  g.DrawLine(&p, r.X + m, r.Y + m, r.GetRight() - m, r.GetBottom() - m);
+  g.DrawLine(&p, r.GetRight() - m, r.Y + m, r.X + m, r.GetBottom() - m);
 }
 
 // 下拉框外框 + 当前值 + 箭头
@@ -554,6 +602,16 @@ static RectF OutfitRect()     { return RectF(RXL + COMBO_X, 252.f, RW - (RXL + C
 static RectF ComboRect()      { return RectF(RXL + COMBO_X, 324.f, RW - (RXL + COMBO_X), 34.f); }
 // 主按钮：右下角对齐，宽 200 高 46，离底 24
 static RectF StartRect()      { return RectF(RW - 200.f, (float)WIN_H - 24.f - 46.f, 200.f, 46.f); }
+// 「检查更新」：主按钮左侧的小按钮 —— 比主按钮矮一截，底边与主按钮对齐
+// （用户指定：再小一点，贴住这块区域的左下角）。
+static RectF CheckRect()      { RectF sr = StartRect();
+                                return RectF(sr.X - 10.f - 84.f, sr.GetBottom() - 24.f, 84.f, 24.f); }
+// GitHub 标志按钮：贴在「检查更新」左侧，点它直接开仓库主页。
+// 方形小按钮，与「检查更新」同高同底边。
+static RectF GithubRect()     { RectF cr = CheckRect();
+                                return RectF(cr.X - 6.f - 24.f, cr.Y, 24.f, 24.f); }
+// 自绘关闭按钮：右上角（窗口无标题栏，得自己给一个「×」）
+static RectF CloseRect()      { return RectF((float)WIN_W - 10.f - 26.f, 10.f, 26.f, 26.f); }
 // 下拉一律【向下】展开。换装 5 项、字幕 3 项，展开时下面要留得下 ——
 // 窗口高度按「字幕框底 + 3 项 + 主按钮」反推（见 WIN_H）。
 static RectF ItemRect(const RectF& base, int k) {
@@ -581,9 +639,111 @@ static void DrawComboItems(Graphics& g, const RectF& base, int n,
   StrokeRR(g, box, 6, C_BORDER, 1.f);
 }
 
-// 命中 id：0..OPT_COUNT-1 选项 / 100+k subs / 200 开始 / 300 subs框
-//         400+k outfit / 500 outfit框
-enum { ID_START = 200, ID_COMBO_SUBS = 300, ID_COMBO_OUTFIT = 500 };
+// 命中 id：0..OPT_COUNT-1 选项 / 100+k subs / 200 开始 / 201 检查更新 / 202 关闭
+//         203 GitHub / 300 subs框 / 400+k outfit / 500 outfit框
+enum { ID_START = 200, ID_CHECK = 201, ID_CLOSE = 202, ID_GITHUB = 203,
+       ID_COMBO_SUBS = 300, ID_COMBO_OUTFIT = 500 };
+
+// ───────────────────── 检查更新（GitHub） ─────────────────────
+// 点「检查更新」拿到仓库的最新 release / tag 跟本地 VER 比一比。
+// 网络请求必须放后台线程：WinINet 是阻塞的，直接在消息循环里跑会让窗口假死。
+// 结果用 WM_APP+2 带回主线程处理（结果对象的生命周期也一并交过去）。
+static const wchar_t* REPO_URL = L"https://github.com/Syun1524/RND_Chinese";
+static const wchar_t* REL_URL  = L"https://github.com/Syun1524/RND_Chinese/releases";
+static volatile LONG g_checking = 0;      // 0 空闲 / 1 查询中（防重复点击）
+// 「已是最新」「查不到」这类正常结果直接显示在按钮上、几秒后自动恢复，
+// **不弹窗**。★ 只有**确实有新版本**时才弹对话框问要不要去下载 ——
+// 「检查更新」本身就只是检查更新，不该为正常结果打断玩家
+//（2026-09-13 用户要求：不需要那么累赘）。
+static std::wstring g_checkMsg;           // 非空时按钮显示它
+static const UINT_PTR TIMER_CHECKMSG = 1; // 用它定时清掉 g_checkMsg
+
+// status: 0 = 有新版本 / 1 = 已是最新 / 2 = 查询失败
+struct UpdResult { int status; std::wstring latest; std::wstring url; };
+
+// 极简 JSON 取字符串值：只认第一个 "key" : "value"，够用且不引依赖
+static std::wstring JsonStr(const std::string& s, const char* key) {
+  std::string k = std::string("\"") + key + "\"";
+  size_t p = s.find(k);
+  if (p == std::string::npos) return L"";
+  p = s.find(':', p + k.size());
+  if (p == std::string::npos) return L"";
+  size_t q1 = s.find('"', p + 1);
+  if (q1 == std::string::npos) return L"";
+  size_t q2 = s.find('"', q1 + 1);
+  if (q2 == std::string::npos) return L"";
+  return Utf8ToWide(s.substr(q1 + 1, q2 - q1 - 1));
+}
+
+static bool HttpGet(const std::wstring& url, std::string& out) {
+  out.clear();
+  HINTERNET hNet = InternetOpenW(L"RNDZhLauncher", INTERNET_OPEN_TYPE_PRECONFIG,
+                                 nullptr, nullptr, 0);
+  if (!hNet) return false;
+  HINTERNET hUrl = InternetOpenUrlW(hNet, url.c_str(), nullptr, 0,
+      INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE, 0);
+  if (!hUrl) { InternetCloseHandle(hNet); return false; }
+  char buf[4096]; DWORD rd = 0;
+  while (InternetReadFile(hUrl, buf, sizeof(buf), &rd) && rd > 0) {
+    out.append(buf, rd);
+    if (out.size() > 65536) break;       // 只需要头部几十字节，防跑飞
+  }
+  InternetCloseHandle(hUrl);
+  InternetCloseHandle(hNet);
+  return !out.empty();
+}
+
+// 远程版本号比本地新吗：抽数字逐段比（"v1.2" vs "1.10"），非数字一律忽略
+static bool VerNewer(const std::wstring& remote, const std::wstring& local) {
+  auto nums = [](const std::wstring& s) {
+    std::vector<int> v; std::wstring t;
+    for (wchar_t c : s) {
+      if (c >= L'0' && c <= L'9') t += c;
+      else if (!t.empty()) { v.push_back(_wtoi(t.c_str())); t.clear(); }
+    }
+    if (!t.empty()) v.push_back(_wtoi(t.c_str()));
+    return v;
+  };
+  std::vector<int> a = nums(remote), b = nums(local);
+  for (size_t i = 0; i < a.size() || i < b.size(); i++) {
+    int x = i < a.size() ? a[i] : 0, y = i < b.size() ? b[i] : 0;
+    if (x != y) return x > y;
+  }
+  return false;
+}
+
+// 先问 releases/latest（有发布就用它，能拿到 html_url 直达下载页）；
+// 仓库没有 release 时退回 tags 的第一个。都拿不到 = 查询失败。
+static DWORD WINAPI UpdateThread(LPVOID) {
+  UpdResult* r = new UpdResult{ 2, L"", REL_URL };
+  std::string body;
+  if (HttpGet(std::wstring(L"https://api.github.com/repos/Syun1524/RND_Chinese/releases/latest"), body)) {
+    std::wstring tag = JsonStr(body, "tag_name");
+    std::wstring u   = JsonStr(body, "html_url");
+    if (!tag.empty()) {
+      r->latest = tag;
+      if (!u.empty()) r->url = u;
+      r->status = VerNewer(tag, VER) ? 0 : 1;
+    }
+  }
+  if (r->latest.empty()) {
+    std::string tb;
+    if (HttpGet(std::wstring(L"https://api.github.com/repos/Syun1524/RND_Chinese/tags"), tb)) {
+      std::wstring n = JsonStr(tb, "name");
+      if (!n.empty()) { r->latest = n; r->url = REL_URL; r->status = VerNewer(n, VER) ? 0 : 1; }
+    }
+  }
+  PostMessageW(g_hwnd, WM_APP + 2, 0, (LPARAM)r);
+  return 0;
+}
+
+static void StartUpdateCheck() {
+  if (InterlockedCompareExchange(&g_checking, 1, 0) != 0) return;   // 已在查
+  InvalidateRect(g_hwnd, nullptr, FALSE);
+  HANDLE t = CreateThread(nullptr, 0, UpdateThread, nullptr, 0, nullptr);
+  if (t) CloseHandle(t);
+  else   InterlockedExchange(&g_checking, 0);
+}
 
 static void Paint(HDC hdc) {
   RECT rc; GetClientRect(g_hwnd, &rc);
@@ -628,10 +788,11 @@ static void Paint(HDC hdc) {
     // ── 右上角小字：实现方式 + 署名（右对齐，一眼能看到出处）──
     // 两人工作量五五开，「x」刻意不分先后；「汉化:」与名字之间要留空格
     // （2026-09-13 用户指定格式「汉化: aaa x bbb」）。
+    // 右边界要给右上角的关闭按钮让位（窗口无标题栏，那个 × 是我们自绘的）。
     DrawTxt(gr, L"基于CoZ LanguageBarrier·Gemini3.0Flash·人工精校",
-            F(10), C_MUTED, RW, 14, 2);
+            F(10), C_MUTED, RW - 34.f, 14, 2);
     DrawTxt(gr, L"汉化: 仓式同学◆ x Eight_tide",
-            F(10), C_MUTED, RW, 29, 2);
+            F(10), C_MUTED, RW - 34.f, 29, 2);
 
     // ── 右：选项 ──
     DrawTxt(gr, L"选项", F(12), C_MUTED, RXL, 30);
@@ -657,7 +818,8 @@ static void Paint(HDC hdc) {
 
     // ── 主按钮 ──
     // 浅色极简 + **直角**（2026-09-13 用户指定：棱角分明，不再圆角）。
-    // 字用「START!」+ Bahnschrift（DIN 风格）逐字排字距，机械感；
+    // 文字「开始游戏」+ 微软雅黑 Bold（中文按字格排版，本来就有均匀的字距，
+    // 不需要像拉丁字母那样手动逐字加 tracking）。
     // 悬停底色加深 + 边框加深。沿用现有色板，不引入新颜色。
     { RectF sr = StartRect();
       bool hot = (st.hot == ID_START);
@@ -665,7 +827,39 @@ static void Paint(HDC hdc) {
       gr.FillRectangle(&fillb, sr);
       Pen bp(hot ? C_DIM : C_BORDER, 1.f);
       gr.DrawRectangle(&bp, sr);
-      DrawTrackedCentered(gr, L"START!", FTech(20, false), C_TEXT, sr, 1.2f); }
+      DrawTxtCentered(gr, L"开始游戏", FTech(20, true), C_TEXT, sr); }
+
+    // ── 「检查更新」小按钮：贴在「开始游戏」左侧 ──
+    // 点它去 GitHub 查最新版本：**只有确实有新版本**才弹窗问要不要去下载；
+    // 「已是最新」「查不到」直接显示在按钮上、几秒后自动恢复，不打断玩家。
+    // 网络请求在后台线程跑（见 UpdateThread），查期间显示「检查中…」并挡住重复点击。
+    { RectF cr = CheckRect();
+      bool busy = (g_checking != 0);
+      bool hot  = (st.hot == ID_CHECK) && !busy;
+      SolidBrush fillb(hot ? C_HOVER : C_PANEL);
+      gr.FillRectangle(&fillb, cr);
+      Pen bp(hot ? C_DIM : C_BORDER, 1.f);
+      gr.DrawRectangle(&bp, cr);
+      const wchar_t* txt = busy ? L"检查中…"
+                        : (!g_checkMsg.empty() ? g_checkMsg.c_str() : L"检查更新");
+      DrawTxtW(gr, txt, F(11), busy ? C_MUTED : C_DIM, cr.X, cr.Y + 5, cr.Width, 1); }
+
+    // ── GitHub 标志按钮：贴在「检查更新」左侧，直接开仓库主页 ──
+    { RectF gb = GithubRect();
+      bool hot = (st.hot == ID_GITHUB);
+      SolidBrush fillb(hot ? C_HOVER : C_PANEL);
+      gr.FillRectangle(&fillb, gb);
+      Pen bp(hot ? C_DIM : C_BORDER, 1.f);
+      gr.DrawRectangle(&bp, gb);
+      DrawGithubMark(gr, gb.X + gb.Width / 2.f, gb.Y + gb.Height / 2.f, 15.f,
+                     hot ? C_TEXT : C_DIM); }
+
+    // ── 自绘关闭按钮（无标题栏）──
+    DrawCloseBtn(gr, CloseRect(), st.hot == ID_CLOSE);
+
+    // ── 窗口描边：无标题栏后需要一圈细线把窗口从桌面上"切"出来 ──
+    { Pen eb(C_BORDER, 1.f);
+      gr.DrawRectangle(&eb, 0.f, 0.f, (float)WIN_W - 1.f, (float)WIN_H - 1.f); }
 
 
     // ── 下拉列表最后画 ──
@@ -739,47 +933,6 @@ static bool IsSteamInstall() {
   return d.find(L"steamapps") != std::wstring::npos;
 }
 
-// /settitle <pid>：把该进程主窗口的标题换成补丁名。
-// 由「开始游戏」以分离方式再拉起一份自己（无窗口），随游戏退出自动结束。
-// 每 5 秒看一眼：游戏中途重建窗口（如全屏切换）也能补上；标题一致就不动。
-static DWORD g_settitlePid = 0;
-static HWND  g_gameHwnd = nullptr;
-
-static BOOL CALLBACK FindGameWnd(HWND hwnd, LPARAM) {
-  DWORD wpid = 0;
-  GetWindowThreadProcessId(hwnd, &wpid);
-  if (wpid == g_settitlePid && IsWindowVisible(hwnd)) {
-    wchar_t t[128] = {0};
-    GetWindowTextW(hwnd, t, 128);
-    if (t[0]) { g_gameHwnd = hwnd; return FALSE; }
-  }
-  return TRUE;
-}
-
-static int RunSetTitle(DWORD pid) {
-  const wchar_t* title = APP_TITLE.c_str();
-  g_settitlePid = pid;
-  for (int i = 0; i < 3600; i++) {             // 最多约 1 小时，随游戏退出结束
-    // 前期窗口出现得快（几秒内），盯紧些；之后放宽，别空转
-    Sleep(i < 60 ? 500 : 5000);
-    // 游戏退出了就结束（不留下一个常驻进程）
-    DWORD code = 0;
-    HANDLE gp = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-    if (!gp) return 0;
-    BOOL ok = GetExitCodeProcess(gp, &code);
-    CloseHandle(gp);
-    if (!ok || code != STILL_ACTIVE) return 0;
-    g_gameHwnd = nullptr;
-    EnumWindows(FindGameWnd, 0);
-    if (!g_gameHwnd) continue;
-    wchar_t cur[128] = {0};
-    GetWindowTextW(g_gameHwnd, cur, 128);
-    if (wcscmp(cur, title) != 0)
-      SendMessageW(g_gameHwnd, WM_SETTEXT, 0, (LPARAM)title);
-  }
-  return 0;
-}
-
 static void LaunchGame() {
   SaveConfig();
   ApplyDxvk(st.on[OPT_DXVK]);
@@ -790,7 +943,7 @@ static void LaunchGame() {
   // 检测不到进程时不拦 —— 免得误伤（比如改名版 Steam）。
   if (IsSteamInstall() && !SteamRunning()) {
     MessageBoxW(g_hwnd,
-        L"请先启动 Steam，再点「START!」。\n\n也可以直接从 Steam 库里启动游戏。",
+        L"请先启动 Steam，再点「开始游戏」。\n\n也可以直接从 Steam 库里启动游戏。",
         L"Steam 未运行", MB_ICONINFORMATION | MB_OK);
     return;
   }
@@ -800,19 +953,6 @@ static void LaunchGame() {
   PROCESS_INFORMATION pi{};
   if (CreateProcessW(L"Game.exe", &cmd[0], nullptr, nullptr, FALSE, 0, nullptr, g_dir.c_str(), &si, &pi)) {
     CloseHandle(pi.hThread);
-    // 把游戏窗口标题换成补丁标题：分离一份自己（无窗口）去做，随游戏退出结束。
-    {
-      wchar_t self[MAX_PATH]; GetModuleFileNameW(nullptr, self, MAX_PATH);
-      std::wstring c2 = std::wstring(L"\"") + self + L"\" /settitle "
-                        + std::to_wstring(pi.dwProcessId);
-      STARTUPINFOW si2{}; si2.cb = sizeof(si2);
-      si2.dwFlags = STARTF_USESHOWWINDOW; si2.wShowWindow = SW_HIDE;
-      PROCESS_INFORMATION pi2{};
-      if (CreateProcessW(nullptr, &c2[0], nullptr, nullptr, FALSE,
-                         CREATE_NO_WINDOW, nullptr, nullptr, &si2, &pi2)) {
-        CloseHandle(pi2.hThread); CloseHandle(pi2.hProcess);
-      }
-    }
     CloseHandle(pi.hProcess);
     PostMessageW(g_hwnd, WM_CLOSE, 0, 0);
   } else {
@@ -831,7 +971,10 @@ static int HitTest(int px, int py) {
   // 下拉优先：展开时它盖在下面的控件上，命中判定也必须先于它们
   if (st.comboOpen == 1) for (int k = 0; k < OUTFIT_N; k++) if (in(ItemRect(OutfitRect(), k))) return 400 + k;
   if (st.comboOpen == 0) for (int k = 0; k < 3; k++) if (in(ItemRect(ComboRect(), k))) return 100 + k;
+  if (in(CloseRect())) return ID_CLOSE;
   if (in(StartRect())) return ID_START;
+  if (in(CheckRect())) return ID_CHECK;
+  if (in(GithubRect())) return ID_GITHUB;
   if (in(OutfitRect())) return ID_COMBO_OUTFIT;
   if (in(ComboRect())) return ID_COMBO_SUBS;
   for (int i = 0; i < OPT_COUNT; i++) {
@@ -843,6 +986,54 @@ static int HitTest(int px, int py) {
 
 static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
   switch (m) {
+  // 无标题栏窗口靠 WM_NCHITTEST 划分「可拖动区」：把非客户区当成标题栏（HTCAPTION），
+  // 系统就会给原生的拖动行为。主题图整块 + 顶部横条都是拖动区；
+  // 关闭按钮必须显式留在客户区，否则它的点击会被拖动逻辑吞掉。
+  case WM_NCHITTEST: {
+    POINT p{ GET_X_LPARAM(l), GET_Y_LPARAM(l) };
+    ScreenToClient(h, &p);
+    int x = (int)unscale(p.x), y = (int)unscale(p.y);
+    RectF cb = CloseRect();
+    if (x >= cb.X && x <= cb.GetRight() && y >= cb.Y && y <= cb.GetBottom()) return HTCLIENT;
+    if (x < LEFT_W || y < 46) return HTCAPTION;
+    return HTCLIENT;
+  }
+  case WM_NCLBUTTONDBLCLK:                 // 拖动区双击不要触发最大化
+    if (w == HTCAPTION) return 0;
+    break;
+  case WM_APP + 2: {                       // 检查更新结果（后台线程 PostMessage 回来）
+    UpdResult* r = (UpdResult*)l;
+    InterlockedExchange(&g_checking, 0);
+    if (r) {
+      // ★ 只有**确实有新版本**才弹对话框（那是需要玩家做决定的事：
+      //   要不要去下载）。「已是最新」「查不到」都是正常结果，
+      //   写在按钮上几秒后自己消失就行 —— 不打断玩家
+      //   （2026-09-13 用户要求：检查更新就只是检查更新，别那么累赘）。
+      if (r->status == 0) {
+        std::wstring msg = L"发现新版本 " + r->latest + L"（当前 v" + VER +
+                           L"）。\n\n是否前往下载？";
+        if (MessageBoxW(h, msg.c_str(), L"检查更新",
+                        MB_YESNO | MB_ICONINFORMATION) == IDYES)
+          ShellExecuteW(h, L"open", r->url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+      } else if (r->status == 1) {
+        g_checkMsg = std::wstring(L"已是最新 v") + VER;
+        SetTimer(h, TIMER_CHECKMSG, 4000, nullptr);
+      } else {
+        g_checkMsg = L"检查失败";
+        SetTimer(h, TIMER_CHECKMSG, 4000, nullptr);
+      }
+      delete r;
+    }
+    InvalidateRect(h, nullptr, FALSE);
+    return 0;
+  }
+  case WM_TIMER:
+    if (w == TIMER_CHECKMSG) {
+      KillTimer(h, TIMER_CHECKMSG);
+      g_checkMsg.clear();
+      InvalidateRect(h, nullptr, FALSE);
+    }
+    return 0;
   case WM_MOUSEMOVE: {
     int id = HitTest(GET_X_LPARAM(l), GET_Y_LPARAM(l));
     if (id != st.hot) { st.hot = id; InvalidateRect(h, nullptr, FALSE); }
@@ -864,6 +1055,9 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
       else if (id == ID_COMBO_SUBS) { st.comboOpen = (st.comboOpen == 0) ? -1 : 0; InvalidateRect(h, nullptr, FALSE); }
       else if (id == ID_COMBO_OUTFIT) { st.comboOpen = (st.comboOpen == 1) ? -1 : 1; InvalidateRect(h, nullptr, FALSE); }
       else if (id == ID_START) { LaunchGame(); }
+      else if (id == ID_CHECK) { StartUpdateCheck(); }
+      else if (id == ID_GITHUB) { ShellExecuteW(h, L"open", REPO_URL, nullptr, nullptr, SW_SHOWNORMAL); }
+      else if (id == ID_CLOSE) { PostMessageW(h, WM_CLOSE, 0, 0); }
       // 立刻落盘：玩家可能在这里改完就关窗口、再用 Steam 或 boot.bat 直启游戏
       if (saveNow) SaveConfig();
     } else if (st.comboOpen >= 0 && id == -1) { st.comboOpen = -1; InvalidateRect(h, nullptr, FALSE); }
@@ -881,19 +1075,6 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
 int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   g_dir = ExeDir();
 
-  // /settitle <pid>：游戏窗口标题劫持（「开始游戏」分离出来的隐藏实例）。
-  // 不建窗口，随游戏退出自动结束。必须放在一切窗口逻辑之前。
-  {
-    std::wstring cl = GetCommandLineW();
-    for (auto& c : cl) c = (wchar_t)towlower(c);
-    size_t p = cl.find(L"/settitle");
-    if (p != std::wstring::npos) {
-      DWORD pid = (DWORD)_wtoi(GetCommandLineW() + p + 9);
-      if (pid) return RunSetTitle(pid);
-      return 0;
-    }
-  }
-
   GdiplusStartupInput gi; ULONG_PTR token;
   GdiplusStartup(&token, &gi, nullptr);
 
@@ -910,13 +1091,16 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
     if (!g_ff) { g_ff = new FontFamily(L"Arial"); }
   }
   {
-    const wchar_t* cand[] = { L"Bahnschrift", L"Segoe UI", L"Arial" };
+    // 主按钮字体：微软雅黑（Bold 字面），能画汉字。
+    // 不要放 Bahnschrift/Segoe UI —— 它们画不出「开始游戏」这些汉字。
+    const wchar_t* cand[] = { L"Microsoft YaHei", L"Microsoft YaHei UI",
+                              L"SimHei", L"Noto Sans SC", L"SimSun" };
     for (auto nm : cand) {
       FontFamily* f = new FontFamily(nm);
       if (f->IsAvailable()) { g_ffTech = f; break; }
       delete f;
     }
-    if (!g_ffTech) g_ffTech = g_ff;   // 兜底的兜底：中文字体也能画拉丁字母
+    if (!g_ffTech) g_ffTech = g_ff;   // 兜底的兜底：正文中文字体也能画
   }
   LoadAppIconFromResource();
   LoadThemeImage();
@@ -931,7 +1115,12 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   wc.hIconSm = wc.hIcon;
   RegisterClassExW(&wc);
 
-  DWORD style = WS_OVERLAPPEDWINDOW & ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
+  // 无标题栏：WS_POPUP，客户区 == 窗口（没有非客户区边框要画）。
+  // 拖动靠 WM_NCHITTEST 返回 HTCAPTION（见 WndProc）。
+  // 不加 WS_THICKFRAME：它会在客户区外留一圈 8px 边框，而我们自绘的界面
+  // 只覆盖客户区，那圈边框没人画 —— 会露出未绘制的杂色。
+  DWORD style = WS_POPUP;
+  DWORD exStyle = WS_EX_APPWINDOW;   // WS_POPUP 窗口默认不进任务栏，显式要求
   // DPI 感知：先声明，再按【当前窗口 DPI】换算客户区尺寸。
   // 不声明的话 Windows 会把整个窗口位图拉伸（125% 缩放下发虚），
   // 而且 SetProcessDPIAware 之后再取 DPI 才是真实值。
@@ -944,10 +1133,10 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
 
   int cw = (int)(WIN_W * S + 0.5f), ch = (int)(WIN_H * S + 0.5f);
   RECT r{ 0, 0, cw, ch };
-  AdjustWindowRect(&r, style, FALSE);
+  AdjustWindowRectEx(&r, style, FALSE, exStyle);
   int ww = r.right - r.left, wh = r.bottom - r.top;
   int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
-  g_hwnd = CreateWindowExW(0, wc.lpszClassName, APP_TITLE.c_str(),
+  g_hwnd = CreateWindowExW(exStyle, wc.lpszClassName, APP_TITLE.c_str(),
                            style, (sw - ww) / 2, (sh - wh) / 2, ww, wh,
                            nullptr, nullptr, hInst, nullptr);
   ShowWindow(g_hwnd, SW_SHOW); UpdateWindow(g_hwnd);

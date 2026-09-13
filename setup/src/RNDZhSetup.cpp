@@ -62,6 +62,7 @@ static std::wstring g_lang = L"JP";
 static std::wstring g_status = L"点击「安装」开始（请先完全关闭游戏）";
 static int g_pct = -1;             // -1 = 未开始
 static bool g_done = false, g_failed = false;
+static bool g_cleanupOnExit = false;  // 关窗后再清 SFX 临时目录（不能在 UI 线程上同步删）
 static int g_hot = -1;
 static std::wstring g_gameVer;     // 一行状态提示（如「已找到游戏（日文版）」）
 // 目录框用原生 EDIT 子控件：插入符、选区、剪贴板、输入法全部自带。
@@ -704,11 +705,23 @@ static RectF TrackRect()   { return RectF(PAD, 152.f, CW, 6.f); }
 static RectF StatusRect()  { return RectF(PAD, 166.f, CW, 18.f); }
 static RectF InstallRect() { return RectF(PAD + CW - 196.f, WIN_H - 54.f, 96.f, 34.f); }
 static RectF CancelRect()  { return RectF(PAD + CW - 92.f, WIN_H - 54.f, 92.f, 34.f); }
+// 自绘关闭按钮：标题条右端（窗口无标题栏，得自己给一个「×」）
+static RectF CloseRect()   { return RectF((float)WIN_W - 34.f, 12.f, 22.f, 22.f); }
 
 // DPI 缩放（三个窗口同一套做法）。安装器带原生 EDIT 子控件，所以除了绘制坐标，
 // 子控件的位置/尺寸也要按 S 换算 —— 见 SyncEditRect()。
 static float S = 1.0f;
 static inline float unscale(int v) { return (float)v / S; }
+
+// 自绘关闭按钮（窗口无标题栏）：悬停给一层浅底，× 的线加粗变色
+static void DrawCloseBtn(Graphics& g, const RectF& r, bool hot) {
+  if (hot) { SolidBrush b(C_PANEL); g.FillRectangle(&b, r); }
+  Pen p(hot ? C_TEXT : C_DIM, 1.3f);
+  p.SetStartCap(LineCapRound); p.SetEndCap(LineCapRound);
+  const float m = 7.f;
+  g.DrawLine(&p, r.X + m, r.Y + m, r.GetRight() - m, r.GetBottom() - m);
+  g.DrawLine(&p, r.GetRight() - m, r.Y + m, r.X + m, r.GetBottom() - m);
+}
 
 // 把 EDIT 子控件摆到 FieldRect() 的位置（物理像素）
 static void SyncEditRect() {
@@ -748,9 +761,12 @@ static void Paint(HDC hdc) {
       g.ResetClip();
     }
     Txt(g, L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校版", F(15, true), C_TEXT, PAD + 36, 19);
-    // 版本号右对齐放同一条栏的右端（整串连排太挤，实测 389/396 px）
+    // 版本号右对齐放同一条栏的右端（整串连排太挤，实测 389/396 px）。
+    // 右端留出 38px 给右上角自绘的关闭按钮，既不重叠标题也不压到「×」。
     TxtR(g, (std::wstring(L"v") + VER).c_str(), F(12), C_DIM,
-         RectF(PAD, 22.f, CW, 18.f), 2, 1);
+         RectF(PAD, 22.f, (float)WIN_W - 38.f - PAD, 18.f), 2, 1);
+    // 无标题栏 → 自己画一个关闭按钮
+    DrawCloseBtn(g, CloseRect(), g_hot == 5);
 
     // 游戏目录：真正的 EDIT 子控件负责显示与编辑（见 g_hEdit），
     // 这里只画标签、外框和「浏览」按钮。
@@ -811,6 +827,10 @@ static void Paint(HDC hdc) {
       StrokeRR(g, cr, 4, ch ? C_DIM : C_BORDER, 1.f);
       TxtR(g, g_done ? L"关闭" : L"取消", F(14), C_TEXT, cr, 1, 1);
     }
+
+    // 无标题栏：描一圈细边，把窗口从桌面上"切"出来
+    { Pen eb(C_BORDER, 1.f);
+      g.DrawRectangle(&eb, 0.f, 0.f, (float)WIN_W - 1.f, (float)WIN_H - 1.f); }
   }
   BitBlt(hdc, 0, 0, pw, ph, mem, 0, 0, SRCCOPY);
   SelectObject(mem, old); DeleteObject(bmp); DeleteDC(mem);
@@ -830,6 +850,7 @@ static int Hit(int px, int py) {
   }
   if (in(CancelRect())) return 3;
   if (!g_done && g_pct < 0 && in(BrowseRect())) return 1;
+  if (in(CloseRect())) return 5;        // 右上角关闭（无标题栏）
   return -1;
 }
 
@@ -943,7 +964,7 @@ static void OnInstall() {
 }
 
 // 完成态的「启动游戏」= 打开**汉化启动器**（RNDZhLauncher.exe）——
-// Steam 检查、DXVK 开关、字幕/cosplay 设置、游戏窗口标题劫持全在它那边，
+// Steam 检查、DXVK 开关、字幕/cosplay 设置全在它那边，
 // 绕过它直接拉游戏等于让玩家错过整套补丁设置（2026-09-13 用户指正）。
 // 启动器不在了才退回：Steam 库走 steam:// 协议（客户端没开自动拉起 Steam），
 // 非 Steam 目录直接跑 Game.exe。
@@ -987,6 +1008,21 @@ static void LaunchGameFromSetup() {
 
 static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
   switch (m) {
+  // 无标题栏窗口靠 WM_NCHITTEST 划分「可拖动区」：把非客户区当成标题栏（HTCAPTION），
+  // 系统就会给原生的拖动行为。顶部标题条是拖动区，其余归客户区；
+  // 关闭按钮必须显式留在客户区，否则它的点击会被拖动逻辑吞掉。
+  case WM_NCHITTEST: {
+    POINT p{ GET_X_LPARAM(l), GET_Y_LPARAM(l) };
+    ScreenToClient(h, &p);
+    int x = (int)unscale(p.x), y = (int)unscale(p.y);
+    RectF cb = CloseRect();
+    if (x >= cb.X && x <= cb.GetRight() && y >= cb.Y && y <= cb.GetBottom()) return HTCLIENT;
+    if (y < 54) return HTCAPTION;
+    return HTCLIENT;
+  }
+  case WM_NCLBUTTONDBLCLK:                 // 拖动区双击不要触发最大化
+    if (w == HTCAPTION) return 0;
+    break;
   case WM_MOUSEMOVE: {
     int id = (g_pct >= 0 && !g_done) ? -1 : Hit(GET_X_LPARAM(l), GET_Y_LPARAM(l));
     if (id != g_hot) { g_hot = id; InvalidateRect(h, nullptr, FALSE); }
@@ -1026,6 +1062,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
       else OnInstall();
     }
     else if (id == 3) { PostMessageW(h, WM_CLOSE, 0, 0); }
+    else if (id == 5) { PostMessageW(h, WM_CLOSE, 0, 0); }
     else if (id == 4) {
       if (g_hEdit) SetFocus(g_hEdit);
     }
@@ -1067,8 +1104,10 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         return 0;
     }
     // 安装已成功时，顺手清掉 SFX 自解压目录（那里是完整补丁副本，约 450MB）。
-    // 放在关窗时做，是因为要等安装全部落盘，且此时本进程仍在运行不会删到自己。
-    if (g_done) CleanupSfxTemp();
+    // ★ 不能在这里同步删：几千个文件在 UI 线程上删几秒，窗口就"卡死"几秒才关
+    //   （2026-09-13 用户反馈点启动游戏会卡住）。改成只立旗子，消息循环退出、
+    //   窗口已经消失之后再删 —— 玩家看到的是秒关，进程隐形地多活几秒清完即退。
+    if (g_done) g_cleanupOnExit = true;
     DestroyWindow(h); return 0;
   case WM_DESTROY: PostQuitMessage(0); return 0;
   }
@@ -1227,7 +1266,10 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   wc.hIcon = LoadIconW(hInst, MAKEINTRESOURCEW(101)); wc.hIconSm = wc.hIcon;
   RegisterClassExW(&wc);
 
-  DWORD style = WS_OVERLAPPEDWINDOW & ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
+  // 无标题栏：WS_POPUP，客户区 == 窗口。拖动靠 WM_NCHITTEST 返回 HTCAPTION。
+  // 不加 WS_THICKFRAME：那会在客户区外留一圈 8px 边框，而我们只画客户区。
+  DWORD style = WS_POPUP;
+  DWORD exStyle = WS_EX_APPWINDOW;   // WS_POPUP 窗口默认不进任务栏，显式要求
   // DPI 感知：先声明，再按真实 DPI 换算客户区尺寸（否则 125% 下被位图拉伸变糊）
   SetProcessDPIAware();
   HDC screen = GetDC(nullptr);
@@ -1238,9 +1280,9 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   int cw = (int)(WIN_W * S + 0.5f), ch = (int)(WIN_H * S + 0.5f);
   int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
   RECT r{ 0, 0, cw, ch };
-  AdjustWindowRect(&r, style, FALSE);
+  AdjustWindowRectEx(&r, style, FALSE, exStyle);
   int ww = r.right - r.left, wh = r.bottom - r.top;
-  g_hwnd = CreateWindowExW(0, wc.lpszClassName, (std::wstring(L"ROBOTICS;NOTES DaSH 简体中文 AI人工精校版 v") + VER + L" · 安装程序").c_str(),
+  g_hwnd = CreateWindowExW(exStyle, wc.lpszClassName, (std::wstring(L"ROBOTICS;NOTES DaSH 简体中文 AI人工精校版 v") + VER + L" · 安装程序").c_str(),
                            style, (sw - ww) / 2, (sh - wh) / 2, ww, wh,
                            nullptr, nullptr, hInst, nullptr);
 
@@ -1268,6 +1310,9 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
 
   MSG msg;
   while (GetMessageW(&msg, nullptr, 0, 0)) { TranslateMessage(&msg); DispatchMessageW(&msg); }
+  // 窗口已消失，此刻删 SFX 临时目录不再有"卡死窗口"观感；删完进程才退出
+  //（SFX 父进程会等本进程退出后再做它自己的收尾，互不影响）。
+  if (g_cleanupOnExit) CleanupSfxTemp();
   GdiplusShutdown(tk);
   return 0;
 }

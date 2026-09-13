@@ -1,4 +1,7 @@
 #include <windows.h>
 
-101 ICON "uninstall.ico"
+// 图标与启动器/安装器统一（游戏主视觉 game.ico）。
+// 以前用红底垃圾桶，是想靠图标一眼区分"卸载"；现按用户要求统一成同一个图标 ——
+// 区分靠**中文文件名**（卸载汉化.exe）就够了，不必再换图标。
+101 ICON "game.ico"
 1 24 "uninstall.manifest"
