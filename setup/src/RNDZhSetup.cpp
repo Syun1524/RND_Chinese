@@ -949,28 +949,39 @@ static void OnInstall() {
 // 非 Steam 目录直接跑 Game.exe。
 static void LaunchGameFromSetup() {
   if (g_gameDir.empty()) return;
+  // ★ 用 CreateProcess 直接拉起，不走 ShellExecute(Ex)：
+  //   SEE_MASK_NOASYNC 会等 shell 把进程完全拉起来才返回，叠加杀软对
+  //   刚落盘 exe 的首次扫描，点下按钮会"卡一下"才出启动器（2026-09-13 用户反馈）。
+  //   CreateProcess 在进程对象建立后立即返回，启动器窗口自己慢慢出。
   std::wstring launcher = g_gameDir + L"\\RNDZhLauncher.exe";
   if (Exists(launcher)) {
-    SHELLEXECUTEINFOW si{ sizeof(si) };
-    si.fMask = SEE_MASK_NOASYNC;
-    si.lpFile = launcher.c_str();
-    si.lpDirectory = g_gameDir.c_str();
-    si.nShow = SW_SHOWNORMAL;
-    ShellExecuteExW(&si);
-    return;
+    std::wstring cmd = L"\"" + launcher + L"\"";
+    std::vector<wchar_t> buf(cmd.begin(), cmd.end()); buf.push_back(0);
+    STARTUPINFOW si{ sizeof(si) };
+    PROCESS_INFORMATION pi{};
+    if (CreateProcessW(nullptr, buf.data(), nullptr, nullptr, FALSE, 0,
+                       nullptr, g_gameDir.c_str(), &si, &pi)) {
+      CloseHandle(pi.hThread);
+      CloseHandle(pi.hProcess);
+      return;
+    }
   }
+  // 启动器不在（异常情况）才退回：Steam 库走 steam:// 协议（客户端没开会自动
+  // 先拉起 Steam 再进游戏）；非 Steam 目录直接跑 Game.exe。
   std::wstring low = g_gameDir;
   for (auto& c : low) c = (wchar_t)towlower(c);
   if (low.find(L"steamapps") != std::wstring::npos) {
     ShellExecuteW(g_hwnd, L"open", L"steam://rungameid/1111390", nullptr, nullptr, SW_SHOWNORMAL);
   } else {
-    std::wstring exe = g_gameDir + L"\\Game.exe";
-    SHELLEXECUTEINFOW si{ sizeof(si) };
-    si.fMask = SEE_MASK_NOASYNC;
-    si.lpFile = exe.c_str();
-    si.lpDirectory = g_gameDir.c_str();
-    si.nShow = SW_SHOWNORMAL;
-    ShellExecuteExW(&si);
+    std::wstring exe = L"\"" + g_gameDir + L"\\Game.exe\"";
+    std::vector<wchar_t> b2(exe.begin(), exe.end()); b2.push_back(0);
+    STARTUPINFOW si2{ sizeof(si2) };
+    PROCESS_INFORMATION pi2{};
+    if (CreateProcessW(nullptr, b2.data(), nullptr, nullptr, FALSE, 0,
+                       nullptr, g_gameDir.c_str(), &si2, &pi2)) {
+      CloseHandle(pi2.hThread);
+      CloseHandle(pi2.hProcess);
+    }
   }
 }
 

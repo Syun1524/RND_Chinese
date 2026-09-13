@@ -97,61 +97,6 @@ static std::wstring ExeDir() {
   std::wstring s(buf); size_t p = s.find_last_of(L'\\');
   return p == std::wstring::npos ? L"." : s.substr(0, p);
 }
-static std::wstring ExePath() {
-  wchar_t buf[MAX_PATH]; GetModuleFileNameW(nullptr, buf, MAX_PATH);
-  return buf;
-}
-
-// 让本程序把自己也删掉。
-//
-// 难点：运行中的 exe 不能直接 DeleteFile —— 映像被映射着，删不掉。
-// 做法分两步：
-//   1) **改名**成一个不显眼的名字（改"路径"是允许的，实测可行）——
-//      这样游戏目录里当场就看不到"卸载汉化.exe"了，玩家观感即达成。
-//   2) 起一个**隐藏的** cmd 子进程，循环尝试删除那个改名后的文件，
-//      删掉就退出。它自旋等待本进程结束（本进程一退出，文件就能删了）。
-//
-// 为什么用"循环重试"而不是让 cmd 睡固定时长：进程退出与文件句柄释放的时机
-// 不能精确保证，固定 sleep 可能睡不够（删不掉）或睡过头（白等）。重试最稳。
-//
-// 为什么还是用了 cmd：不依赖任何外部工具自删的办法只有
-// "登记重启后删除"，那会让文件留到重启为止 —— 玩家会以为没卸干净。
-// cmd.exe 是 Windows 自带的，且这里用 CREATE_NO_WINDOW 起进程，**不会闪黑框**。
-// 万一 cmd 起不来，还有 MoveFileEx(重启后删除) 兜底。
-static void ScheduleSelfDelete() {
-  std::wstring self = ExePath();
-  std::wstring dir = ExeDir();
-  std::wstring tmp = Join(dir, L"_uninstall_del.exe");
-
-  // 清掉上次可能留下的残留
-  DeleteFileW(tmp.c_str());
-
-  std::wstring target = self;
-  if (MoveFileW(self.c_str(), tmp.c_str())) {
-    target = tmp;                      // 改名成功 → 删这个新名字
-    MoveFileExW(tmp.c_str(), nullptr, MOVEFILE_DELAY_UNTIL_REBOOT);   // 兜底
-  } else {
-    MoveFileExW(self.c_str(), nullptr, MOVEFILE_DELAY_UNTIL_REBOOT);  // 兜底
-  }
-
-  // 起隐藏 cmd：最多重试 120 次（约 2 分钟），文件一消失就退出。
-  // 路径用引号包住，避免空格/中文出问题。
-  std::wstring cmd = L"cmd.exe /c for /l %i in (1,1,120) do @("
-                     L"del /f /q \"" + target + L"\" >nul 2>&1 & "
-                     L"if not exist \"" + target + L"\" exit /b)";
-  std::vector<wchar_t> buf(cmd.begin(), cmd.end());
-  buf.push_back(0);
-
-  STARTUPINFOW si{};
-  si.cb = sizeof(si);
-  PROCESS_INFORMATION pi{};
-  if (CreateProcessW(nullptr, buf.data(), nullptr, nullptr, FALSE,
-                     CREATE_NO_WINDOW | DETACHED_PROCESS, nullptr, dir.c_str(),
-                     &si, &pi)) {
-    CloseHandle(pi.hThread);
-    CloseHandle(pi.hProcess);
-  }
-}
 static std::wstring FileName(const std::wstring& p) {
   size_t s = p.find_last_of(L"\\/");
   return s == std::wstring::npos ? p : p.substr(s + 1);
@@ -411,16 +356,10 @@ static bool RunUninstall() {
     DeleteFileW(Join(g_dir, L"_cn_patch_boot_orig.bat").c_str());
   }
 
-  // 6) 把自己也删掉。
-  //    卸载器是补丁的一部分，补丁没了它就没有存在意义 ——
-  //    留在游戏目录里只会让玩家以为"还没卸干净"。
-  //    注意放在**最后**：前面所有步骤都依赖本进程在运行。
-  //
-  //    有个坑：调用方（OnUninstall / 静默模式）在本函数返回后还要用窗口/返回值，
-  //    所以这里只做"改名 + 登记重启删除"，不真的把 exe 删掉
-  //    （运行中的 exe 也删不掉，见 ScheduleSelfDelete 的注释）。
-  ScheduleSelfDelete();
-
+  // 6) 卸载器本体**保留**在游戏目录里（2026-09-13 用户拍板：自删那套
+  //    改名 + 隐藏 cmd 循环太麻烦，还会闪出 _uninstall_del.exe 吓人）。
+  //    卸载完它就是普通文件，留着下次卸载/重装后还能再用；
+  //    之前的「多余 0」验收口径随之变为「多余 1（工具 1）」，属预期。
 
   SetStatus(L"卸载完成", 100);
   return true;
