@@ -1240,7 +1240,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
   RECT r{ 0, 0, cw, ch };
   AdjustWindowRect(&r, style, FALSE);
   int ww = r.right - r.left, wh = r.bottom - r.top;
-  g_hwnd = CreateWindowExW(0, wc.lpszClassName, (std::wstring(L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校版 v") + VER + L" · 安装程序").c_str(),
+  g_hwnd = CreateWindowExW(0, wc.lpszClassName, (std::wstring(L"ROBOTICS;NOTES DaSH 简体中文 AI人工精校版 v") + VER + L" · 安装程序").c_str(),
                            style, (sw - ww) / 2, (sh - wh) / 2, ww, wh,
                            nullptr, nullptr, hInst, nullptr);
 

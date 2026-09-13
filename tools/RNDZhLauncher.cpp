@@ -63,7 +63,7 @@ static const int RIGHT_W = 425;   // 右栏固定宽度（放选项）
 static const wchar_t* VER = L"1.0";
 // 产品标题（用户要求结尾带版本号）。窗口标题与游戏窗口标题劫持共用这一份。
 static const std::wstring APP_TITLE =
-    std::wstring(L"ROBOTICS;NOTES DaSH 简中补丁 AI人工精校版 v") + VER;
+    std::wstring(L"ROBOTICS;NOTES DaSH 简体中文 AI人工精校版 v") + VER;
 
 static const Color
   C_BG      (255, 255, 255, 255),   // 窗口底
