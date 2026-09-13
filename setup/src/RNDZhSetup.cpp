@@ -1010,7 +1010,10 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
   case WM_LBUTTONUP: {
     int id = Hit(GET_X_LPARAM(l), GET_Y_LPARAM(l));
     if (id == 1) { PickFolder(); }
-    else if (id == 2) { if (g_done) LaunchGameFromSetup(); else OnInstall(); }
+    else if (id == 2) {
+      if (g_done) { LaunchGameFromSetup(); PostMessageW(h, WM_CLOSE, 0, 0); }
+      else OnInstall();
+    }
     else if (id == 3) { PostMessageW(h, WM_CLOSE, 0, 0); }
     else if (id == 4) {
       if (g_hEdit) SetFocus(g_hEdit);
