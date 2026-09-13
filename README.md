@@ -1,13 +1,121 @@
-# RND_Chinese
-Chinese localization of Robotics;Notes DaSH. Based on the patch by Committee of Zero. Muchas gracias. Contact me if there is anything inappropriate.
+# ROBOTICS;NOTES DaSH 简体中文 AI 人工精校版
 
-## 仓库内容
+**ROBOTICS;NOTES DaSH**（MAGES/5pb，Steam 版）的简体中文汉化补丁。
+译文以**日语原文**为准（不是从英文转译），AI 翻译 + 人工精校。
+
+- 当前版本：**v1.0**
+- 技术基础：Committee of Zero 的英文优化补丁（LanguageBarrier 运行时），在它的框架上换成中文码表、中文字体、中文译文与中文图集
+- 适用：Steam 正版与免 DVD 版通用，装完保持游戏原有语言设定
+
+---
+
+# 第一部分：给玩家
+
+## 装完会变成什么样
+
+| | 内容 |
+|---|---|
+| **对白/旁白** | 全中文（约 2.1 万条对话、38 万汉字），人名地名等术语全套统一 |
+| **正文界面** | 菜单、TIPS、系统消息、Twipo/邮件等界面文本全中文 |
+| **界面图片** | 标题菜单、选项界面、系统菜单、CG 库/音乐库标签、自动存档提示等重绘为中文 |
+| **影片** | MV 有中文卡拉OK字幕（逐字高亮 + 翻译轨，可在启动器开关）；1 段剧情影片替换 |
+| **启动器** | 自带中文启动器：鼠标操作、滚轮推进文本、cosplay 换装模式等开关 |
+
+## 怎么装
+
+1. **先完全退出游戏**（进程会锁住补丁文件）。
+2. 双击 `RNDZh-Setup-v1.0.exe`，安装器会自动找到游戏目录（Steam 库或免 DVD 目录都能认）。
+3. 点「安装」。装完点「启动游戏」即可。
+
+卸载：运行游戏目录里的 `卸载汉化.exe`，会还原到装补丁前的状态。
+
+> 安装器会备份原版文件；反作弊/CG 都未改动，存档不受影响。
+
+## 仍然存在的小瑕疵
+
+游戏里还有 **35 个日文说话人名字**（如 `あき穂`、`フラウ`、`ミスター・プレアデス`）显示为日文——
+它们的**对白正文已经是中文**，只是名字框里的名字没换。完整清单与建议译名见
+[docs/名字待译清单.md](docs/名字待译清单.md)，待最终拍板后替换。
+
+---
+
+# 第二部分：和 Committee of Zero 英文补丁的区别
+
+本补丁的运行时来自 CoZ 的英文优化补丁（LanguageBarrier）。**它不是套壳英文补丁**——
+英文补丁只是提供了「改写游戏文本/资源」的机制，中文补丁在这个机制上换了码表、字体、
+全部译稿和全部图集，并另外自研了启动器与安装器。
+
+| 维度 | CoZ 英文补丁 | 本补丁 |
+|---|---|---|
+| 语言 | 英文 | **简体中文**（译文以日语原文为准） |
+| 正文字体 | Noto 合并 TTC | **思源黑体简中**（`NotoSansCJKsc-Regular.otf`） |
+| 文本重定向 | 仅 `MES01` | `MES00` **+** `MES01`（TIPS/系统消息等一并接管） |
+| 图片重定向 | bg 18 / system 5 | **bg 64 / system 12 / movie 1** |
+| 影片字幕 | 英文卡拉OK | **中文逐字卡拉OK + 翻译轨**（可开关三种模式） |
+| 启动器 | `LauncherC0.exe`（Qt5，需十余个 DLL） | **自研 `RNDZhLauncher.exe`**（单文件，无 Qt 依赖） |
+| 换装 | `swimsuitPatch`（只切泳装） | `fileIdRemap` 同归档引用，含 **cosplay 模式**（和服/泳装/体操服/猫耳） |
+| 安装/卸载 | `nguninstall.exe` | 自研安装器 / 卸载器，**自动兼容含分号的目录名** |
+| 补丁体积 | 356 MB | **210.5 MB** |
+
+相同之处：两者的运行时内核、`patchdef.json` 结构、图形/影片重定向机制是同源的
+（MIT 许可的 LanguageBarrier）。CoZ 原版的许可文件在补丁包里原样保留。
+
+---
+
+# 第三部分：相对 CoZ 我们改了什么（技术）
+
+## 运行时（LanguageBarrier 源码）
+
+改动集中在 9 处，都在 `LanguageBarrier_rndchs/LanguageBarrier/`：
+
+| 文件 | 改动 | 为什么 |
+|---|---|---|
+| `TextRendering.cpp` | 新增 `forceIncludeHan` 开关 | 原逻辑按语言过滤 CJK 字形；中文码表必须烤汉字 |
+| `TextRendering.cpp/.h` | 新增 `charsetHash`（FNV-1a 32 位）写入字体缓存 | 码表一变就判定旧缓存失效，自动重烤 |
+| `TextRendering.cpp` | 字体缓存自愈（缺 `.dds` 图集 / 哈希不符即清缓存） | 修「缓存说没问题、实际画不出字」 |
+| `TextRendering.cpp/.h` | `getGlyphInfo` 缺字形返回 `missingGlyph`（宽 0） | 原本 `map::at` 会在游戏渲染线程抛 `out_of_range` |
+| `GameText.cpp/.h` | `RUBY_MARKERS_ENABLED`（默认关） | 修 `A`/`8`/`9` 被当成注音标记吃掉 |
+| `Game.cpp` | 新增 `fileIdRemap` 分支 | 同归档内改指到另一文件（换装），不随包分发原素材 |
+| `Game.cpp` | `fileIdRemap` 查找加 json 守卫 | 修 `type_error.302` 崩溃 |
+| `SigScan.cpp` | `pattern` 支持**字符串数组**逐个回退 + `occurrence` | 一个 `gamedef` 兼容游戏多个版本的特征码 |
+| `CustomInputRND.cpp` | `kTitleMenuWidthsZh[15]` | 标题菜单鼠标悬停/点击宽度跟着中文图集改 |
+
+## 工具链
+
+- `sc3tools_rndchs/src/text.rs`：删掉「半角空格无条件转全角空格 U+3000」的分支——
+  中文码表里 U+3000 走汉字字形步进，会让英文术语两侧多出一个汉字宽的间隔。
+- `SigScan` 的数组回退（上表最后第二行）配合 `gamedef.json` 里追加的两条备选特征码，
+  让补丁不因游戏小版本更新而失效。
+
+## 已修复的问题清单
+
+这些都是开发过程中踩过并修掉的真实缺陷：
+
+1. **字母 `A` / `8` / `9` 静默消失**——SC3 文本流里 0x80 0x09/0x0A/0x0B 既是注音标记又是字形对，
+   中文码表下 `A`/`8`/`9` 正好落在那三个位置，被当标记吃掉（`PHASE NAE` 显示成 `PHSE NE`）。
+2. **字体缓存陈旧**——换了码表却仍读旧缓存，字形错乱/缺字；现在带哈希校验并自愈。
+3. **高位字形不显示**——字形 id 解析不到时曾抛异常或画成空白。
+4. **英文术语两侧多出汉字宽的空隔**（如 `Mr.　Pleiades`）——全角空格误编码所致。
+5. **游戏目录名含分号 → 补丁静默失效**——Windows 加载器把分号后的路径当子目录搜；
+   安装器现在按目录名**实时算出片段名并自动建子目录**，玩家无需改名。
+6. **重装后卸载残留 8 个代理 DLL**——安装前按内容比对，避免把自家补丁当「玩家原版文件」备份。
+7. **数字 `9` 不显示**、**`json type_error.302` 崩溃**、**缺字形抛异常**——见上表。
+8. **安装器点「启动游戏」窗口卡死**——SFX 临时目录的清理挪到窗口关闭之后。
+
+## 残留
+
+- **35 个日文说话人名**，在 `enscript` 中合计 **560 处**尚未替换（含 `海翔&あき穂` 这类合成名）。
+  清单与建议译名见 [`docs/名字待译清单.md`](docs/名字待译清单.md)，等拍板。
+
+---
+
+# 第四部分：仓库内容
 
 | 目录 | 内容 |
 |---|---|
-| `cnscript/` | 中文译稿（`.msb.txt`）与中文码表 |
+| `cnscript/` | 中文译稿（`.msb.txt`，183 文件 ≈ 38 万汉字）与中文码表 |
 | `jpscript/` | 日文原版脚本（提取用基线） |
-| `subs/` | 影片字幕 `.ass` 与歌词字体 |
+| `subs/` | 影片字幕 `.ass`（10 轨）与歌词字体 |
 | `LanguageBarrier_rndchs/` | LanguageBarrier 运行时源码 + 发布用 `dinput8.dll` / `VSFilter.dll`（编译中间产物不入库） |
 | `sc3tools_jp/`、`sc3tools_rndchs/` | 日文提取 / 中文回写工具链 |
 | `tools/` | 启动器 `RNDZhLauncher.cpp` + 换装核对工具 `RNDZhOutfitTool.cpp` 源码与构建脚本 |
@@ -24,19 +132,38 @@ Chinese localization of Robotics;Notes DaSH. Based on the patch by Committee of 
 
 ## sc3tools 版本说明 (IMPORTANT)
 
-仓库里有两套 sc3tools,源码完全相同,唯一区别是编译时内嵌的 `resources/rnd/charset.utf8` 码表。**码表是 rust-embed 编译期打进 exe 的,改码表必须重新 `cargo build --release`,改完直接跑旧 exe 无效。**
+仓库里有两套 sc3tools，源码完全相同，唯一区别是编译时内嵌的 `resources/rnd/charset.utf8` 码表。
+**码表是 rust-embed 编译期打进 exe 的，改码表必须重新 `cargo build --release`，改完直接跑旧 exe 无效。**
 
-- `sc3tools_rndchs/` — **中文版**。码表为汉化简体字码表 (13K, 4499 字, md5 `e62f5ca3...`),用于配合 `cnscript/` 译稿做中文回写 (replace-text)。
-- `sc3tools_jp/` — **日文版**。码表为日文原版码表 (8.7K, 3020 字, md5 `6040d18f...`,即 `charset-.utf8` / `charset-备份.utf8`),用于提取日文原版脚本 (extract-text)。
+- `sc3tools_rndchs/` — **中文版**。码表为汉化简体字码表（13K，4499 字，md5 `e62f5ca3...`），
+  用于配合 `cnscript/` 译稿做中文回写（replace-text）。
+- `sc3tools_jp/` — **日文版**。码表为日文原版码表（8.7K，3020 字，md5 `6040d18f...`，
+  即 `charset-.utf8` / `charset-备份.utf8`），用于提取日文原版脚本（extract-text）。
 
-**配对关系:日文包用日文版提取,中文回写用中文版。用错码表会得到大面积错码 (例如 `種子島` → `丽仁亿`,`海翔` → `ΥΦ`)。**
+**配对关系：日文包用日文版提取，中文回写用中文版。用错码表会得到大面积错码
+（例如 `種子島` → `丽仁亿`，`海翔` → `ΥΦ`）。**
 
-现成的 exe:
-- `sc3tools_rndchs/target/release/sc3tools.exe` (934K, md5 `96cf7bb0...`) — 中文版
-- `sc3tools_jp/target/release/sc3tools.exe` (921K, md5 `295b1c24...`) — 日文版
+现成的 exe：
 
-用法示例 (提取日文):
+- `sc3tools_rndchs/target/release/sc3tools.exe` — 中文版
+- `sc3tools_jp/target/release/sc3tools.exe` — 日文版
+
+用法示例（提取日文）：
+
 ```
 sc3tools_jp/target/release/sc3tools.exe extract-text "mes00.cpk/*.msb" rnd
 ```
+
 输出会放在输入文件同级的 `txt/` 子目录。
+
+---
+
+## 致谢与许可
+
+- 运行时框架 [LanguageBarrier](https://github.com/CommitteeOfZero/LanguageBarrier)
+  与英文优化补丁由 **Committee of Zero** 开发（MIT；因含 xy-VSFilter，二进制按 GPLv2 分发）。
+- 本补丁基于 CoZ 的工作，译文/图集/工具为本项目新增。
+- 文本编码工具 [sc3tools](https://github.com/CommitteeOfZero/sc3tools)。
+- 歌词字体基于 Noto Sans SC（SIL OFL 1.1，随字体分发）。
+- 本方为**非官方**汉化，与 MAGES./5pb.、Nitroplus、Steam 及 Committee of Zero 均无隶属关系。
+  请支持正版。若认为本仓库内容有不妥之处，请联系作者。
