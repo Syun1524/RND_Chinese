@@ -942,11 +942,23 @@ static void OnInstall() {
   UpdateWindow(g_hwnd);
 }
 
-// 完成态的「启动游戏」。Steam 库安装走 steam:// 协议 —— 客户端没开时会自动
-// 先拉起 Steam 再进游戏（直接跑 Game.exe 只会弹英文模态框且主窗口不出来）；
-// 盗版等非 Steam 目录直接启动 Game.exe。
+// 完成态的「启动游戏」= 打开**汉化启动器**（RNDZhLauncher.exe）——
+// Steam 检查、DXVK 开关、字幕/cosplay 设置、游戏窗口标题劫持全在它那边，
+// 绕过它直接拉游戏等于让玩家错过整套补丁设置（2026-09-13 用户指正）。
+// 启动器不在了才退回：Steam 库走 steam:// 协议（客户端没开自动拉起 Steam），
+// 非 Steam 目录直接跑 Game.exe。
 static void LaunchGameFromSetup() {
   if (g_gameDir.empty()) return;
+  std::wstring launcher = g_gameDir + L"\\RNDZhLauncher.exe";
+  if (Exists(launcher)) {
+    SHELLEXECUTEINFOW si{ sizeof(si) };
+    si.fMask = SEE_MASK_NOASYNC;
+    si.lpFile = launcher.c_str();
+    si.lpDirectory = g_gameDir.c_str();
+    si.nShow = SW_SHOWNORMAL;
+    ShellExecuteExW(&si);
+    return;
+  }
   std::wstring low = g_gameDir;
   for (auto& c : low) c = (wchar_t)towlower(c);
   if (low.find(L"steamapps") != std::wstring::npos) {

@@ -9,6 +9,7 @@
 """
 import hashlib
 import os
+import shutil
 import struct
 import subprocess
 import sys
@@ -131,6 +132,31 @@ if os.path.exists(ui):
         time.sleep(1)
         if not patch_left(TARGET):
             break
+# 兜底：把「母本里没有」的文件/目录全部删掉（空目录一并收走）。
+# 归零不能只依赖卸载器 —— 目标目录可能被手动测试污染过（2026-09-13 实况：
+# 有人把 SFX 拷进游戏目录里装了一次，留下按真实目录名算出的片段子目录，
+# 而经 junction 启动的卸载器算不出这个名字，清不掉）。
+cur = snap(TARGET)
+extra = sorted(set(cur) - set(master))
+if extra:
+    print("  归零删除 %d 项多余文件" % len(extra))
+    for e in extra:
+        p = os.path.join(TARGET, e.replace("/", os.sep))
+        try:
+            if os.path.isdir(p):
+                shutil.rmtree(p, ignore_errors=True)
+            else:
+                os.remove(p)
+        except OSError:
+            pass
+    for dp, dns, fns in list(os.walk(TARGET, topdown=False)):
+        if os.path.relpath(dp, TARGET) == ".":
+            continue
+        if not os.listdir(dp):
+            try:
+                os.rmdir(dp)
+            except OSError:
+                pass
 cur = snap(TARGET)
 print("  多余: %s" % (sorted(set(cur) - set(master)) or "无"))
 
