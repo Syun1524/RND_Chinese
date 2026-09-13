@@ -33,10 +33,13 @@
 | 脚本 | 作用 |
 |---|---|
 | `build_lyric_subs.py` | 生成中文字幕（从唱词表格 + CoZ 英文模板） |
+| `lyric_en_pass.py` | op001 的英文行额外一遍（被 `build_lyric_subs.py` import，**缺了会静默少一层**） |
 | `make_lyric_font.py` | 从 `NotoSansSC-Bold-static.ttf` 生成 `RNDLyricSC-Bold.ttf` |
-| `_karaoke_test.py` | 计时与可见文本自检（不读游戏目录） |
-| `_karaoke_verify.py` | 校验**已安装**字幕：文本完整性 + 扫过时长 |
-| `_karaoke_accept.py` | 最终验收扫描 |
+| `_sweep_verify.py` | **验收**：按文本配对「静态底行 ↔ 逐字扫过层」，查窗口/文本/扫过时长 |
+
+> 旧接口的三个脚本（`_karaoke_test.py` / `_karaoke_verify.py` / `_karaoke_accept.py`）
+> 已删除：它们调用的是改名前就废弃的 `karaoke_entry()`，且按**行序**配对，
+> 遇到 op001 的英文插行会整段错位、报出成片假故障。验收一律用 `_sweep_verify.py`。
 
 ---
 
@@ -75,15 +78,10 @@ RND_ROOT=<工作区> RND_GAME=<游戏>/languagebarrier \
 ## 验收
 
 ```bash
-RND_ROOT=<工作区> python subs/tools/_karaoke_verify.py
-RND_ROOT=<工作区> python subs/tools/_karaoke_accept.py
+RND_ROOT=<工作区> python subs/tools/_sweep_verify.py
 ```
 
-期望：`payload text mismatches: 0`、`max |sweep - span| ≤ 5 cs`。
-
-> 两个脚本会各报 2 处 `mv_rnd_livedance` 告警，属**误报**：那是带 `\N` 手动换行的
-> 静态场景台词，检查脚本把 `\N` 当成了标签字符。详见
-> `../docs/CHANGES-影片字幕与卡拉OK.md` §5。
+期望：`problems: 0`（实测 210 对「静态底行 ↔ 逐字扫过层」全部通过）。
 
 ---
 

@@ -47,6 +47,7 @@ FONT_FILE = "RNDLyricSC-Bold.ttf"
 FONT_PATH = None      # resolved at startup, used for width measurement
 SIZE_SCALE = 1.10     # uniform multiplier on the translation* style font size
 KARAOKE = False       # --karaoke: per-character \kf sweep on timed lyric lines
+DIM_SCALE = 0.70      # --dim: unsung-side brightness on light-base lines (1.0 = invisible)
 
 SONGS = {
     "mv_rnd_ed001":    "歌词翻译/mv_rnd_ed001/ed001_歌词对照.xlsx",
@@ -57,22 +58,27 @@ SONGS = {
 }
 VARIANTS = ["_tlonly.ass", ".ass"]  # _karaonly.ass has no rendered translation lines
 
+# per-song passes applied after the normal build (see lyric_en_pass.py)
+try:
+    import lyric_en_pass
+    EN_PASS = {"mv_rnd_op001": lyric_en_pass.apply_pass}
+except Exception as _e:                      # pragma: no cover
+    print("WARNING: lyric_en_pass unavailable:", _e)
+    EN_PASS = {}
+
 # --- non-lyric interjections / vocalise (not present in the spreadsheet) -----------
-VOCALISE_A = "嘟 嘟噜 嘟噜 嘟♪ 嘟 嘟噜 嘟噜 嘟♪"
-VOCALISE_B = "嘟 嘟噜 嘟噜 嘟♪ 哒哩哒哩呀啊啊♪"
-VOCALISE_C = "嘟嘟噜 啦啦啦啦♪"
+def is_vocalise(dialogue):
+    """The sung nonsense syllables ("Tu Tu Ru …").  CoZ ships the ROMAJI as the
+    translation-layer text for these (verified in the original ASS), showing no
+    localised onomatopoeia.  We keep that exactly as shipped: no Chinese mimicry
+    and no sweep, so these lines read the same as the original patch."""
+    return "Tu Tu Ru" in dialogue["en"]
 
 
 def filler_zh(en):
     """Chinese for ASS lines the spreadsheet does not carry (scene chatter,
-    on-screen interjections, vocalise).  Returns None for anything that must be
-    matched against the spreadsheet."""
-    if "Tu Tu Ru" in en:
-        if "Da-li-da-li" in en:
-            return VOCALISE_B
-        if "La La La La" in en:
-            return VOCALISE_C
-        return VOCALISE_A
+    on-screen interjections).  Returns None for anything that must be matched
+    against the spreadsheet."""
     if en == "Dance with me":
         return "和我一起跳吧"
     if en == "Everybody now!":
@@ -91,6 +97,16 @@ def filler_zh(en):
     if en.startswith("Ah, I'm beat"):
         return "啊，累死了……消耗的热量\\N比想象中多太多了。"
     return None
+
+
+# "Dance with me" is an English sung ad-lib (user confirmed it may sweep);
+# the on-screen chatter lines (Everybody now / Frau-tan / Enako / Oh man /
+# I'm beat) are spoken and stay static.
+SINGABLE_FILLERS = ("和我一起跳吧",)
+
+
+def singable_filler(zh):
+    return zh in SINGABLE_FILLERS
 
 
 def t2s(t):
@@ -168,11 +184,13 @@ def parse_ass(path):
 def assign(rows, dialogues, used, filler):
     """Greedy: a lyric dialogue owns every unused row whose start falls in
     [d.start-0.6, d.end)  (half-open: a row that starts exactly when the line
-    ends belongs to the NEXT line), in time order.  Pre-classified filler
-    dialogues own nothing.  Returns list of row-lists ([] = filler)."""
+    ends belongs to the NEXT line), in time order.  Pre-classified filler and
+    vocalise dialogues own nothing — a "Tu Tu Ru" line must not steal the sheet
+    row that belongs to the neighbouring "Aah~ Foo~↑" line.  Returns
+    row-lists ([] = nothing to translate)."""
     result = []
     for d in dialogues:
-        if filler[d["idx"]] is not None:
+        if filler[d["idx"]] is not None or is_vocalise(d):
             result.append([])
             continue
         lo, hi = d["start"] - 0.6, d["end"] - 0.05
@@ -196,7 +214,8 @@ def build_song(base, xlsx):
         #    up 1:1 use order, otherwise fall back to time proximity.
         tgts = [None] * len(dialogues)
         used = set()
-        filler = {d["idx"]: filler_zh(d["en"]) for d in dialogues}
+        filler = {d["idx"]: ("__vocalise__" if is_vocalise(d) else filler_zh(d["en"]))
+                  for d in dialogues}
 
         # index dialogues by source bucket
         main_idx, var_groups = [], {}
@@ -242,9 +261,13 @@ def build_song(base, xlsx):
 
 
 def render_entry(dialogue, rows):
-    """Return the Chinese text for one dialogue (rows = assigned spreadsheet rows)."""
+    """Return the text this dialogue should show: the sheet's Chinese for timed
+    lyric rows, CoZ's own ROMAJI for the sung vocalise (kept verbatim — the line
+    is left untouched at build time), else the mapped filler."""
     if rows:
         return " ".join(r["zh"] for r in rows if r["zh"])
+    if is_vocalise(dialogue):
+        return visible(dialogue["parts"][9])
     return filler_zh(dialogue["en"])
 
 
@@ -255,9 +278,10 @@ def s2cs(seconds):
 
 
 def parse_kanji_timelines(path):
-    r"""Per-line syllable timelines from the combined track's Kanji karaoke
-    comments: (start_cs, end_cs, [\k durations]).  This is the melody the
-    romaji layer flashes to, and what our sweep speed follows."""
+    r"""Syllable timelines from the combined track's karaoke comments, on the
+    Kanji AND romaji layers: (start_cs, end_cs, [\k durations]).  Both layers
+    carry the same melody; the vocalise segments ("Tu Tu Ru", "Dance with me")
+    live on the romaji layer only, so it must be included."""
     BS = chr(92)
     KT = re.compile(re.escape(BS) + r'k(?:f|o)?(\d+)')
     out = []
@@ -267,8 +291,8 @@ def parse_kanji_timelines(path):
         f = ln.rstrip().split(',', 9)
         if len(f) < 10:
             continue
-        style = f[3].strip()
-        if not style.lower().startswith('kanji'):
+        style = f[3].strip().lower()
+        if not (style.startswith('kanji') or style.startswith('romaji')):
             continue
         if 'karaoke' not in f[8]:
             continue
@@ -279,16 +303,22 @@ def parse_kanji_timelines(path):
     return out
 
 
+def _nearest_timeline(t0, timelines, tol):
+    best = None
+    for t in timelines:
+        if best is None or abs(t[0] - t0) < abs(best[0] - t0):
+            best = t
+    if best is None or abs(best[0] - t0) > tol:
+        return None
+    return best
+
+
 def row_bounds(row, timelines, line_start):
     """Cumulative syllable boundaries (cs rel. to line start) for one sheet row,
     rescaled to land exactly on the row's sung window.  None when the Japanese
     timeline for that row is missing (falls back to even sweep)."""
-    target = s2cs(row["start"])
-    best = None
-    for t0, t1, ks in timelines:
-        if best is None or abs(t0 - target) < abs(best[0] - target):
-            best = (t0, t1, ks)
-    if best is None or abs(best[0] - target) > 30:
+    best = _nearest_timeline(s2cs(row["start"]), timelines, 5)
+    if best is None:
         return None
     rs, re_, ks = s2cs(row["start"]) - line_start, s2cs(row["end"]) - line_start, best[2]
     raw = [0]
@@ -352,7 +382,8 @@ def sweep_colors(prefix):
     dark-base lines the sung side goes FFFFFF while the unsung side stays the
     line's own colour (seamless against the ghost).  On light-base lines
     (white/near-white fills) white-on-white would be invisible, so the unsung
-    side dims to ~45% instead and the sweep reveals the normal colour."""
+    side dims instead and the sweep reveals the normal colour.  DIM_SCALE sets
+    how far down that unsung tone goes (higher = brighter = softer contrast)."""
     BS = chr(92)
     m = re.search(re.escape(BS) + r'c&H([0-9A-Fa-f]{6})&', prefix)
     fill = m.group(1).upper() if m else 'FFFFFF'
@@ -360,8 +391,9 @@ def sweep_colors(prefix):
     lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0
     if lum <= 0.85:
         return fill, 'FFFFFF'          # dark base: sweep into the flash white
-    f = 0.45
-    dim = '%02X%02X%02X' % (int(b * f), int(g * f), int(r * f))
+    dim = '%02X%02X%02X' % (int(b * globals()["DIM_SCALE"]),
+                            int(g * globals()["DIM_SCALE"]),
+                            int(r * globals()["DIM_SCALE"]))
     return dim, None                   # light base: dim unsung, normal sung
 
 
@@ -439,8 +471,10 @@ def main():
         globals()["SIZE_SCALE"] = float(sys.argv[sys.argv.index("--size-scale") + 1])
     if "--karaoke" in sys.argv:
         globals()["KARAOKE"] = True
+    if "--dim" in sys.argv:
+        globals()["DIM_SCALE"] = float(sys.argv[sys.argv.index("--dim") + 1])
     print("font ->", globals()["FONT_NAME"], "/", ff, " size x", globals()["SIZE_SCALE"],
-          " karaoke", globals()["KARAOKE"])
+          " karaoke", globals()["KARAOKE"], " dim", globals()["DIM_SCALE"])
     os.makedirs(OUT, exist_ok=True)
     unresolved_total = 0
     pinned_total = []
@@ -495,6 +529,8 @@ def main():
             extras = {}                      # ghost idx -> overlay lines to insert
             changed_styles = False
             for d, rows in zip(dialogues, tgts):
+                if not rows and is_vocalise(d):
+                    continue                 # leave CoZ's romaji line untouched
                 zh = render_entry(d, rows)
                 if zh is None:
                     raise SystemExit(f"unresolved translation line in {base}{suf}: {d['en']!r}")
@@ -517,8 +553,19 @@ def main():
                 # the speed of the Japanese syllable timeline.  Colours borrow
                 # CoZ's karaoke palette (see sweep_colors): dark-base lines sweep
                 # into their flash white; light-base lines sweep out of a dim.
-                if globals()["KARAOKE"] and rows and zh:
-                    payload, total_cs = kf_overlay(d, rows, timelines[base])
+                # Sheet rows sweep as-is.  A filler sweeps only when it is
+                # actually SUNG (see singable_filler): the "Tu Tu Ru" vocalise
+                # and "Dance with me" are; pure chatter stays static.
+                if globals()["KARAOKE"] and zh:
+                    if rows:
+                        sweep_rows = rows
+                    elif (singable_filler(zh)
+                          and _nearest_timeline(s2cs(d["start"]), timelines[base], 35)):
+                        sweep_rows = [{"start": d["start"], "end": d["end"], "zh": zh}]
+                    else:
+                        sweep_rows = None
+                    payload, total_cs = (kf_overlay(d, sweep_rows, timelines[base])
+                                         if sweep_rows else (None, 0))
                     if payload and total_cs:
                         sec, prim = sweep_colors(prefix)
                         tag = "{\\2c&H" + sec + "&"
@@ -548,6 +595,11 @@ def main():
             for i, ln in enumerate(new):
                 out_lines.append(ln)
                 out_lines.extend(extras.get(i, []))
+            # per-song extra pass (op001's sung-English segments: English on the
+            # Japanese layer, English big + Chinese note on the Chinese layer)
+            if base in EN_PASS:
+                out_lines = EN_PASS[base](out_lines, styles, dialogues, tgts,
+                                          timelines[base])
             out_path = os.path.join(OUT, base + suf)
             with io.open(out_path, "w", encoding="utf-8-sig", newline="") as fh:
                 fh.write("".join(out_lines))

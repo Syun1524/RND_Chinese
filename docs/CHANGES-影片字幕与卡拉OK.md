@@ -92,8 +92,7 @@ mv_rnd_op001.ass / _tlonly.ass
   ```
 - 打包后**必须**跑一遍验收（会报出 `\kf` 计数与文本一致性）：
   ```bash
-  RND_ROOT=<工作区> python subs/tools/_karaoke_verify.py
-  RND_ROOT=<工作区> python subs/tools/_karaoke_accept.py
+  RND_ROOT=<工作区> python subs/tools/_sweep_verify.py
   ```
 - 快速体检（`\kf` 应为 0 才是异常）：
   ```bash
@@ -117,9 +116,11 @@ mv_rnd_op001.ass / _tlonly.ass
 | `\kf` 计数 | 196 / 172 / 160 / 293 / 216（5 首） |
 | 渲染实测 | 用包内 `VSFilter.dll` 离屏渲染，红→绿随时间是单调扫过 |
 
-> 注：`_karaoke_verify.py` / `_karaoke_accept.py` 会各报 2 处
+> 注：旧接口的 `_karaoke_verify.py` / `_karaoke_accept.py` 会各报 2 处
 > `mv_rnd_livedance` 的告警，属**误报**——那两条是带 `\N` 手动换行的静态
 > 场景台词，检查脚本把 `\N` 当成了标签字符。非真实缺陷。
+> 这两个脚本连同 `_karaoke_test.py` 已删除（调用的 `karaoke_entry()` 早已改名，
+> 且按行序配对会被 op001 英文插行带偏）；验收统一用 `_sweep_verify.py`。
 
 ---
 
@@ -131,4 +132,5 @@ mv_rnd_op001.ass / _tlonly.ass
 | 仓库 `subs/README.md` | 用法与重建步骤 |
 | 工作区 `歌词翻译/*/...歌词对照.xlsx` | 译文与唱词时间来源（**不在仓库内**） |
 | 工作区 `scripts/` | 脚本原版（与 `subs/tools/` 逐字节相同） |
+| 仓库 `subs/tools/lyric_en_pass.py` | op001 英文行 pass；`build_lyric_subs.py` 会 import 它 |
 | 工作区 `RND补丁英文成品原版/languagebarrier/subs/` | 生成时的模板（CoZ 英文原件） |
