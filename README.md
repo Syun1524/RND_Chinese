@@ -1,7 +1,7 @@
 # ROBOTICS;NOTES DaSH 简体中文 AI 人工精校版
 
 **ROBOTICS;NOTES DaSH**（MAGES/5pb，Steam 版）的简体中文汉化补丁。
-译文以**日语原文**为准（不是从英文转译），AI 翻译 + 人工精校。
+译文以**日语原文**为准，gemini3.0flash + 人工精校。
 
 - 当前版本：**v1.0**
 - 技术基础：Committee of Zero 的英文优化补丁（LanguageBarrier 运行时），在它的框架上换成中文码表、中文字体、中文译文与中文图集
