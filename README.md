@@ -144,7 +144,7 @@ sc3tools_jp/target/release/sc3tools.exe extract-text "mes00.cpk/*.msb" rnd
 
 ## 致谢与许可
 
-- **汉化：仓式同学◆ × Eight_tide**（AI 翻译 Gemini 3.0 Flash · 人工精校 · CG / 系统图手工嵌入）
+- **汉化：Eight_tide × 仓式同学◆**（AI 翻译 Gemini 3.0 Flash · 人工精校 · CG / 系统图手工嵌入）
 - 运行时框架 [LanguageBarrier](https://github.com/CommitteeOfZero/LanguageBarrier)
   与英文优化补丁由 **Committee of Zero** 开发（MIT；因含 xy-VSFilter，二进制按 GPLv2 分发）。
 - 本补丁基于 CoZ 的工作，译文 / 图集 / 工具为本项目完成。
