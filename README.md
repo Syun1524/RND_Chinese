@@ -8,10 +8,13 @@ Chinese localization of Robotics;Notes DaSH. Based on the patch by Committee of 
 | `cnscript/` | 中文译稿（`.msb.txt`）与中文码表 |
 | `jpscript/` | 日文原版脚本（提取用基线） |
 | `subs/` | 影片字幕 `.ass` 与歌词字体 |
-| `LanguageBarrier_rndchs/` | LanguageBarrier 运行时源码 + 编译产物 |
+| `LanguageBarrier_rndchs/` | LanguageBarrier 运行时源码 + 发布用 `dinput8.dll` / `VSFilter.dll`（编译中间产物不入库） |
 | `sc3tools_jp/`、`sc3tools_rndchs/` | 日文提取 / 中文回写工具链 |
-| `tools/`、`setup/` | 启动器、安装器、卸载器源码与构建脚本 |
+| `tools/` | 启动器 `RNDZhLauncher.cpp` + 换装核对工具 `RNDZhOutfitTool.cpp` 源码与构建脚本 |
+| `setup/` | 安装器 / 卸载器源码（`src/`）与构建脚本（`build/`） |
 | `图片汉化/` | **成品中文图集**（`bg/` `system/` `manual/`，与补丁包 `c0data/` 逐字节一致） |
+| `废弃图片/` | 已从补丁重定向中撤下的汉化图（仅留存备查，不随补丁分发） |
+| `视频汉化/` | 替换用影片（USM 重封说明 + `movie_dar020.usm`） |
 | `scripts/` | 构建与部署脚本（`deploy_patch.py`、`sync_images.py`、`gen_pkg_manifest.py` 等） |
 | `docs/` | 交接文档、打包清单、设计说明 |
 
