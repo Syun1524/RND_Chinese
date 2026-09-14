@@ -190,12 +190,17 @@ Comment: 0,0:02:49.07,0:02:52.53,translation,,0,0,0,karaoke,{\k1} Tu Tu Ru Tu Ru
 Comment: 0,0:02:52.77,0:02:56.17,translation,,0,0,0,karaoke,{\k1} Tu Tu Ru Tu Ru Tu{\fnArial\fscx100}♪{\fnMilocha\fscx80} Tu Tu Ru Tu Ru Tu{\fnArial\fscx100}♪{\fnMilocha\fscx80}
 Comment: 0,0:02:56.41,0:02:59.23,translation,,0,0,0,karaoke,{\k1} Tu Tu Ru La La La La{\fnArial\fscx100}♪{\fnMilocha\fscx80}
 Comment: 0,0:03:01.36,0:03:05.22,translation,,0,0,0,,Gosh, I'm pooped. This burns more calories than expected.
-Dialogue: 0,0:01:13.03,0:01:15.10,translation,,1100,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}大家一起来！
-Dialogue: 0,0:01:24.14,0:01:27.51,translation,,900,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}糟了，我也真想跳起来……
-Dialogue: 0,0:01:27.31,0:01:28.66,translation,,900,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3\pos(1108,1039.8)}芙劳炭，来吧！
-Dialogue: 0,0:02:28.08,0:02:30.27,translation,,1000,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}来和我们一起跳吧！
-Dialogue: 0,0:02:43.67,0:02:45.10,translation,,1200,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}再来一次！
-Dialogue: 0,0:03:01.16,0:03:05.22,translation,,900,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}啊，累死了……消耗的热量\N比想象中多太多了。
+Dialogue: 0,0:00:31.89,0:00:35.96,translation - Copy,,0,0,0,,{\fad(300,250)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\an3\pos(1900,1038)}嘣 吧嘣 呼~！
+Dialogue: 0,0:00:35.69,0:00:39.52,translation - Copy,,0,0,0,,{\fad(300,250)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\an3\pos(1900,1038)}嘣 吧嘣 呼~！
+Dialogue: 0,0:01:02.61,0:01:03.72,translation - Copy,,0,0,0,,{\fad(300,250)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\an3\pos(1900,1038)}呼~！
+Dialogue: 0,0:01:04.48,0:01:05.57,translation - Copy,,0,0,0,,{\fad(300,250)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\an3\pos(1900,1038)}呼~！
+Dialogue: 0,0:01:06.98,0:01:09.17,translation - Copy,,0,0,0,,{\fad(300,250)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\an3\pos(1900,1038)}噢！噢！
+Dialogue: 0,0:01:13.03,0:01:15.10,translation,,1100,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\an3\pos(1900,1038)}大家一起来！
+Dialogue: 0,0:01:24.14,0:01:27.51,translation,,900,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\an3\pos(1900,1038)}糟了，我也真想跳起来……
+Dialogue: 0,0:01:27.31,0:01:28.66,translation,,900,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\an3\pos(1900,1038)}芙劳炭，来吧！
+Dialogue: 0,0:02:28.08,0:02:30.27,translation,,1000,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\an3\pos(1900,1038)}来和我们一起跳吧！
+Dialogue: 0,0:02:43.67,0:02:45.10,translation,,1200,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\an3\pos(1900,1038)}再来一次！
+Dialogue: 0,0:03:01.16,0:03:05.22,translation,,900,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\an3\pos(1900,1038)}啊，累死了……消耗的热量\N比想象中多太多了。
 Comment: 0,0:01:21.33,0:01:21.68,romaji,,0,0,0,template noblank,!retime("line",-300,0)!{\fad(300,250)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\pos(!$x+25!,!$y-425!)\blur3\fscy83}
 Comment: 0,0:00:28.38,0:00:28.38,romaji,,0,0,0,template char noblank,!retime("syl",0,0)!{\fad(0,150)\pos(!$x+25!,!$y-425!)\org(!$x+27!,!$y-190!)\shad0\blur3\bord3\c&HFFCAAB&\3c&HFFFFFF&\fscy83\1a&H33&\t(0,250,0.8,\blur2\bord2\c&HEEE0CB&\3c&H82634B&\3a&H66&)\t(!syl.duration/2+syl.duration/4!,!syl.duration!,\c&HFFFFFF&\3c&H4C2512&\alpha&HFF&)}
 Comment: 0,0:01:21.33,0:01:21.68,romaji - Copy,,0,0,0,template noblank,!retime("line",-300,0)!{\fad(300,250)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\pos(!$x+25!,!$y-355!)\blur3\fscy83}

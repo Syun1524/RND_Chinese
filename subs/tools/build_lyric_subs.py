@@ -66,6 +66,21 @@ except Exception as _e:                      # pragma: no cover
     print("WARNING: lyric_en_pass unavailable:", _e)
     EN_PASS = {}
 
+# livedance 第二声部（"Bum ba-bum foo~!" 等和声）：CoZ 只做了 romaji - Copy 层
+# （页面左侧一列，紧挨主罗马音下方），Kanji/中文层那几秒完全没字。这里补静态
+# 中文行，右对齐锚点 1900，与主歌词（左侧 x=50）分开。措辞同步登记在
+# livedance_歌词对照.xlsx 的「声部变体」页。
+SECOND_VOICE = {
+    "mv_rnd_livedance": [
+        # (start, end, 中文)  —— 时间与 romaji - Copy 的行锚点一致
+        (31.89, 35.96, "嘣 吧嘣 呼~！"),
+        (35.69, 39.52, "嘣 吧嘣 呼~！"),
+        (62.61, 63.72, "呼~！"),
+        (64.48, 65.57, "呼~！"),
+        (66.98, 69.17, "噢！噢！"),
+    ],
+}
+
 # --- non-lyric interjections / vocalise (not present in the spreadsheet) -----------
 def is_vocalise(dialogue):
     """The sung nonsense syllables ("Tu Tu Ru …").  CoZ ships the ROMAJI as the
@@ -159,7 +174,8 @@ def parse_ass(path):
             continue
         f = body[7:].split(",")
         if len(f) >= 21:
-            styles[f[0]] = dict(size=float(f[2]), sx=float(f[11]), sp=float(f[13]),
+            styles[f[0]] = dict(size=float(f[2]), sx=float(f[11]), sy=float(f[12]),
+                                sp=float(f[13]),
                                 outline=float(f[16]), shadow=float(f[17]),
                                 ml=float(f[19]), mr=float(f[20]))
     out = []
@@ -200,6 +216,36 @@ def assign(rows, dialogues, used, filler):
             used.add(id(r))
         result.append(take)
     return result
+
+
+def add_second_voice(lines, base, suf):
+    """Append static Chinese lines for the second-voice (backing vocal) windows.
+
+    These exist only on CoZ's romaji - Copy layer; the translation layer has no
+    line at all there, so nothing in the normal loop can carry text.  The added
+    line borrows the 'translation - Copy' style (same size/colour as CoZ's own
+    backing-translation lines like Beep beep beep) but is right-aligned at
+    x=1900 so it sits clear of the main lyric (x=50).
+    Skipped for _tlonly (no karaoke fx section there to blend with)."""
+    if suf != ".ass":
+        return lines
+    out = list(lines)
+    for start, end, zh in SECOND_VOICE[base]:
+        a = "%d:%02d:%05.2f" % (int(start // 3600), int(start % 3600 // 60), start % 60)
+        b = "%d:%02d:%05.2f" % (int(end // 3600), int(end % 3600 // 60), end % 60)
+        row = ("Dialogue: 0,%s,%s,translation - Copy,,0,0,0,,"
+               "{\\fad(300,250)\\c&HFFFFFF&\\3c&H4C2512&\\shad0\\3a&H66&\\blur3}"
+               "{\\an3\\pos(1900,1038)}%s\r\n" % (a, b, zh))
+        # insert before the first line that starts later (keeps chronological order)
+        at = len(out)
+        for i, ln in enumerate(out):
+            if ln.startswith("Dialogue:"):
+                t = ln.split(",", 2)
+                if len(t) >= 3 and t2s(t[1]) > start:
+                    at = i
+                    break
+        out.insert(at, row)
+    return out
 
 
 def build_song(base, xlsx):
@@ -527,6 +573,8 @@ def main():
     for base, xlsx in SONGS.items():
         report = build_song(base, os.path.join(ROOT, xlsx))
         for suf, (lines, dialogues, tgts, _m, _v, _u, styles, playres) in report.items():
+            orig_scale = {k: (v.get("sx", 100.0), v.get("sy", 100.0))
+                          for k, v in styles.items()}
             new = list(lines)
             extras = {}                      # ghost idx -> overlay lines to insert
             changed_styles = False
@@ -538,11 +586,28 @@ def main():
                     raise SystemExit(f"unresolved translation line in {base}{suf}: {d['en']!r}")
                 p = d["parts"]
                 prefix = re.match(r"^(?:\{[^}]*\})*", p[9]).group(0)
-                # CoZ 给英文用了横向/纵向缩放（如 ed002 的 \fscy70 压扁、样式
-                # ScaleX=110 拉宽）。中文是方块字，压/拉都会显得又胖又扁，
-                # 所以可见中文行里的行内 \fscx/\fscy 一律去掉，用字体本色。
-                prefix = re.sub(re.escape(chr(92)) + r'fs(?:cx|cy)[\d.]+', '',
-                               prefix)
+                # 1) CoZ 用 ScaleX/ScaleY 形变拉丁文（ed002 的 \fscy70 压扁、样式
+                #    ScaleX=110 拉宽）。中文是方块字，压/拉都难看，所以样式统一
+                #    归一 100/100（见样式循环），行内 \fscx/\fscy 去掉。
+                # 2) 但纯拉丁的行（保留原版的 Tu Tu Ru 拟声等）例外：它们本来就
+                #    该窄，归一后会变宽、撞到右侧的次级文字，所以还原 CoZ 的形变。
+                prefix = re.sub(re.escape(chr(92)) + r'fs(?:cx|cy)[\d.]+', '', prefix)
+                has_cjk = any('\u4e00' <= c <= '\u9fff' or '\u3000' <= c <= '\u303f'
+                              or '\uff00' <= c <= '\uffef' for c in zh)
+                if not has_cjk:
+                    orig = orig_scale.get(d["style"])
+                    if orig and (orig[0] != 100 or orig[1] != 100):
+                        prefix += ('{' + chr(92) + 'fscx%g' % orig[0]
+                                   + chr(92) + 'fscy%g' % orig[1] + '}')
+                # 3) 次级文字（无表格行、非拟声、非可唱的插白）右对齐，避免压在
+                #    主歌词上。主歌词一律在左侧 x=50；右侧锚点 1900。
+                #    可唱插白（"Dance with me"）例外：CoZ 本来就把它钉在主歌词位
+                #    \pos(50,1038) 参与逐字扫色，保持原位。
+                if (not rows and not is_vocalise(d) and zh
+                        and not singable_filler(zh)):
+                    prefix = re.sub(re.escape(chr(92)) + r'an\d', '', prefix)
+                    prefix = re.sub(re.escape(chr(92)) + r'pos\([^)]*\)', '', prefix)
+                    prefix += '{' + chr(92) + 'an3' + chr(92) + 'pos(1900,1038)}'
                 # bump only through the style when no override is needed, so the
                 # text payload stays clean; a pinned line gets an explicit \fs.
                 st = styles.get(d["style"])
@@ -616,6 +681,9 @@ def main():
             if base in EN_PASS:
                 out_lines = EN_PASS[base](out_lines, styles, dialogues, tgts,
                                           timelines[base])
+            # livedance 第二声部：补 CoZ 只画在 romaji - Copy 层的和声的中文行
+            if base in SECOND_VOICE:
+                out_lines = add_second_voice(out_lines, base, suf)
             out_path = os.path.join(OUT, base + suf)
             with io.open(out_path, "w", encoding="utf-8-sig", newline="") as fh:
                 fh.write("".join(out_lines))
