@@ -58,7 +58,62 @@ typedef struct __declspec(align(4)) {
 struct DialogueRubyBaseGlyph {
   float x;
   float advance;
+  wchar_t ch;
 };
+
+#include "RubyBaseTable.inc"
+
+// Whitespace-insensitive equality for ruby text.
+//
+// The table keys are written by the generator with whitespace stripped, while
+// the draw hook reassembles the annotation straight from the page arrays --
+// where a space is a real glyph (charset entry 0) and survives. Comparing the
+// raw strings therefore never matched, and every lookup fell through to the
+// old rule with nothing to show for it. Normalising both sides here keeps the
+// two in step no matter how either side is spelled.
+static bool rubyTextEquals(const wchar_t* a, const wchar_t* b) {
+  for (;;) {
+    while (*a == L' ' || *a == L'\t' || *a == 0x3000) a++;
+    while (*b == L' ' || *b == L'\t' || *b == 0x3000) b++;
+    if (*a == L'\0' || *b == L'\0') return *a == *b;
+    if (*a != *b) return false;
+    a++;
+    b++;
+  }
+}
+
+// Length of the base run that a dialogue ruby annotation sits over, or -1 when
+// the table has nothing to say about this pair.
+//
+// The page arrays reach this file without ruby markers, so the base run is
+// recovered from geometry: the run is the tail of the preceding line, and the
+// table lists the base text for the annotations whose character count differs
+// from it (those are the pairs the count rule gets wrong). Longest suffix wins
+// so a short candidate cannot shadow a longer one that also matches.
+//
+// Returns the length in UTF-16 code units; callers compare it against the
+// glyph count, and every entry in the table is BMP-only.
+static int rubyBaseRunLength(const std::vector<DialogueRubyBaseGlyph>& baseRun,
+                             const wchar_t* rubyText) {
+  if (RUBY_BASE_ENTRY_COUNT == 0 || rubyText == NULL || *rubyText == L'\0')
+    return -1;
+  int best = -1;
+  for (int e = 0; e < RUBY_BASE_ENTRY_COUNT; e++) {
+    const RubyBaseEntry& entry = RUBY_BASE_ENTRIES[e];
+    if (!rubyTextEquals(entry.ruby, rubyText)) continue;
+    const int need = (int)wcslen(entry.base);
+    if (need > (int)baseRun.size() || need <= best) continue;
+    bool tail = true;
+    for (int k = 0; k < need; k++) {
+      if (baseRun[baseRun.size() - need + k].ch != entry.base[k]) {
+        tail = false;
+        break;
+      }
+    }
+    if (tail) best = need;
+  }
+  return best;
+}
 
 #define DEF_DIALOGUE_PAGE(name, size, opacityType) \
   typedef struct {                                 \
@@ -623,6 +678,10 @@ void gameTextInit() {
   RUBY_MARKERS_ENABLED = false;
   if (config["patch"].count("rubyMarkers") == 1)
     RUBY_MARKERS_ENABLED = config["patch"]["rubyMarkers"].get<bool>();
+
+  CJK_LINE_BREAK = false;
+  if (config["patch"].count("cjkLineBreak") == 1)
+    CJK_LINE_BREAK = config["patch"]["cjkLineBreak"].get<bool>();
 
   if (currentGame == RNE || currentGame == RND) {
     fixLeadingZeroes();
@@ -1239,9 +1298,38 @@ int __cdecl dialogueLayoutRelatedHook(int unk0, int* unk1, int* unk2, int unk3,
             rubyEnd++;                                                         \
           }                                                                    \
           int rubyCount = rubyEnd - i;                                         \
-          int baseStart = currentBaseRun.size() > (size_t)rubyCount            \
-                              ? (int)currentBaseRun.size() - rubyCount         \
-                              : 0;                                             \
+          std::wstring rubyText;                                               \
+          rubyText.reserve(rubyCount);                                         \
+          for (int j = 0; j < rubyCount; j++) {                               \
+            uint32_t rc = page->glyphCol[i + j] +                              \
+                          page->glyphRow[i + j] *                              \
+                              TextRendering::Get().GLYPHS_PER_ROW;             \
+            rubyText.push_back(                                                \
+                TextRendering::Get().getCharForGlyphId((int)rc));              \
+          }                                                                    \
+          const int fitLength =                                                \
+              RUBY_DIALOGUE_FIT                                                \
+                  ? rubyBaseRunLength(currentBaseRun, rubyText.c_str())        \
+                  : -1;                                                        \
+          const int baseStart =                                                \
+              fitLength > 0 && fitLength <= (int)currentBaseRun.size()         \
+                  ? (int)currentBaseRun.size() - fitLength                     \
+                  : (currentBaseRun.size() > (size_t)rubyCount                 \
+                         ? (int)currentBaseRun.size() - rubyCount              \
+                         : 0);                                                 \
+          if (RUBY_DEBUG) {                                                    \
+            static std::map<std::wstring, int> loggedRuby;                     \
+            if (loggedRuby.find(rubyText) == loggedRuby.end() &&               \
+                loggedRuby.size() < 256) {                                     \
+              loggedRuby[rubyText] = fitLength;                                \
+              std::stringstream dbg;                                           \
+              dbg << "rubyDialogue: y=" << currentY                            \
+                  << " rubyGlyphs=" << rubyCount                               \
+                  << " baseRun=" << currentBaseRun.size()                      \
+                  << " fit=" << fitLength << " baseStart=" << baseStart;       \
+              LanguageBarrierLog(dbg.str());                                   \
+            }                                                                  \
+          }                                                                    \
           rubyRunPositions.clear();                                            \
           rubyRunPositions.reserve(rubyCount);                                 \
           if ((int)currentBaseRun.size() - baseStart == rubyCount) {           \
@@ -1370,6 +1458,8 @@ int __cdecl dialogueLayoutRelatedHook(int unk0, int* unk1, int* unk2, int unk3,
             DialogueRubyBaseGlyph baseGlyph;                                   \
             baseGlyph.x = displayStartX;                                       \
             baseGlyph.advance = (float)glyphInfo->advance;                     \
+            baseGlyph.ch =                                                     \
+                TextRendering::Get().getCharForGlyphId((int)currentChar);      \
             currentBaseRun.push_back(baseGlyph);                               \
           }                                                                    \
           page->field_20 = (displayStartX + glyphInfo->advance) / 1.5f;        \
@@ -1401,6 +1491,44 @@ void __cdecl rnDDrawDialogue2Hook(int fontNumber, int pageNumber,
   rnDDrawDialogueHook(fontNumber, pageNumber, opacity, 0, 0);
 }
 
+// Line-break rules for the CJK half of the charset. These mirror the two
+// punctuation sets in patchdef.json (base.type1Punctuation = breaks allowed
+// *after* these, base.type2Punctuation = allowed *before* these), which the
+// dialogue wordwrap uses for the same purpose; kept as literals here because
+// those are stored as charset indices, not characters.
+//
+// Only the fullwidth/CJK forms are listed. Latin punctuation is left out on
+// purpose: it only ever sits inside a Latin run, and Latin runs already stay
+// unbroken.
+static bool isNoLineStartChar(wchar_t c) {
+  static const std::wstring set =
+      L"。，、．：；？！）〕］｝〉》」』】”’…‥ー々ぁぃぅぇぉっゃゅょ"
+      L"ァィゥェォッャュョ・ヽヾゝゞ～－／％＞＜＝＋";
+  return set.find(c) != std::wstring::npos;
+}
+
+static bool isNoLineEndChar(wchar_t c) {
+  static const std::wstring set = L"（〔［｛〈《「『【“‘＜";
+  return set.find(c) != std::wstring::npos;
+}
+
+// Wide (East Asian W/F) characters, by the ranges the game's charsets use.
+static bool isWideGlyphChar(wchar_t c) {
+  return (c >= 0x1100 && c <= 0x115F) || (c >= 0x2E80 && c <= 0xA4CF) ||
+         (c >= 0xAC00 && c <= 0xD7A3) || (c >= 0xF900 && c <= 0xFAFF) ||
+         (c >= 0xFE30 && c <= 0xFE6F) || (c >= 0xFF00 && c <= 0xFF60) ||
+         (c >= 0xFFE0 && c <= 0xFFE6);
+}
+
+// A break is allowed between prev and cur when neither side is punctuation that
+// would be stranded (kinsoku), and at least one side is wide -- i.e. anywhere
+// inside CJK text, or at a CJK/Latin boundary. A narrow/narrow pair is inside a
+// Latin word and must never be broken.
+static bool isCjkBreakOpportunity(wchar_t prev, wchar_t cur) {
+  if (prev == 0 || isNoLineStartChar(cur) || isNoLineEndChar(prev)) return false;
+  return isWideGlyphChar(prev) || isWideGlyphChar(cur);
+}
+
 void semiTokeniseSc3String(char* sc3string, std::list<StringWord_t>& words,
                            int baseGlyphSize, int lineLength) {
   if (HAS_SGHD_PHONE) {
@@ -1414,6 +1542,18 @@ void semiTokeniseSc3String(char* sc3string, std::list<StringWord_t>& words,
                               ? TextRendering::Get().getFont(baseGlyphSize, true)
                               : nullptr;
   bool insideRubyText = false;
+  // Previous glyph actually seen, so a break opportunity can be judged across
+  // token boundaries. Reset at hard breaks and ruby markers.
+  wchar_t prevGlyph = 0;
+  // Glyphs of the word currently being built, so a break that would strand
+  // punctuation at the start of the next line can be moved back over the
+  // punctuation run to keep it company.
+  struct WordGlyph {
+    char* start;
+    uint16_t width;
+    wchar_t ch;
+  };
+  std::vector<WordGlyph> wordGlyphs;
 
   char c;
   while (sc3string != NULL) {
@@ -1436,6 +1576,8 @@ void semiTokeniseSc3String(char* sc3string, std::list<StringWord_t>& words,
         word.endsWithLinebreak = true;
         words.push_back(word);
         word = {++sc3string, NULL, 0, false, false};
+        prevGlyph = 0;
+        wordGlyphs.clear();
         break;
       case 4:
         sc3.pc = sc3string + 1;
@@ -1446,11 +1588,15 @@ void semiTokeniseSc3String(char* sc3string, std::list<StringWord_t>& words,
       case 0xB:
       case 0x1E:
         sc3string++;
+        prevGlyph = 0;
+        wordGlyphs.clear();
         break;
       default:
         int glyphId = (uint8_t)sc3string[1] + ((c & 0x7f) << 8);
         if (insideRubyText) {
           sc3string += 2;
+          prevGlyph = 0;
+          wordGlyphs.clear();
           break;
         }
         uint16_t glyphWidth = 0;
@@ -1461,19 +1607,58 @@ void semiTokeniseSc3String(char* sc3string, std::list<StringWord_t>& words,
                            .glyphMap[TextRendering::Get().fullCharMap[glyphId]]
                            .advance;
         }
+        const std::wstring& charMap = TextRendering::Get().fullCharMap;
+        const wchar_t curChar =
+            glyphId < (int)charMap.length() ? charMap[glyphId] : 0;
         if (glyphId == GLYPH_ID_FULLWIDTH_SPACE ||
             glyphId == GLYPH_ID_HALFWIDTH_SPACE) {
           word.end = sc3string - 1;
           words.push_back(word);
           word = {sc3string, NULL, glyphWidth, true, false};
+          wordGlyphs.clear();
         } else {
-          if (word.cost + glyphWidth > lineLength) {
+          // A CJK break opportunity starts a new word, so the renderer can then
+          // fill each line to the edge and wrap a CJK run per character instead
+          // of treating the whole run as one indivisible block. When
+          // startsWithSpace is set, word.start sits on the leading space itself,
+          // so require content past it -- otherwise the space would become a
+          // word of its own and wrap onto its own line.
+          bool wordHasContent =
+              sc3string > word.start + (word.startsWithSpace ? 2 : 0);
+          bool doBreak =
+              word.cost + glyphWidth > lineLength ||
+              (CJK_LINE_BREAK && wordHasContent &&
+               isCjkBreakOpportunity(prevGlyph, curChar));
+          // Breaking here would start the next line with punctuation. Move the
+          // break back so the punctuation keeps a companion character (kinsoku
+          // shori); if there is nothing to move, leave the break alone.
+          if (doBreak && CJK_LINE_BREAK && isNoLineStartChar(curChar) &&
+              !wordGlyphs.empty()) {
+            int k = (int)wordGlyphs.size() - 1;
+            while (k >= 0 && isNoLineStartChar(wordGlyphs[k].ch)) k--;
+            if (k >= 0) {
+              uint16_t moved = 0;
+              for (int t = k; t < (int)wordGlyphs.size(); t++)
+                moved += wordGlyphs[t].width;
+              char* newStart = wordGlyphs[k].start;
+              word.end = newStart - 1;
+              word.cost -= moved;
+              words.push_back(word);
+              word = {newStart, NULL, moved, false, false};
+              wordGlyphs.erase(wordGlyphs.begin() + k, wordGlyphs.end());
+              doBreak = false;
+            }
+          }
+          if (doBreak) {
             word.end = sc3string - 1;
             words.push_back(word);
             word = {sc3string, NULL, 0, false, false};
+            wordGlyphs.clear();
           }
           word.cost += glyphWidth;
+          wordGlyphs.push_back({sc3string, glyphWidth, curChar});
         }
+        prevGlyph = curChar;
         sc3string += 2;
         break;
     }
@@ -1849,6 +2034,50 @@ void __cdecl DrawBacklogContentHookRND(int textureId, int maskTextureId,
   int v33;           // [esp+6Ch] [ebp-4h]
   int maxXX = 0;
   startX += 80;
+
+  // Speaker-name column.
+  //
+  // The body text needs no help: the game already lays every row's body out on
+  // one fixed column, narration and quoted lines alike (measured: the body
+  // anchor comes out identical on every row, named or not). What was ragged
+  // was the *names* -- the game centres the "speaker icon + name" block, so a
+  // one-character name and a two-character name end at different x.
+  //
+  // So the fix touches names only. Each name is right-aligned to just before
+  // the body column, which means a long name grows to the left into the space
+  // between the icon and the text rather than pushing the text to the right.
+  // The body keeps the coordinate the game gave it, so the hover highlight --
+  // which is drawn from those same body coordinates -- stays put.
+  int bodyCol = 0;
+  bool haveColumn = false;
+  if (BACKLOG_NAME_ALIGN) {
+    const int lineCount = *BacklogLineBufUse;
+    for (int li = 0; li < lineCount; li++) {
+      const int bufPos = BacklogLineBufSize[BacklogDispLinePos[li]];
+      const int bufEnd = BacklogLineBufEndp[BacklogDispLinePos[li]];
+      if (!bufEnd) continue;
+      long long nEnd = -1;
+      for (int k = bufPos; k < bufPos + bufEnd; k++) {
+        if (BacklogText[k] == 0x8002) { nEnd = k; break; }
+      }
+      if (nEnd < 0) continue;
+      // First drawable glyph after the name is where this row's body begins;
+      // its stored x is the shared body column.
+      for (int k = nEnd + 1; k < bufPos + bufEnd; k++) {
+        if (BacklogText[k] < 0x8000) {
+          bodyCol = BacklogTextPos[2 * k];
+          haveColumn = true;
+          break;
+        }
+      }
+      if (haveColumn) break;
+    }
+  }
+  // Where a right-aligned name's right edge sits: one gap left of the body.
+  // The body itself is never moved -- it keeps the coordinate the game gave it,
+  // which is also what the hover highlight is drawn from.
+  const int nameColRight = bodyCol - BACKLOG_BODY_GAP;
+
   if (*BacklogLineBufUse) {
     v8 = 0;
     v23 = 0;
@@ -1863,41 +2092,126 @@ void __cdecl DrawBacklogContentHookRND(int textureId, int maskTextureId,
         v32 = 0;
         v22 = v11;
         v24 = 0;
+        // Diagnostics for the backlog name/body columns (BACKLOG_NAME_DEBUG).
+        // Declared at row scope -- the write-back further down reports them, and
+        // that sits outside the per-row drawing block.
+        int dbgRewrite = 0;
+        int dbgRowStrIndex = -1;
+        long long dbgNameStart = -1, dbgNameEnd = -1;
+        int dbgNameLen = 0;
+        short dbgRowArrBefore = 0, dbgNameArrBefore = 0, dbgNameArrAfter = 0;
+        float dbgFirstX = -1.0f;
+        bool dbgCapturedX = false;
+        int dbgHaveName = 0;
+        int dbgColRight = 0;
+        // Horizontal shift applied to this row's speaker name, in draw units.
+        // The name is moved by writing BacklogTextPos[], but the per-glyph
+        // advance below *accumulates* rather than re-reading that array, so
+        // without carrying the shift forward the body after the name -- and any
+        // ruby base run on it -- would still be laid out from where the name
+        // used to sit.
+        float nameShiftDraw = 0.0f;
+        // Right edge of this row's (shifted) name, in draw units; the body
+        // resumes from here plus the configured gap.
+        float nameRightEdgeDraw = 0.0f;
+        bool inNameRun = false;
+        bool nameRunDone = false;
         if (v11 + BacklogDispLineSize[v8] > v9 && v11 < v9 + maskHeight) {
           v12 = BacklogDispLinePos[v8];
           v13 = 0;
           v27 = 0;
           strIndex = BacklogLineBufSize[v12];
           v26 = BacklogLineBufEndp[v12];
+          if (BACKLOG_NAME_DEBUG) dbgRowStrIndex = strIndex;
           if (v26) {
-            auto ws = std::wstring_view((wchar_t*)BacklogText);
-            auto nameStart = ws.find(0x8001, strIndex);
-            auto nameEnd = ws.find(0x8002, strIndex);
-            auto c = nameEnd - nameStart;
-            short lastNameX = BacklogTextPos[2 * nameEnd - 2];
-            short maxX = -40;
-            short diff = lastNameX - maxX;
+            // Search this row's own extent, not a NUL-terminated view.
+            //
+            // This used to be std::wstring_view((wchar_t*)BacklogText), which
+            // measures with wcslen. BacklogText is a ring buffer of uint16_t
+            // glyph ids and glyph 0 is a real character (a space), so the view
+            // ended at the first space glyph -- 404 units in, measured. Rows
+            // live far past that (strIndex up to ~2000), so find() started
+            // outside the view and always returned npos: the upstream
+            // right-align block below never ran once, silently. The draw loop
+            // further down walks strIndex..strIndex+v26 instead, which is why
+            // rows still rendered correctly while the alignment never applied.
+            long long nameStart = -1, nameEnd = -1;
+            for (int k = strIndex; k < strIndex + v26; k++) {
+              if (BacklogText[k] == 0x8001) {
+                for (int j = k + 1; j < strIndex + v26; j++) {
+                  if (BacklogText[j] == 0x8002) {
+                    nameStart = k;
+                    nameEnd = j;
+                    break;
+                  }
+                }
+                if (nameStart >= 0) break;
+              }
+            }
+            // lastNameX is only read when a name was actually found; the old
+            // code indexed with nameEnd unconditionally, which under the npos
+            // case above was a wild read.
+            short lastNameX =
+                nameEnd >= 0 ? BacklogTextPos[2 * nameEnd - 2] : 0;
             auto glyphSize = BacklogTextSize[4 * (strIndex + 1) + 3] * 1.5f;
             int length = 0;
 
-            if (diff != 0 && nameStart < nameEnd &&
-                nameStart < strIndex + v26 && (nameEnd - nameStart) < v26) {
+            // Diagnostics (BACKLOG_NAME_DEBUG): record what the marker search
+            // found and what the array held, then report at row end whether the
+            // rewrite below took and which x the first glyph actually got.
+            // One line per row, deduped -- this runs every frame.
+            const bool logRow = BACKLOG_NAME_DEBUG;
+            if (logRow) {
+              const bool nsOk = nameStart >= 0;
+              const bool neOk = nameEnd >= 0;
+              if (nsOk) dbgNameStart = nameStart;
+              if (neOk) dbgNameEnd = nameEnd;
+              dbgRowArrBefore = BacklogTextPos[2 * strIndex];
+              if (nsOk && neOk && nameEnd > nameStart)
+                dbgNameArrBefore = BacklogTextPos[2 * (nameStart + 1)];
+            }
+
+            // Right-align the name to the shared column.
+            //
+            // Absolute writes only: BacklogTextPos[] persists across frames, so
+            // adding a delta each frame would accumulate and walk the name off
+            // screen. `length` is already in draw units (the advances come from
+            // a font fetched at glyphSize, which carries COORDS_MULTIPLIER), and
+            // BacklogTextPos[] is read in those same units -- so no scaling here.
+            const bool haveName = nameStart >= 0 && nameEnd > nameStart &&
+                                  nameEnd - nameStart < v26;
+            if (logRow) dbgHaveName = haveName ? 1 : 0;
+            if (haveName) {
               for (int i = nameStart + 1; i < nameEnd; i++) {
                 length += TextRendering::Get()
                               .getFont(glyphSize, false)
                               ->getGlyphInfo(BacklogText[i], Regular)
                               ->advance;
               }
-              int initialX = maxX - length;
-
-              for (int i = nameStart + 1; i < nameEnd; i++) {
-                BacklogTextPos[2 * i] = initialX;
-                initialX += TextRendering::Get()
-                                .getFont(glyphSize, false)
-                                ->getGlyphInfo(BacklogText[i], Regular)
-                                ->advance;
+              if (BACKLOG_NAME_ALIGN && haveColumn) {
+                const short wasAt = BacklogTextPos[2 * (nameStart + 1)];
+                int initialX = nameColRight - length;
+                for (int i = nameStart + 1; i < nameEnd; i++) {
+                  BacklogTextPos[2 * i] = (short)initialX;
+                  initialX += TextRendering::Get()
+                                  .getFont(glyphSize, false)
+                                  ->getGlyphInfo(BacklogText[i], Regular)
+                                  ->advance;
+                }
+                // How far this row's name moved. The draw loop advances glyphs
+                // by accumulating widths rather than re-reading the array, so
+                // the body (and any ruby on it) has to be carried by the same
+                // amount or it ends up back at the pre-move position.
+                nameShiftDraw = (float)(BacklogTextPos[2 * (nameStart + 1)] -
+                                        wasAt);
+                nameRightEdgeDraw = (float)nameColRight;
+                if (logRow) {
+                  dbgRewrite = 1;
+                  dbgNameArrAfter = BacklogTextPos[2 * (nameStart + 1)];
+                }
               }
             }
+            if (logRow) dbgNameLen = length;
             maxXX = 0;
             v32 = 0;
             v25 = 10000;
@@ -2012,11 +2326,51 @@ void __cdecl DrawBacklogContentHookRND(int textureId, int maskTextureId,
                   newline = true;
                 }
 
+                // Is this glyph part of the speaker name?
+                const bool thisIsName =
+                    haveColumn && nameStart >= 0 &&
+                    strIndex > nameStart && strIndex < nameEnd;
+                if (thisIsName) inNameRun = true;
+
                 if (newline == false && haveComputedX) {
                   xPosition = nextXPosition;
                 } else {
                   xPosition = (startX * 1.5f + BacklogTextPos[2 * strIndex]);
                   newline = false;
+                }
+
+                if (!haveColumn) {
+                  // Alignment off: leave the game's own layout alone.
+                } else if (thisIsName) {
+                  // The name was written to the shared column; the array is
+                  // read only at a row start, so add the shift here.
+                  xPosition += nameShiftDraw;
+                } else if (newline) {
+                  // Start of a visual line with no speaker name of its own:
+                  // narration, and the wrapped continuation of a quoted line.
+                  // Put it on the shared body column. (The game already lays
+                  // these out there, so this is normally a no-op; it keeps the
+                  // invariant explicit and covers a row whose stored value is
+                  // stale.)
+                  //
+                  // Keyed on `newline`, not "first glyph seen": a quoted line
+                  // wraps into several visual lines inside one buffer entry, and
+                  // each of them needs the column, not just the first.
+                  xPosition = startX * 1.5f + (float)bodyCol;
+                  nameRunDone = true;
+                } else if (inNameRun && !nameRunDone) {
+                  // Name ended without a wrap: resume the body on the shared
+                  // body column, so the gap after the name is the same on every
+                  // row.
+                  nameRunDone = true;
+                  xPosition = startX * 1.5f + (float)bodyCol;
+                }
+                // First glyph of this row: its x is what the reader sees as the
+                // row's left edge. Captured for the diagnostics below.
+                if (logRow && !dbgCapturedX &&
+                    strIndex == (int)BacklogLineBufSize[v12]) {
+                  dbgFirstX = xPosition;
+                  dbgCapturedX = true;
                 }
 
                 TextRendering::Get().replaceFontSurface(glyphSize);
@@ -2132,6 +2486,33 @@ void __cdecl DrawBacklogContentHookRND(int textureId, int maskTextureId,
         BacklogDispCurPosEX[v8] = v32 - 8;
         BacklogDispCurPosEY[v8] = v24;
         dword_948628[v8++] = v10;
+        if (BACKLOG_NAME_DEBUG) dbgColRight = nameColRight;
+        if (BACKLOG_NAME_DEBUG) {
+          // One line per distinct row, deduped by (strIndex, line buffer):
+          // the hook runs every frame while the panel is open.
+          static std::map<long long, bool> loggedRows;
+          long long key = ((long long)dbgRowStrIndex << 32) ^ (long long)v8;
+          if (dbgRowStrIndex >= 0 &&
+              loggedRows.find(key) == loggedRows.end() &&
+              loggedRows.size() < 512) {
+            loggedRows[key] = true;
+            std::stringstream dbg;
+            dbg << "backlogName: row=" << v8
+                << " strIndex=" << dbgRowStrIndex
+                << " nameStart=" << dbgNameStart
+                << " nameEnd=" << dbgNameEnd
+                << " nameLen=" << dbgNameLen
+                << " haveName=" << dbgHaveName
+                << " colRight=" << dbgColRight
+                << " rewrite=" << dbgRewrite
+                << " arrRowBefore=" << dbgRowArrBefore
+                << " arrNameBefore=" << dbgNameArrBefore
+                << " arrNameAfter=" << dbgNameArrAfter
+                << " firstGlyphX=" << dbgFirstX
+                << " iconAnchor=" << v31 << " nameAnchor=" << v10;
+            LanguageBarrierLog(dbg.str());
+          }
+        }
         v23 = v8;
       } while (v8 < *BacklogLineBufUse);
     }

@@ -283,32 +283,11 @@ fn replace_text(
     }
 
     let process_change = |i, s| {
-        let index = &script.string_index();
-        let orig = script.read_string(index.get(i).unwrap())?;
-        let mut fullwidth = false;
-        for tk in orig.iter() {
-            let tk = tk.map_err(|err| scr_err(Box::new(err), i))?;
-            if let sc3::StringToken::Text(text) = tk {
-                let decoded = text::decode_str(&text, gamedef, true)
-                    .map_err(|err| txt_err(Box::new(err), i))?;
-
-                fullwidth = decoded.iter(&gamedef.encoding_maps).any(|ch| {
-                    if let text::Char::Regular(c) = ch {
-                        c != text::FULLWIDTH_SPACE
-                            && text::is_fullwidth_ch(c)
-                            && text::replace_fullwidth(c).is_ascii_alphanumeric()
-                    } else {
-                        false
-                    }
-                });
-
-                if fullwidth {
-                    break;
-                }
-            }
-        }
-
-        Sc3String::deserialize(s, &gamedef, fullwidth).map_err(|err| txt_err(Box::new(err), i))
+        // 中文管线：译文以校对稿的半角写法为准（@B_TITOR、Mermaid+Nyan2、"=゜w゜=" 等）。
+        // CoZ 原逻辑「底稿行含全角字母数字 → 把新文本的半角整行转全角」对英文底稿
+        // 会命中 755 行（twipo 推文里的全角ｗ/全角空格），把 Twitter 句柄等都转成
+        // 全角（现役包实测显示 ＠Ｂ＿ＴＩＴＯＲ）。这里禁用该转换，恒以 false 编码。
+        Sc3String::deserialize(s, &gamedef, false).map_err(|err| txt_err(Box::new(err), i))
     };
 
     let changes = changes
@@ -337,9 +316,12 @@ fn equivalent(
 ) -> Result<bool, text::EncodingError> {
     if let coz::StringSegment::Text(txt_str) = txt_seg {
         if let sc3::StringToken::Text(scr_str) = scr_tk {
-            let txt_str = text::to_halfwidth(&txt_str, &gamedef.encoding_maps);
-            let scr_str = text::decode_str(&scr_str, &gamedef, false)?;
-            return Ok(txt_str == scr_str);
+            // 中文管线：全半角按字面精确比较。原逻辑先 to_halfwidth 归一化再比，
+            // 底稿里 U+3000 与译文半角空格会被误判为"相同"而跳过重写，把旧的全角
+            // 空格字节原样保留（即 'Mr.\u{3000}Pleiades' 大间隔 bug 的来源，
+            // 曾靠 patch_enscript_spaces.py 对成品做 80 3F→80 00 原位修补）。
+            let scr_str = text::decode_str(&scr_str, &gamedef, true)?;
+            return Ok(txt_str.as_str() == scr_str.as_str());
         }
     }
 

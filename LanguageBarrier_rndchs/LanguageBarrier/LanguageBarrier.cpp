@@ -1,4 +1,4 @@
-#define DEFINE_JSON_CONSTANTS
+﻿#define DEFINE_JSON_CONSTANTS
 #include "LanguageBarrier.h"
 #include <cstdio>
 #include <ctime>
@@ -153,6 +153,28 @@ void loadJsonConstants() {
       config["patch"]["dialogueRedesignYOffsetShift"].get<int>();
   DIALOGUE_REDESIGN_LINEHEIGHT_SHIFT =
       config["patch"]["dialogueRedesignLineHeightShift"].get<int>();
+  // Dialogue ruby placement defaults to the width-fit rule; the old
+  // character-count rule stays reachable for a quick A/B on a live install.
+  RUBY_DIALOGUE_FIT = true;
+  if (config["patch"].count("rubyDialogueFit") == 1)
+    RUBY_DIALOGUE_FIT = config["patch"]["rubyDialogueFit"].get<bool>();
+  RUBY_DEBUG = false;
+  if (config["patch"].count("rubyDebug") == 1)
+    RUBY_DEBUG = config["patch"]["rubyDebug"].get<bool>();
+  BACKLOG_NAME_DEBUG = false;
+  if (config["patch"].count("backlogNameDebug") == 1)
+    BACKLOG_NAME_DEBUG = config["patch"]["backlogNameDebug"].get<bool>();
+  // Speaker-name column defaults on; backlogNameAlign=false restores the game's
+  // own centring for an A/B on a live install.
+  BACKLOG_NAME_ALIGN = true;
+  if (config["patch"].count("backlogNameAlign") == 1)
+    BACKLOG_NAME_ALIGN = config["patch"]["backlogNameAlign"].get<bool>();
+  // Name-to-body gap. The quote narrowing above already pulled the body's first
+  // glyph left by ~23px, so this is set to net out to roughly the original
+  // visual spacing rather than to the original cell gap.
+  BACKLOG_BODY_GAP = 40;
+  if (config["patch"].count("backlogBodyGap") == 1)
+    BACKLOG_BODY_GAP = config["patch"]["backlogBodyGap"].get<int>();
   HAS_BACKLOG_UNDERLINE = config["gamedef"]["hasBacklogUnderline"].get<bool>();
   if (HAS_BACKLOG_UNDERLINE) {
     BACKLOG_HIGHLIGHT_DEFAULT_HEIGHT =

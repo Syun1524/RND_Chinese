@@ -31,12 +31,12 @@ Style: Kanji-furigana,東風ゴシック,25,&H00FFFFFF,&H000000FF,&H00000000,&H0
 Style: Default-furigana,Arial,15,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.51111,1.51111,2,15,15,15,1
 Style: Default,Arial,30,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3.02222,3.02222,2,15,15,15,1
 Style: romaji,Milocha,60,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,80,100,0.5,0,1,2,2,4,25,25,25,1
-Style: translation,RND Lyric SC,66,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,80,100,0.5,0,1,2,2,1,25,25,25,1
+Style: translation,RND Lyric SC,66,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0.5,0,1,2,2,1,25,25,25,1
 Style: Kanji,小塚ゴシック Pro H,62,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,8,0,1,2,2,6,25,25,25,1
 Style: romaji - Copy,Milocha,60,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,80,100,0.5,0,1,2,2,4,25,25,25,1
 Style: Kanji - Copy,小塚ゴシック Pro H,62,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,8,0,1,2,2,6,25,25,25,1
 Style: romaji - Copy - Copy,Milocha,60,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,80,100,0.5,0,1,2,2,4,25,25,25,1
-Style: translation - Copy,RND Lyric SC,66,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,80,100,0.5,0,1,2,2,1,25,25,25,1
+Style: translation - Copy,RND Lyric SC,66,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0.5,0,1,2,2,1,25,25,25,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -190,12 +190,12 @@ Comment: 0,0:02:49.07,0:02:52.53,translation,,0,0,0,karaoke,{\k1} Tu Tu Ru Tu Ru
 Comment: 0,0:02:52.77,0:02:56.17,translation,,0,0,0,karaoke,{\k1} Tu Tu Ru Tu Ru Tu{\fnArial\fscx100}♪{\fnMilocha\fscx80} Tu Tu Ru Tu Ru Tu{\fnArial\fscx100}♪{\fnMilocha\fscx80}
 Comment: 0,0:02:56.41,0:02:59.23,translation,,0,0,0,karaoke,{\k1} Tu Tu Ru La La La La{\fnArial\fscx100}♪{\fnMilocha\fscx80}
 Comment: 0,0:03:01.36,0:03:05.22,translation,,0,0,0,,Gosh, I'm pooped. This burns more calories than expected.
-Dialogue: 0,0:01:13.03,0:01:15.10,translation,,1100,0,50,,{\fad(200,200)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}大家一起来！
-Dialogue: 0,0:01:24.14,0:01:27.51,translation,,900,0,50,,{\fad(200,200)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}糟了，我也真想跳起来……
-Dialogue: 0,0:01:27.31,0:01:28.66,translation,,900,0,50,,{\fad(200,200)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3\pos(1108,1039.8)}芙劳炭，来吧！
-Dialogue: 0,0:02:28.08,0:02:30.27,translation,,1000,0,50,,{\fad(200,200)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}来和我们一起跳吧！
-Dialogue: 0,0:02:43.67,0:02:45.10,translation,,1200,0,50,,{\fad(200,200)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}再来一次！
-Dialogue: 0,0:03:01.16,0:03:05.22,translation,,900,0,50,,{\fad(200,200)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}啊，累死了……消耗的热量\N比想象中多太多了。
+Dialogue: 0,0:01:13.03,0:01:15.10,translation,,1100,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}大家一起来！
+Dialogue: 0,0:01:24.14,0:01:27.51,translation,,900,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}糟了，我也真想跳起来……
+Dialogue: 0,0:01:27.31,0:01:28.66,translation,,900,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3\pos(1108,1039.8)}芙劳炭，来吧！
+Dialogue: 0,0:02:28.08,0:02:30.27,translation,,1000,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}来和我们一起跳吧！
+Dialogue: 0,0:02:43.67,0:02:45.10,translation,,1200,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}再来一次！
+Dialogue: 0,0:03:01.16,0:03:05.22,translation,,900,0,50,,{\fad(200,200)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}啊，累死了……消耗的热量\N比想象中多太多了。
 Comment: 0,0:01:21.33,0:01:21.68,romaji,,0,0,0,template noblank,!retime("line",-300,0)!{\fad(300,250)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\pos(!$x+25!,!$y-425!)\blur3\fscy83}
 Comment: 0,0:00:28.38,0:00:28.38,romaji,,0,0,0,template char noblank,!retime("syl",0,0)!{\fad(0,150)\pos(!$x+25!,!$y-425!)\org(!$x+27!,!$y-190!)\shad0\blur3\bord3\c&HFFCAAB&\3c&HFFFFFF&\fscy83\1a&H33&\t(0,250,0.8,\blur2\bord2\c&HEEE0CB&\3c&H82634B&\3a&H66&)\t(!syl.duration/2+syl.duration/4!,!syl.duration!,\c&HFFFFFF&\3c&H4C2512&\alpha&HFF&)}
 Comment: 0,0:01:21.33,0:01:21.68,romaji - Copy,,0,0,0,template noblank,!retime("line",-300,0)!{\fad(300,250)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\pos(!$x+25!,!$y-355!)\blur3\fscy83}
@@ -2694,86 +2694,86 @@ Dialogue: 0,0:00:02.54,0:00:06.34,translation,,0,0,0,fx,{\fad(300,250)\pos(50,10
 Dialogue: 0,0:00:06.20,0:00:10.01,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}Tu Tu Ru Tu Ru Tu{\fnArial\fscx100}♪{\fnMilocha\fscx80} Da-li-da-li-ya-a-a{\fnArial\fscx100}♪{\fnMilocha\fscx80}
 Dialogue: 0,0:00:09.92,0:00:13.68,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}Tu Tu Ru Tu Ru Tu{\fnArial\fscx100}♪{\fnMilocha\fscx80} Tu Tu Ru Tu Ru Tu{\fnArial\fscx100}♪{\fnMilocha\fscx80}
 Dialogue: 0,0:00:13.63,0:00:16.59,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}Tu Tu Ru La La La La{\fnArial\fscx100}♪{\fnMilocha\fscx80}
-Dialogue: 0,0:00:17.32,0:00:20.62,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}讨厌是喜欢的反面
-Dialogue: 0,0:00:17.32,0:00:20.62,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf75}讨{\kf35}厌{\kf33}是{\kf32}喜{\kf39}欢{\kf38}的{\kf36}反{\kf43}面
-Dialogue: 0,0:00:20.51,0:00:24.57,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}那喜欢又是什么的反面?
-Dialogue: 0,0:00:20.51,0:00:24.57,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf66}那{\kf24}喜{\kf36}欢{\kf60}又{\kf30}是{\kf30}什{\kf27}么{\kf26}的{\kf21}反{\kf51}面{\kf35}?
-Dialogue: 0,0:00:24.72,0:00:27.97,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}思维回路立刻宕机
-Dialogue: 0,0:00:24.72,0:00:27.97,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf68}思{\kf41}维{\kf27}回{\kf24}路{\kf40}立{\kf58}刻{\kf27}宕{\kf39}机
-Dialogue: 0,0:00:27.91,0:00:31.26,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}嘛 算了 反正也不出门
-Dialogue: 0,0:00:27.91,0:00:31.26,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf60}嘛{\kf17} {\kf15}算{\kf12}了{\kf16} {\kf20}反{\kf28}正{\kf34}也{\kf32}不{\kf79}出{\kf23}门
-Dialogue: 0,0:00:31.81,0:00:35.73,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}平淡无奇的日常里 终有一天
-Dialogue: 0,0:00:31.81,0:00:35.73,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf92}平{\kf25}淡{\kf29}无{\kf26}奇{\kf21}的{\kf36}日{\kf32}常{\kf27}里{\kf31} {\kf29}终{\kf18}有{\kf1}一{\kf25}天
-Dialogue: 0,0:00:35.57,0:00:39.10,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}电波传了过来
-Dialogue: 0,0:00:35.57,0:00:39.10,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf93}电{\kf40}波{\kf49}传{\kf47}了{\kf70}过{\kf53}来
-Dialogue: 0,0:00:38.37,0:00:39.56,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,978)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}哔哔哔
-Dialogue: 0,0:00:38.37,0:00:39.56,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,978)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf63}哔{\kf25}哔{\kf31}哔
-Dialogue: 0,0:00:39.04,0:00:44.67,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}难道这 才是恋爱的开始
-Dialogue: 0,0:00:39.04,0:00:44.67,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf48}难{\kf45}道{\kf40}这{\kf35} {\kf30}才{\kf34}是{\kf58}恋{\kf48}爱{\kf42}的{\kf96}开{\kf88}始
-Dialogue: 0,0:00:44.76,0:00:45.61,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}哈?!
-Dialogue: 0,0:00:44.76,0:00:45.61,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf50}哈{\kf18}?{\kf17}!
-Dialogue: 0,0:00:45.44,0:00:46.89,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}和我一起跳吧
-Dialogue: 0,0:00:45.44,0:00:46.89,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf24}和{\kf24}我{\kf24}一{\kf24}起{\kf24}跳{\kf24}吧
-Dialogue: 0,0:00:46.63,0:00:50.14,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}比烦恼抑郁的推文
-Dialogue: 0,0:00:46.63,0:00:50.14,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf72}比{\kf34}烦{\kf60}恼{\kf40}抑{\kf36}郁{\kf40}的{\kf30}推{\kf39}文
-Dialogue: 0,0:00:50.13,0:00:54.05,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}通宵共舞才是正解
-Dialogue: 0,0:00:50.13,0:00:54.05,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf49}通{\kf26}宵{\kf36}共{\kf36}舞{\kf56}才{\kf58}是{\kf77}正{\kf54}解
-Dialogue: 0,0:00:54.03,0:00:57.60,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}牵起手 踩准节拍
-Dialogue: 0,0:00:54.03,0:00:57.60,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf66}牵{\kf40}起{\kf69}手{\kf22} {\kf39}踩{\kf34}准{\kf49}节{\kf38}拍
-Dialogue: 0,0:00:57.49,0:01:00.25,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}相视而笑便是胜利
-Dialogue: 0,0:00:57.49,0:01:00.25,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf46}相{\kf20}视{\kf29}而{\kf27}笑{\kf32}便{\kf43}是{\kf44}胜{\kf35}利
-Dialogue: 0,0:01:00.23,0:01:01.66,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}和我一起跳吧
-Dialogue: 0,0:01:00.23,0:01:01.66,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf24}和{\kf24}我{\kf24}一{\kf24}起{\kf24}跳{\kf24}吧
-Dialogue: 0,0:01:01.38,0:01:08.68,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}来一点禁忌的爱 试着用乘法去跨越
-Dialogue: 0,0:01:01.38,0:01:08.68,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf95}来{\kf30}一{\kf67}点{\kf40}禁{\kf50}忌{\kf30}的{\kf42}爱{\kf25} {\kf22}试{\kf29}着{\kf40}用{\kf40}乘{\kf35}法{\kf55}去{\kf75}跨{\kf55}越
-Dialogue: 0,0:01:08.79,0:01:12.25,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}连本该无聊的时光
-Dialogue: 0,0:01:08.79,0:01:12.25,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf89}连{\kf24}本{\kf70}该{\kf24}无{\kf22}聊{\kf34}的{\kf47}时{\kf36}光
-Dialogue: 0,0:01:11.95,0:01:15.70,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}也化作快乐 快乐起来
-Dialogue: 0,0:01:11.95,0:01:15.70,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf55}也{\kf34}化{\kf31}作{\kf20}快{\kf26}乐{\kf32} {\kf30}快{\kf23}乐{\kf80}起{\kf43}来
-Dialogue: 0,0:01:15.77,0:01:18.50,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,978)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}啊——呼——↑
-Dialogue: 0,0:01:15.77,0:01:18.50,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,978)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf44}啊{\kf14}—{\kf58}—{\kf79}呼{\kf56}—{\kf11}—{\kf11}↑
+Dialogue: 0,0:00:17.32,0:00:20.62,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}讨厌是喜欢的反面
+Dialogue: 0,0:00:17.32,0:00:20.62,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf75}讨{\kf35}厌{\kf33}是{\kf32}喜{\kf39}欢{\kf38}的{\kf36}反{\kf43}面
+Dialogue: 0,0:00:20.51,0:00:24.57,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}那喜欢又是什么的反面?
+Dialogue: 0,0:00:20.51,0:00:24.57,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf66}那{\kf24}喜{\kf36}欢{\kf60}又{\kf30}是{\kf30}什{\kf27}么{\kf26}的{\kf21}反{\kf51}面{\kf35}?
+Dialogue: 0,0:00:24.72,0:00:27.97,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}思维回路立刻宕机
+Dialogue: 0,0:00:24.72,0:00:27.97,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf68}思{\kf41}维{\kf27}回{\kf24}路{\kf40}立{\kf58}刻{\kf27}宕{\kf39}机
+Dialogue: 0,0:00:27.91,0:00:31.26,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}嘛 算了 反正也不出门
+Dialogue: 0,0:00:27.91,0:00:31.26,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf60}嘛{\kf17} {\kf15}算{\kf12}了{\kf16} {\kf20}反{\kf28}正{\kf34}也{\kf32}不{\kf79}出{\kf23}门
+Dialogue: 0,0:00:31.81,0:00:35.73,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}平淡无奇的日常里 终有一天
+Dialogue: 0,0:00:31.81,0:00:35.73,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf92}平{\kf25}淡{\kf29}无{\kf26}奇{\kf21}的{\kf36}日{\kf32}常{\kf27}里{\kf31} {\kf29}终{\kf18}有{\kf1}一{\kf25}天
+Dialogue: 0,0:00:35.57,0:00:39.10,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}电波传了过来
+Dialogue: 0,0:00:35.57,0:00:39.10,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf93}电{\kf40}波{\kf49}传{\kf47}了{\kf70}过{\kf53}来
+Dialogue: 0,0:00:38.37,0:00:39.56,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,978)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}哔哔哔
+Dialogue: 0,0:00:38.37,0:00:39.56,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,978)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf63}哔{\kf25}哔{\kf31}哔
+Dialogue: 0,0:00:39.04,0:00:44.67,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}难道这 才是恋爱的开始
+Dialogue: 0,0:00:39.04,0:00:44.67,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf48}难{\kf45}道{\kf40}这{\kf35} {\kf30}才{\kf34}是{\kf58}恋{\kf48}爱{\kf42}的{\kf96}开{\kf88}始
+Dialogue: 0,0:00:44.76,0:00:45.61,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}哈?!
+Dialogue: 0,0:00:44.76,0:00:45.61,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf50}哈{\kf18}?{\kf17}!
+Dialogue: 0,0:00:45.44,0:00:46.89,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}和我一起跳吧
+Dialogue: 0,0:00:45.44,0:00:46.89,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf24}和{\kf24}我{\kf24}一{\kf24}起{\kf24}跳{\kf24}吧
+Dialogue: 0,0:00:46.63,0:00:50.14,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}比烦恼抑郁的推文
+Dialogue: 0,0:00:46.63,0:00:50.14,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf72}比{\kf34}烦{\kf60}恼{\kf40}抑{\kf36}郁{\kf40}的{\kf30}推{\kf39}文
+Dialogue: 0,0:00:50.13,0:00:54.05,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}通宵共舞才是正解
+Dialogue: 0,0:00:50.13,0:00:54.05,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf49}通{\kf26}宵{\kf36}共{\kf36}舞{\kf56}才{\kf58}是{\kf77}正{\kf54}解
+Dialogue: 0,0:00:54.03,0:00:57.60,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}牵起手 踩准节拍
+Dialogue: 0,0:00:54.03,0:00:57.60,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf66}牵{\kf40}起{\kf69}手{\kf22} {\kf39}踩{\kf34}准{\kf49}节{\kf38}拍
+Dialogue: 0,0:00:57.49,0:01:00.25,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}相视而笑便是胜利
+Dialogue: 0,0:00:57.49,0:01:00.25,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf46}相{\kf20}视{\kf29}而{\kf27}笑{\kf32}便{\kf43}是{\kf44}胜{\kf35}利
+Dialogue: 0,0:01:00.23,0:01:01.66,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}和我一起跳吧
+Dialogue: 0,0:01:00.23,0:01:01.66,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf24}和{\kf24}我{\kf24}一{\kf24}起{\kf24}跳{\kf24}吧
+Dialogue: 0,0:01:01.38,0:01:08.68,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}来一点禁忌的爱 试着用乘法去跨越
+Dialogue: 0,0:01:01.38,0:01:08.68,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf95}来{\kf30}一{\kf67}点{\kf40}禁{\kf50}忌{\kf30}的{\kf42}爱{\kf25} {\kf22}试{\kf29}着{\kf40}用{\kf40}乘{\kf35}法{\kf55}去{\kf75}跨{\kf55}越
+Dialogue: 0,0:01:08.79,0:01:12.25,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}连本该无聊的时光
+Dialogue: 0,0:01:08.79,0:01:12.25,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf89}连{\kf24}本{\kf70}该{\kf24}无{\kf22}聊{\kf34}的{\kf47}时{\kf36}光
+Dialogue: 0,0:01:11.95,0:01:15.70,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}也化作快乐 快乐起来
+Dialogue: 0,0:01:11.95,0:01:15.70,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf55}也{\kf34}化{\kf31}作{\kf20}快{\kf26}乐{\kf32} {\kf30}快{\kf23}乐{\kf80}起{\kf43}来
+Dialogue: 0,0:01:15.77,0:01:18.50,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,978)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}啊——呼——↑
+Dialogue: 0,0:01:15.77,0:01:18.50,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,978)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf44}啊{\kf14}—{\kf58}—{\kf79}呼{\kf56}—{\kf11}—{\kf11}↑
 Dialogue: 0,0:01:16.43,0:01:20.17,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}Tu Tu Ru Tu Ru Tu{\fnArial\fscx100}♪{\fnMilocha\fscx80} Tu Tu Ru Tu Ru Tu{\fnArial\fscx100}♪{\fnMilocha\fscx80}
 Dialogue: 0,0:01:20.14,0:01:23.88,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}Tu Tu Ru Tu Ru Tu{\fnArial\fscx100}♪{\fnMilocha\fscx80} Da-li-da-li-ya-a-a{\fnArial\fscx100}♪{\fnMilocha\fscx80}
 Dialogue: 0,0:01:23.81,0:01:27.56,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}Tu Tu Ru Tu Ru Tu{\fnArial\fscx100}♪{\fnMilocha\fscx80} Tu Tu Ru Tu Ru Tu{\fnArial\fscx100}♪{\fnMilocha\fscx80}
 Dialogue: 0,0:01:27.53,0:01:30.63,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}Tu Tu Ru La La La La{\fnArial\fscx100}♪{\fnMilocha\fscx80}
-Dialogue: 0,0:01:31.16,0:01:34.50,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}讨厌翻面成了喜欢
-Dialogue: 0,0:01:31.16,0:01:34.50,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf73}讨{\kf30}厌{\kf28}翻{\kf49}面{\kf34}成{\kf32}了{\kf52}喜{\kf38}欢
-Dialogue: 0,0:01:34.42,0:01:38.38,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}稍一疏忽便破绽百出
-Dialogue: 0,0:01:34.42,0:01:38.38,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf74}稍{\kf51}一{\kf34}疏{\kf55}忽{\kf36}便{\kf32}破{\kf31}绽{\kf37}百{\kf45}出
-Dialogue: 0,0:01:38.55,0:01:41.86,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}一旦燃起便再难停歇
-Dialogue: 0,0:01:38.55,0:01:41.86,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf72}一{\kf26}旦{\kf26}燃{\kf25}起{\kf43}便{\kf37}再{\kf36}难{\kf27}停{\kf38}歇
-Dialogue: 0,0:01:41.79,0:01:45.18,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}连寝食都会忘记
-Dialogue: 0,0:01:41.79,0:01:45.18,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf67}连{\kf37}寝{\kf29}食{\kf17}都{\kf50}会{\kf75}忘{\kf64}记
-Dialogue: 0,0:01:45.73,0:01:48.90,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}开心到不行的时光
-Dialogue: 0,0:01:45.73,0:01:48.90,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf90}开{\kf48}心{\kf39}到{\kf26}不{\kf38}行{\kf30}的{\kf23}时{\kf23}光
-Dialogue: 0,0:01:48.76,0:01:53.02,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}仿佛倍速般飞快溜走
-Dialogue: 0,0:01:48.76,0:01:53.02,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf61}仿{\kf45}佛{\kf55}倍{\kf35}速{\kf37}般{\kf29}飞{\kf42}快{\kf71}溜{\kf50}走
-Dialogue: 0,0:01:52.26,0:01:53.41,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,978)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}（音速）
-Dialogue: 0,0:01:52.26,0:01:53.41,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,978)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf51}（{\kf23}音{\kf16}速{\kf25}）
-Dialogue: 0,0:01:52.90,0:01:58.60,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}翻开记事本才想起忘掉的安排
-Dialogue: 0,0:01:52.90,0:01:58.60,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf51}翻{\kf27}开{\kf41}记{\kf29}事{\kf29}本{\kf23}才{\kf28}想{\kf54}起{\kf29}忘{\kf56}掉{\kf27}的{\kf119}安{\kf58}排
-Dialogue: 0,0:01:58.67,0:01:59.61,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}啊!
-Dialogue: 0,0:01:58.67,0:01:59.61,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf69}啊{\kf25}!
-Dialogue: 0,0:01:59.31,0:02:00.70,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}明白了
-Dialogue: 0,0:01:59.31,0:02:00.70,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf100}明{\kf14}白{\kf25}了
-Dialogue: 0,0:02:00.46,0:02:04.08,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}失败和悲伤的事
-Dialogue: 0,0:02:00.46,0:02:04.08,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf107}失{\kf67}败{\kf32}和{\kf29}悲{\kf56}伤{\kf29}的{\kf42}事
-Dialogue: 0,0:02:03.99,0:02:07.89,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}统统忘掉起舞才是正解
-Dialogue: 0,0:02:03.99,0:02:07.89,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf46}统{\kf19}统{\kf28}忘{\kf29}掉{\kf27}起{\kf50}舞{\kf36}才{\kf58}是{\kf62}正{\kf35}解
-Dialogue: 0,0:02:07.90,0:02:11.48,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}每当怦然心动之际
-Dialogue: 0,0:02:07.90,0:02:11.48,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf71}每{\kf34}当{\kf62}怦{\kf40}然{\kf38}心{\kf39}动{\kf29}之{\kf45}际
-Dialogue: 0,0:02:11.33,0:02:14.22,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}爱意便不断滋长
-Dialogue: 0,0:02:11.33,0:02:14.22,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf55}爱{\kf28}意{\kf30}便{\kf34}不{\kf50}断{\kf49}滋{\kf44}长
-Dialogue: 0,0:02:14.14,0:02:15.56,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}和我一起跳吧
-Dialogue: 0,0:02:14.14,0:02:15.56,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf24}和{\kf24}我{\kf24}一{\kf24}起{\kf24}跳{\kf24}吧
-Dialogue: 0,0:02:15.26,0:02:22.68,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}稍来点意外的也好 向胆怯的自己进攻模式
-Dialogue: 0,0:02:15.26,0:02:22.68,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf98}稍{\kf35}来{\kf64}点{\kf18}意{\kf31}外{\kf37}的{\kf29}也{\kf44}好{\kf19} {\kf18}向{\kf20}胆{\kf25}怯{\kf32}的{\kf26}自{\kf51}己{\kf35}进{\kf56}攻{\kf66}模{\kf36}式
-Dialogue: 0,0:02:22.69,0:02:26.19,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}将这了无生趣的世界
-Dialogue: 0,0:02:22.69,0:02:26.19,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf65}将{\kf39}这{\kf50}了{\kf44}无{\kf17}生{\kf30}趣{\kf37}的{\kf29}世{\kf40}界
-Dialogue: 0,0:02:25.89,0:02:29.54,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}变成快乐 快活的地方吧
-Dialogue: 0,0:02:25.89,0:02:29.54,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf47}变{\kf22}成{\kf57}快{\kf12}乐{\kf25} {\kf32}快{\kf22}活{\kf24}的{\kf16}地{\kf83}方{\kf25}吧
-Dialogue: 0,0:02:29.56,0:02:31.66,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,978)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}啊——
-Dialogue: 0,0:02:29.56,0:02:31.66,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,978)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf133}啊{\kf60}—{\kf17}—
+Dialogue: 0,0:01:31.16,0:01:34.50,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}讨厌翻面成了喜欢
+Dialogue: 0,0:01:31.16,0:01:34.50,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf73}讨{\kf30}厌{\kf28}翻{\kf49}面{\kf34}成{\kf32}了{\kf52}喜{\kf38}欢
+Dialogue: 0,0:01:34.42,0:01:38.38,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}稍一疏忽便破绽百出
+Dialogue: 0,0:01:34.42,0:01:38.38,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf74}稍{\kf51}一{\kf34}疏{\kf55}忽{\kf36}便{\kf32}破{\kf31}绽{\kf37}百{\kf45}出
+Dialogue: 0,0:01:38.55,0:01:41.86,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}一旦燃起便再难停歇
+Dialogue: 0,0:01:38.55,0:01:41.86,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf72}一{\kf26}旦{\kf26}燃{\kf25}起{\kf43}便{\kf37}再{\kf36}难{\kf27}停{\kf38}歇
+Dialogue: 0,0:01:41.79,0:01:45.18,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}连寝食都会忘记
+Dialogue: 0,0:01:41.79,0:01:45.18,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf67}连{\kf37}寝{\kf29}食{\kf17}都{\kf50}会{\kf75}忘{\kf64}记
+Dialogue: 0,0:01:45.73,0:01:48.90,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}开心到不行的时光
+Dialogue: 0,0:01:45.73,0:01:48.90,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf90}开{\kf48}心{\kf39}到{\kf26}不{\kf38}行{\kf30}的{\kf23}时{\kf23}光
+Dialogue: 0,0:01:48.76,0:01:53.02,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}仿佛倍速般飞快溜走
+Dialogue: 0,0:01:48.76,0:01:53.02,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf61}仿{\kf45}佛{\kf55}倍{\kf35}速{\kf37}般{\kf29}飞{\kf42}快{\kf71}溜{\kf50}走
+Dialogue: 0,0:01:52.26,0:01:53.41,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,978)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}（音速）
+Dialogue: 0,0:01:52.26,0:01:53.41,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,978)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf51}（{\kf23}音{\kf16}速{\kf25}）
+Dialogue: 0,0:01:52.90,0:01:58.60,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}翻开记事本才想起忘掉的安排
+Dialogue: 0,0:01:52.90,0:01:58.60,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf51}翻{\kf27}开{\kf41}记{\kf29}事{\kf29}本{\kf23}才{\kf28}想{\kf54}起{\kf29}忘{\kf56}掉{\kf27}的{\kf119}安{\kf58}排
+Dialogue: 0,0:01:58.67,0:01:59.61,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}啊!
+Dialogue: 0,0:01:58.67,0:01:59.61,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf69}啊{\kf25}!
+Dialogue: 0,0:01:59.31,0:02:00.70,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}明白了
+Dialogue: 0,0:01:59.31,0:02:00.70,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf100}明{\kf14}白{\kf25}了
+Dialogue: 0,0:02:00.46,0:02:04.08,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}失败和悲伤的事
+Dialogue: 0,0:02:00.46,0:02:04.08,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf107}失{\kf67}败{\kf32}和{\kf29}悲{\kf56}伤{\kf29}的{\kf42}事
+Dialogue: 0,0:02:03.99,0:02:07.89,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}统统忘掉起舞才是正解
+Dialogue: 0,0:02:03.99,0:02:07.89,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf46}统{\kf19}统{\kf28}忘{\kf29}掉{\kf27}起{\kf50}舞{\kf36}才{\kf58}是{\kf62}正{\kf35}解
+Dialogue: 0,0:02:07.90,0:02:11.48,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}每当怦然心动之际
+Dialogue: 0,0:02:07.90,0:02:11.48,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf71}每{\kf34}当{\kf62}怦{\kf40}然{\kf38}心{\kf39}动{\kf29}之{\kf45}际
+Dialogue: 0,0:02:11.33,0:02:14.22,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}爱意便不断滋长
+Dialogue: 0,0:02:11.33,0:02:14.22,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf55}爱{\kf28}意{\kf30}便{\kf34}不{\kf50}断{\kf49}滋{\kf44}长
+Dialogue: 0,0:02:14.14,0:02:15.56,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}和我一起跳吧
+Dialogue: 0,0:02:14.14,0:02:15.56,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf24}和{\kf24}我{\kf24}一{\kf24}起{\kf24}跳{\kf24}吧
+Dialogue: 0,0:02:15.26,0:02:22.68,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}稍来点意外的也好 向胆怯的自己进攻模式
+Dialogue: 0,0:02:15.26,0:02:22.68,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf98}稍{\kf35}来{\kf64}点{\kf18}意{\kf31}外{\kf37}的{\kf29}也{\kf44}好{\kf19} {\kf18}向{\kf20}胆{\kf25}怯{\kf32}的{\kf26}自{\kf51}己{\kf35}进{\kf56}攻{\kf66}模{\kf36}式
+Dialogue: 0,0:02:22.69,0:02:26.19,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}将这了无生趣的世界
+Dialogue: 0,0:02:22.69,0:02:26.19,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf65}将{\kf39}这{\kf50}了{\kf44}无{\kf17}生{\kf30}趣{\kf37}的{\kf29}世{\kf40}界
+Dialogue: 0,0:02:25.89,0:02:29.54,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}变成快乐 快活的地方吧
+Dialogue: 0,0:02:25.89,0:02:29.54,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf47}变{\kf22}成{\kf57}快{\kf12}乐{\kf25} {\kf32}快{\kf22}活{\kf24}的{\kf16}地{\kf83}方{\kf25}吧
+Dialogue: 0,0:02:29.56,0:02:31.66,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,978)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}啊——
+Dialogue: 0,0:02:29.56,0:02:31.66,translation - Copy,,0,0,0,fx,{\fad(300,250)\pos(50,978)\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3}{\2c&HB2B2B2&}{\kf133}啊{\kf60}—{\kf17}—
 Dialogue: 0,0:02:30.28,0:02:34.02,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3} Tu Tu Ru Tu Ru Tu{\fnArial\fscx100}♪{\fnMilocha\fscx80} Tu Tu Ru Tu Ru Tu{\fnArial\fscx100}♪{\fnMilocha\fscx80}
 Dialogue: 0,0:02:33.95,0:02:37.71,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3} Tu Tu Ru Tu Ru Tu{\fnArial\fscx100}♪{\fnMilocha\fscx80} Da-li-da-li-ya-a-a{\fnArial\fscx100}♪{\fnMilocha\fscx80}
 Dialogue: 0,0:02:37.65,0:02:41.44,translation,,0,0,0,fx,{\fad(300,250)\pos(50,1038)\fscy83\c&HFFFFFF&\3c&H4C2512&\shad0\3a&H66&\blur3} Tu Tu Ru Tu Ru Tu{\fnArial\fscx100}♪{\fnMilocha\fscx80} Tu Tu Ru Tu Ru Tu{\fnArial\fscx100}♪{\fnMilocha\fscx80}

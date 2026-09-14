@@ -417,7 +417,9 @@ def _line_width(text, size, st):
     for seg in text.split(_NB):
         if not seg:
             continue
-        w = max(w, _font(size).getlength(seg) * st["sx"] / 100.0
+        # 可见翻译样式的 ScaleX 在构建时统一归一到 100（见样式循环），
+        # 所以宽度按 100 计算，不能用模板里原始的 80/110。
+        w = max(w, _font(size).getlength(seg) * 100.0 / 100.0
                 + st["sp"] * max(0, len(seg) - 1))
     return w + st["outline"] * 2 + st["shadow"]
 
@@ -536,6 +538,11 @@ def main():
                     raise SystemExit(f"unresolved translation line in {base}{suf}: {d['en']!r}")
                 p = d["parts"]
                 prefix = re.match(r"^(?:\{[^}]*\})*", p[9]).group(0)
+                # CoZ 给英文用了横向/纵向缩放（如 ed002 的 \fscy70 压扁、样式
+                # ScaleX=110 拉宽）。中文是方块字，压/拉都会显得又胖又扁，
+                # 所以可见中文行里的行内 \fscx/\fscy 一律去掉，用字体本色。
+                prefix = re.sub(re.escape(chr(92)) + r'fs(?:cx|cy)[\d.]+', '',
+                               prefix)
                 # bump only through the style when no override is needed, so the
                 # text payload stays clean; a pinned line gets an explicit \fs.
                 st = styles.get(d["style"])
@@ -588,6 +595,15 @@ def main():
                             base_size = float(fields[2])
                             fields[2] = "%g" % round(base_size * globals()["SIZE_SCALE"], 1)
                             changed_styles = True
+                        # CoZ 用 ScaleX/ScaleY 把英文变形（ed002 是 110/70，横向
+                        # 拉宽又纵向压扁），中文是方块字，这样会显得又胖又扁。
+                        # 可见翻译样式一律恢复 100/100（宋体类字宽的 furigana
+                        # 小注不动）。
+                        if not fields[0].endswith("-furigana"):
+                            if fields[11] != "100" or fields[12] != "100":
+                                fields[11] = "100"
+                                fields[12] = "100"
+                                changed_styles = True
                         new[i] = "Style: " + ",".join(fields) + ln[len(body):]
             assert len(new) == len(lines)
             # interleave the sweep overlays right after their ghost lines

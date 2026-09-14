@@ -11,23 +11,22 @@
 撤下时 `c0data.cls` 一并重排（`fileRedirection` 存的是数组下标，
 删行不重排会让后面所有下标错位）。
 
-| 归档文件名（原名） | 曾用的 c0data 名 | 曾对应的归档/fileId |
-|---|---|---|
-| `rnd_ibg058b_zh.png` | `rnd_ibg058b.png` | bg / 252 |
-| `rnd_ibg083a_zh.png` | `rnd_ibg083a.png` | bg / 285 |
-| `movie_dar005b_zh.png` | `movie_dar005b_last.png` | bg / 420 |
-| `movie_dar005c_zh.png` | `movie_dar005c_last.png` | bg / 421 |
-| `movie_dar005d_zh.png` | `movie_dar005d_last.png` | bg / 422 |
-| `movie_dar005e_zh.png` | `movie_dar005e_last.png` | bg / 423 |
-| `movie_dar005f_zh.png` | `movie_dar005f_last.png` | bg / 424 |
-| `movie_dar005g_zh.png` | `movie_dar005g_last.png` | bg / 425 |
-| `movie_dar005h_zh.png` | `movie_dar005h_last.png` | bg / 426 |
-| `movie_dar013_zh.png` | `movie_dar013_last.png` | bg / 427 |
+| 归档文件名（原名）              | 曾用的 c0data 名             | 曾对应的归档/fileId |
+| ---------------------- | ------------------------ | ------------- |
+| `rnd_ibg058b_zh.png`   | `rnd_ibg058b.png`        | bg / 252      |
+| `rnd_ibg083a_zh.png`   | `rnd_ibg083a.png`        | bg / 285      |
+| `movie_dar005b_zh.png` | `movie_dar005b_last.png` | bg / 420      |
+| `movie_dar005c_zh.png` | `movie_dar005c_last.png` | bg / 421      |
+| `movie_dar005d_zh.png` | `movie_dar005d_last.png` | bg / 422      |
+| `movie_dar005e_zh.png` | `movie_dar005e_last.png` | bg / 423      |
+| `movie_dar005f_zh.png` | `movie_dar005f_last.png` | bg / 424      |
+| `movie_dar005g_zh.png` | `movie_dar005g_last.png` | bg / 425      |
+| `movie_dar005h_zh.png` | `movie_dar005h_last.png` | bg / 426      |
+| `movie_dar013_zh.png`  | `movie_dar013_last.png`  | bg / 427      |
 
 > `rnd_ibg058a` 虽在 `废弃/` 里也有一份，但顶层有同内容的 `重做` 版，**保留未撤**。
 
-其余文件（`rnd_ibg02*a` / `02*b` / `04*a` / `054a` / `064*` / `135*` /
-`也许不需要（纯gpt跑的）rnd_ibg070a`）从未上线，只是留档。
+其余文件（`rnd_ibg02*a` / `02*b` / `04*a` / `054a` / `064*` / `135*` 
 
 ## 相关脚本
 

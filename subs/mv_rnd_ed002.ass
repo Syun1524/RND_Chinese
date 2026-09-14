@@ -41,17 +41,17 @@ Style: Kanji-furigana,東風ゴシック,16.5,&H00FFFFFF,&H000000FF,&H00000000,&
 Style: Default-furigana,Arial,10,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1,1,2,10,10,10,1
 Style: Default,Arial,20,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,2,2,10,10,10,1
 Style: romaji,Steelfish Rg,55,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,110,40,2,0,1,2,2,4,25,25,25,1
-Style: translation,RND Lyric SC,60.5,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,110,70,2,0,1,2,2,1,25,25,25,1
+Style: translation,RND Lyric SC,60.5,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,2,0,1,2,2,1,25,25,25,1
 Style: Kanji,あおぞら明朝 Heavy,32,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,12,0,1,2,2,6,25,25,25,1
 Style: romaji - 1,Steelfish Rg,55,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,110,40,2,0,1,2,2,4,25,25,25,1
 Style: romaji - 2,Steelfish Rg,55,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,110,40,2,0,1,2,2,4,25,25,25,1
 Style: Kanji - 1,あおぞら明朝 Heavy,32,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,12,0,1,2,2,6,25,25,25,1
 Style: Kanji - 2,あおぞら明朝 Heavy,32,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,12,0,1,2,2,6,25,25,25,1
-Style: translation - 1,RND Lyric SC,60.5,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,110,40,2,0,1,2,2,1,25,25,25,1
-Style: translation - 2,RND Lyric SC,60.5,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,110,40,2,0,1,2,2,1,25,25,25,1
-Style: translation - Copy,RND Lyric SC,60.5,&H00000000,&H000000FF,&H001B1512,&H00000000,-1,0,0,0,110,70,2,0,1,2,2,1,25,25,25,1
-Style: translation - 1 - Copy,RND Lyric SC,60.5,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,110,40,2,0,1,2,2,1,25,25,25,1
-Style: translation - 2 - Copy,RND Lyric SC,60.5,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,110,40,2,0,1,2,2,1,25,25,25,1
+Style: translation - 1,RND Lyric SC,60.5,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,2,0,1,2,2,1,25,25,25,1
+Style: translation - 2,RND Lyric SC,60.5,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,2,0,1,2,2,1,25,25,25,1
+Style: translation - Copy,RND Lyric SC,60.5,&H00000000,&H000000FF,&H001B1512,&H00000000,-1,0,0,0,100,100,2,0,1,2,2,1,25,25,25,1
+Style: translation - 1 - Copy,RND Lyric SC,60.5,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,2,0,1,2,2,1,25,25,25,1
+Style: translation - 2 - Copy,RND Lyric SC,60.5,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,2,0,1,2,2,1,25,25,25,1
 Style: romaji - Copy,Steelfish Rg,55,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,110,40,2,0,1,2,0,4,25,25,25,1
 Style: romaji - 1 - Copy,Steelfish Rg,55,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,110,40,2,0,1,2,0,4,25,25,25,1
 Style: romaji - 2 - Copy,Steelfish Rg,55,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,110,40,2,0,1,2,0,4,25,25,25,1
@@ -787,34 +787,34 @@ Dialogue: 1,0:01:53.64,0:01:53.81,romaji - 2,,0,0,0,fx,{\fad(0,150)\pos(741,65)\
 Dialogue: 1,0:01:41.39,0:01:55.62,romaji - 2,,0,0,0,fx,{\fad(300,250)\c&HFBE0BC&\3c&H846E51&\shad0\pos(767,65)\blur3\fscy70}ne
 Dialogue: 1,0:01:53.81,0:01:55.37,romaji - 2,,0,0,0,fx,{\fad(0,150)\pos(767,65)\org(769,170)\shad0\blur3\bord3\c&HFFFFFF&\3c&HFFFFFFF&\fscy70\1a&H33&\t(0,250,0.8,\blur2\bord2\c&HF9E6B7&\3c&HCBC1A7&)\t(1170,1560,\c&HFBE0BC&\3c&H846E51&\alpha&HFF&)}n
 Dialogue: 1,0:01:53.81,0:01:55.37,romaji - 2,,0,0,0,fx,{\fad(0,150)\pos(784,65)\org(786,170)\shad0\blur3\bord3\c&HFFFFFF&\3c&HFFFFFFF&\fscy70\1a&H33&\t(0,250,0.8,\blur2\bord2\c&HF9E6B7&\3c&HCBC1A7&)\t(1170,1560,\c&HFBE0BC&\3c&H846E51&\alpha&HFF&)}e
-Dialogue: 1,0:00:19.96,0:00:25.31,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0}因孤身一人的无力
-Dialogue: 1,0:00:19.96,0:00:25.31,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0}{\2c&HAEAEAE&}{\kf102}因{\kf62}孤{\kf74}身{\kf76}一{\kf58}人{\kf47}的{\kf36}无{\kf80}力
-Dialogue: 1,0:00:25.28,0:00:30.81,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0}甚至不具半点价值
-Dialogue: 1,0:00:25.28,0:00:30.81,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0}{\2c&HAEAEAE&}{\kf90}甚{\kf50}至{\kf66}不{\kf61}具{\kf57}半{\kf76}点{\kf102}价{\kf50}值
-Dialogue: 1,0:00:30.58,0:00:36.01,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0}一直被那样的空虚所支配
-Dialogue: 1,0:00:30.58,0:00:36.01,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0}{\2c&HAEAEAE&}{\kf81}一{\kf31}直{\kf38}被{\kf25}那{\kf76}样{\kf48}的{\kf62}空{\kf55}虚{\kf24}所{\kf54}支{\kf49}配
-Dialogue: 1,0:00:35.97,0:00:41.93,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0}总是如此 为明日惶恐
-Dialogue: 1,0:00:35.97,0:00:41.93,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0}{\2c&HAEAEAE&}{\kf56}总{\kf49}是{\kf65}如{\kf66}此{\kf46} {\kf29}为{\kf72}明{\kf49}日{\kf91}惶{\kf74}恐
-Dialogue: 1,0:00:41.91,0:00:47.30,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0}因微小契机而相遇的往日
-Dialogue: 1,0:00:41.91,0:00:47.30,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0}{\2c&HAEAEAE&}{\kf63}因{\kf38}微{\kf52}小{\kf78}契{\kf52}机{\kf44}而{\kf44}相{\kf48}遇{\kf54}的{\kf40}往{\kf27}日
-Dialogue: 1,0:00:47.28,0:00:52.62,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0}随口便说出朋友这样的话
-Dialogue: 1,0:00:47.28,0:00:52.62,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0}{\2c&HAEAEAE&}{\kf55}随{\kf31}口{\kf27}便{\kf55}说{\kf45}出{\kf41}朋{\kf71}友{\kf83}这{\kf63}样{\kf34}的{\kf28}话
-Dialogue: 1,0:00:52.60,0:01:02.05,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0}才察觉心底深处那珍贵之物
-Dialogue: 1,0:00:52.60,0:01:02.05,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0}{\2c&HAEAEAE&}{\kf67}才{\kf50}察{\kf77}觉{\kf66}心{\kf57}底{\kf58}深{\kf69}处{\kf67}那{\kf151}珍{\kf41}贵{\kf95}之{\kf146}物
-Dialogue: 1,0:01:02.11,0:01:07.29,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0}若是为谁 为了那人
-Dialogue: 1,0:01:02.11,0:01:07.29,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0}{\2c&HAEAEAE&}{\kf58}若{\kf92}是{\kf28}为{\kf50}谁{\kf71} {\kf26}为{\kf56}了{\kf47}那{\kf91}人
-Dialogue: 1,0:01:07.30,0:01:12.64,translation - 1,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0\t(4405,4810,\c&HFBE0BC&\3c&H846E51&)}就连这样的我 也随时能成为英雄
-Dialogue: 1,0:01:07.30,0:01:12.64,translation - 1,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HF9F9F9&\3c&H76594C&\shad0\t(4405,4810,\c&HFBE0BC&\3c&H846E51&)}{\2c&HAEAEAE&}{\kf56}就{\kf19}连{\kf27}这{\kf22}样{\kf36}的{\kf58}我{\kf16} {\kf14}也{\kf15}随{\kf36}时{\kf33}能{\kf29}成{\kf55}为{\kf97}英{\kf22}雄
-Dialogue: 1,0:01:12.76,0:01:18.58,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HFBE0BC&\3c&H846E51&\shad0}两个故事相互联结的这份奇迹
-Dialogue: 1,0:01:12.76,0:01:18.58,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HFBE0BC&\3c&H846E51&\shad0}{\2c&HFBE0BC&\1c&HFFFFFF&}{\kf58}两{\kf24}个{\kf21}故{\kf42}事{\kf65}相{\kf28}互{\kf38}联{\kf37}结{\kf44}的{\kf27}这{\kf37}份{\kf90}奇{\kf72}迹
-Dialogue: 1,0:01:18.62,0:01:28.98,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HFBE0BC&\3c&H846E51&\shad0}{\fs54.4}仿佛来自未来的某人 正牵引着命运之线一般
-Dialogue: 1,0:01:18.62,0:01:28.98,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HFBE0BC&\3c&H846E51&\shad0}{\2c&HFBE0BC&\1c&HFFFFFF&}{\fs54.4}{\kf86}仿{\kf127}佛{\kf73}来{\kf27}自{\kf69}未{\kf53}来{\kf43}的{\kf48}某{\kf45}人{\kf56} {\kf61}正{\kf47}牵{\kf41}引{\kf50}着{\kf27}命{\kf30}运{\kf48}之{\kf39}线{\kf30}一{\kf33}般
-Dialogue: 1,0:01:28.80,0:01:34.48,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HFBE0BC&\3c&H846E51&\shad0}一份心意 甚至能跨越时空
-Dialogue: 1,0:01:28.80,0:01:34.48,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HFBE0BC&\3c&H846E51&\shad0}{\2c&HFBE0BC&\1c&HFFFFFF&}{\kf59}一{\kf24}份{\kf26}心{\kf44}意{\kf56} {\kf32}甚{\kf39}至{\kf51}能{\kf38}跨{\kf39}越{\kf70}时{\kf91}空
-Dialogue: 1,0:01:34.62,0:01:41.56,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HFBE0BC&\3c&H846E51&\shad0}未曾见过的光芒 勾勒着门的轮廓
-Dialogue: 1,0:01:34.62,0:01:41.56,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HFBE0BC&\3c&H846E51&\shad0}{\2c&HFBE0BC&\1c&HFFFFFF&}{\kf73}未{\kf35}曾{\kf91}见{\kf74}过{\kf26}的{\kf22}光{\kf46}芒{\kf59} {\kf62}勾{\kf46}勒{\kf39}着{\kf43}门{\kf32}的{\kf18}轮{\kf28}廓
-Dialogue: 1,0:01:41.39,0:01:55.62,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HFBE0BC&\3c&H846E51&\shad0}观测者——这句话 我一直想说出口啊
-Dialogue: 1,0:01:41.39,0:01:55.62,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy70\blur3\c&HFBE0BC&\3c&H846E51&\shad0}{\2c&HFBE0BC&\1c&HFFFFFF&}{\kf70}观{\kf34}测{\kf61}者{\kf43}—{\kf42}—{\kf172}这{\kf72}句{\kf63}话{\kf121} {\kf231}我{\kf39}一{\kf24}直{\kf62}想{\kf153}说{\kf43}出{\kf106}口{\kf89}啊
+Dialogue: 1,0:00:19.96,0:00:25.31,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0}因孤身一人的无力
+Dialogue: 1,0:00:19.96,0:00:25.31,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0}{\2c&HAEAEAE&}{\kf102}因{\kf62}孤{\kf74}身{\kf76}一{\kf58}人{\kf47}的{\kf36}无{\kf80}力
+Dialogue: 1,0:00:25.28,0:00:30.81,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0}甚至不具半点价值
+Dialogue: 1,0:00:25.28,0:00:30.81,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0}{\2c&HAEAEAE&}{\kf90}甚{\kf50}至{\kf66}不{\kf61}具{\kf57}半{\kf76}点{\kf102}价{\kf50}值
+Dialogue: 1,0:00:30.58,0:00:36.01,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0}一直被那样的空虚所支配
+Dialogue: 1,0:00:30.58,0:00:36.01,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0}{\2c&HAEAEAE&}{\kf81}一{\kf31}直{\kf38}被{\kf25}那{\kf76}样{\kf48}的{\kf62}空{\kf55}虚{\kf24}所{\kf54}支{\kf49}配
+Dialogue: 1,0:00:35.97,0:00:41.93,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0}总是如此 为明日惶恐
+Dialogue: 1,0:00:35.97,0:00:41.93,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0}{\2c&HAEAEAE&}{\kf56}总{\kf49}是{\kf65}如{\kf66}此{\kf46} {\kf29}为{\kf72}明{\kf49}日{\kf91}惶{\kf74}恐
+Dialogue: 1,0:00:41.91,0:00:47.30,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0}因微小契机而相遇的往日
+Dialogue: 1,0:00:41.91,0:00:47.30,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0}{\2c&HAEAEAE&}{\kf63}因{\kf38}微{\kf52}小{\kf78}契{\kf52}机{\kf44}而{\kf44}相{\kf48}遇{\kf54}的{\kf40}往{\kf27}日
+Dialogue: 1,0:00:47.28,0:00:52.62,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0}随口便说出朋友这样的话
+Dialogue: 1,0:00:47.28,0:00:52.62,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0}{\2c&HAEAEAE&}{\kf55}随{\kf31}口{\kf27}便{\kf55}说{\kf45}出{\kf41}朋{\kf71}友{\kf83}这{\kf63}样{\kf34}的{\kf28}话
+Dialogue: 1,0:00:52.60,0:01:02.05,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0}才察觉心底深处那珍贵之物
+Dialogue: 1,0:00:52.60,0:01:02.05,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0}{\2c&HAEAEAE&}{\kf67}才{\kf50}察{\kf77}觉{\kf66}心{\kf57}底{\kf58}深{\kf69}处{\kf67}那{\kf151}珍{\kf41}贵{\kf95}之{\kf146}物
+Dialogue: 1,0:01:02.11,0:01:07.29,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0}若是为谁 为了那人
+Dialogue: 1,0:01:02.11,0:01:07.29,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0}{\2c&HAEAEAE&}{\kf58}若{\kf92}是{\kf28}为{\kf50}谁{\kf71} {\kf26}为{\kf56}了{\kf47}那{\kf91}人
+Dialogue: 1,0:01:07.30,0:01:12.64,translation - 1,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0\t(4405,4810,\c&HFBE0BC&\3c&H846E51&)}就连这样的我 也随时能成为英雄
+Dialogue: 1,0:01:07.30,0:01:12.64,translation - 1,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF9F9F9&\3c&H76594C&\shad0\t(4405,4810,\c&HFBE0BC&\3c&H846E51&)}{\2c&HAEAEAE&}{\kf56}就{\kf19}连{\kf27}这{\kf22}样{\kf36}的{\kf58}我{\kf16} {\kf14}也{\kf15}随{\kf36}时{\kf33}能{\kf29}成{\kf55}为{\kf97}英{\kf22}雄
+Dialogue: 1,0:01:12.76,0:01:18.58,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HFBE0BC&\3c&H846E51&\shad0}两个故事相互联结的这份奇迹
+Dialogue: 1,0:01:12.76,0:01:18.58,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HFBE0BC&\3c&H846E51&\shad0}{\2c&HFBE0BC&\1c&HFFFFFF&}{\kf58}两{\kf24}个{\kf21}故{\kf42}事{\kf65}相{\kf28}互{\kf38}联{\kf37}结{\kf44}的{\kf27}这{\kf37}份{\kf90}奇{\kf72}迹
+Dialogue: 1,0:01:18.62,0:01:28.98,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HFBE0BC&\3c&H846E51&\shad0}{\fs59.6}仿佛来自未来的某人 正牵引着命运之线一般
+Dialogue: 1,0:01:18.62,0:01:28.98,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HFBE0BC&\3c&H846E51&\shad0}{\2c&HFBE0BC&\1c&HFFFFFF&}{\fs59.6}{\kf86}仿{\kf127}佛{\kf73}来{\kf27}自{\kf69}未{\kf53}来{\kf43}的{\kf48}某{\kf45}人{\kf56} {\kf61}正{\kf47}牵{\kf41}引{\kf50}着{\kf27}命{\kf30}运{\kf48}之{\kf39}线{\kf30}一{\kf33}般
+Dialogue: 1,0:01:28.80,0:01:34.48,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HFBE0BC&\3c&H846E51&\shad0}一份心意 甚至能跨越时空
+Dialogue: 1,0:01:28.80,0:01:34.48,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HFBE0BC&\3c&H846E51&\shad0}{\2c&HFBE0BC&\1c&HFFFFFF&}{\kf59}一{\kf24}份{\kf26}心{\kf44}意{\kf56} {\kf32}甚{\kf39}至{\kf51}能{\kf38}跨{\kf39}越{\kf70}时{\kf91}空
+Dialogue: 1,0:01:34.62,0:01:41.56,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HFBE0BC&\3c&H846E51&\shad0}未曾见过的光芒 勾勒着门的轮廓
+Dialogue: 1,0:01:34.62,0:01:41.56,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HFBE0BC&\3c&H846E51&\shad0}{\2c&HFBE0BC&\1c&HFFFFFF&}{\kf73}未{\kf35}曾{\kf91}见{\kf74}过{\kf26}的{\kf22}光{\kf46}芒{\kf59} {\kf62}勾{\kf46}勒{\kf39}着{\kf43}门{\kf32}的{\kf18}轮{\kf28}廓
+Dialogue: 1,0:01:41.39,0:01:55.62,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HFBE0BC&\3c&H846E51&\shad0}观测者——这句话 我一直想说出口啊
+Dialogue: 1,0:01:41.39,0:01:55.62,translation - 2,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HFBE0BC&\3c&H846E51&\shad0}{\2c&HFBE0BC&\1c&HFFFFFF&}{\kf70}观{\kf34}测{\kf61}者{\kf43}—{\kf42}—{\kf172}这{\kf72}句{\kf63}话{\kf121} {\kf231}我{\kf39}一{\kf24}直{\kf62}想{\kf153}说{\kf43}出{\kf106}口{\kf89}啊
 Dialogue: 1,0:00:19.96,0:00:25.31,Kanji,,0,0,0,fx,{\fad(300,250)\c&HF9F9F9&\3c&H76594C&\shad0\an5\pos(1219,184.3515625)\blur3}自
 Dialogue: 1,0:00:20.26,0:00:20.62,Kanji,,0,0,0,fx,{\an5\fad(0,100)\pos(1219,184.3515625)\shad0\blur3\bord3\c&HFFFFFF&\3c&HFFFFFFF&\1a&H33&\t(0,250,0.8,\blur2\bord2\c&HF9E6B7&\3c&HFCE8B0&)\t(270,360,\c&HF9F9F9&\3c&H76594C&\alpha&HFF&)}自
 Dialogue: 1,0:00:19.96,0:00:25.31,Kanji,,0,0,0,fx,{\fad(300,250)\c&HF9F9F9&\3c&H76594C&\shad0\an5\pos(1219,225.3828125)\blur3}分

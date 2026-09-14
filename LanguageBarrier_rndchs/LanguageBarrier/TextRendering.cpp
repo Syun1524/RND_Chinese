@@ -67,9 +67,32 @@ void TextRendering::Init(void* widthData, void* widthData2,
                          FontDataLanguage language) {
   auto charset = lb::config["patch"]["charset"].get<std::string>();
   this->fontPath = lb::config["patch"]["fontPath"].get<std::string>();
+  if (lb::config["patch"].count("narrowQuotes") == 1)
+    this->narrowQuotes = lb::config["patch"]["narrowQuotes"].get<bool>();
+  if (lb::config["patch"].count("quoteWidthPixels") == 1)
+    this->quoteWidth32 =
+        lb::config["patch"]["quoteWidthPixels"].get<uint16_t>();
+  if (lb::config["patch"].count("quoteInsetPixels") == 1)
+    this->quoteInset32 =
+        lb::config["patch"]["quoteInsetPixels"].get<uint16_t>();
   std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
   fullCharMap = converter.from_bytes(charset.c_str());
   this->charsetHash = computeCharsetHash(fullCharMap);
+  // Fold the glyph-metric overrides into the same fingerprint the cache check
+  // uses. These change baked advances without changing the charset, so without
+  // this a cache written before the change would still validate and the new
+  // metrics would never be applied -- the same silent-no-op shape that bit the
+  // ruby table and the backlog columns.
+  {
+    uint32_t h = this->charsetHash;
+    h ^= (uint32_t)this->narrowQuotes;
+    h *= 16777619u;
+    h ^= this->quoteWidth32;
+    h *= 16777619u;
+    h ^= this->quoteInset32;
+    h *= 16777619u;
+    this->charsetHash = h;
+  }
 
   currentCharMap = &fullCharMap;
   this->buildFont(32, true);
@@ -107,6 +130,24 @@ void TextRendering::Init(void* widthData, void* widthData2,
     newWidth2[i] = newWidth[i];
     this->widthData[i] = newWidth[i];
     this->widthData2[i] = newWidth[i];
+  }
+  // Quotes live past the first 351 cells, so the loop above never reached them.
+  // The game reads their widths out of this very table to decide where lines
+  // wrap, so the narrowed step has to land here too -- otherwise the layout
+  // still budgets a full cell per bracket and wrapping disagrees with drawing.
+  if (this->narrowQuotes) {
+    static const wchar_t kQuotes[] = {0x300C, 0x300D, 0x300E, 0x300F};
+    for (wchar_t q : kQuotes) {
+      const size_t id = fullCharMap.find(q);
+      if (id == std::wstring::npos || id >= 32000) continue;
+      const uint8_t w = (uint8_t)this->getFont(32, true)
+                            ->getGlyphInfo((int)id, FontType::Regular)
+                            ->advance;
+      newWidth[id] = w;
+      newWidth2[id] = w;
+      this->widthData[id] = w;
+      this->widthData2[id] = w;
+    }
   }
   this->fontData.erase(32);
   this->widthData[0] = lb::config["patch"]["spaceWidthPixels"].get<uint16_t>();
@@ -529,6 +570,27 @@ void TextRendering::loadCache() {
   return;
 }
 
+// Quoting brackets are full-width in the source font, but their ink only fills
+// the right half of that cell (measured: 13px of ink inside a 40px advance at
+// size 40, with 26px of blank to its left). Two things follow, and both are
+// fixed by the same change:
+//
+//   * a line that wraps starts at the block's left edge, so its first glyph
+//     lands next to the *blank* half of the previous line's bracket and the
+//     block reads ragged;
+//   * the bracket looks like it is standing a full character away from the
+//     text it opens.
+//
+// Narrowing the step to half an em and pulling the ink to the cell's left edge
+// gives the brackets a half-width feel. The layout table is patched to match
+// (see TextRendering::Init) so wrapping still agrees with what gets drawn --
+// quotes sit past the first 351 cells, which the existing width pass never
+// reached.
+static bool isNarrowQuote(wchar_t c) {
+  return c == 0x300C || c == 0x300D ||  // 「 」
+         c == 0x300E || c == 0x300F;    // 『 』
+}
+
 void TextRendering::renderGlyph(FontData* fontData, uint16_t n, bool measure) {
   FT_Long glyph_index;
   FT_Glyph glyph;
@@ -564,6 +626,11 @@ void TextRendering::renderGlyph(FontData* fontData, uint16_t n, bool measure) {
   glyphData->width = face->glyph->bitmap.width;
   glyphData->left = face->glyph->bitmap_left;
   glyphData->top = face->glyph->bitmap_top;
+  if (this->narrowQuotes && isNarrowQuote((wchar_t)n)) {
+    glyphData->advance =
+        (uint16_t)(this->quoteWidth32 * fontData->size / 32.0f);
+    glyphData->left = (int32_t)(this->quoteInset32 * fontData->size / 32.0f);
+  }
   if (!measure) {
     glyphData->data = new uint8_t[FONT_CELL_SIZE * FONT_CELL_SIZE];
     memset(glyphData->data, 0, FONT_CELL_SIZE * FONT_CELL_SIZE);
@@ -594,6 +661,11 @@ void TextRendering::RenderOutline(FontData* fontData, uint16_t n,
   glyphData->width = bitmapGlyph->bitmap.width;
   glyphData->left = bitmapGlyph->left;
   glyphData->top = bitmapGlyph->top;
+  // Same shift as the fill: the outline is positioned by this value too, so a
+  // narrowed quote whose outline kept the old bearing would show a double edge.
+  if (this->narrowQuotes && isNarrowQuote((wchar_t)n)) {
+    glyphData->left = (int32_t)(this->quoteInset32 * fontData->size / 32.0f);
+  }
   int diff =
       (glyphData->width - fontData->getGlyphInfoByChar(n, Regular)->width);
   glyphData->advance = face->glyph->advance.x / 64 + diff;

@@ -28,7 +28,7 @@ Style: Kanji-furigana,東風ゴシック,25,&H00FFFFFF,&H000000FF,&H00000000,&H0
 Style: Default-furigana,Arial,15,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.51111,1.51111,2,15,15,15,1
 Style: Default,Arial,30,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3.02222,3.02222,2,15,15,15,1
 Style: romaji,Folks,68,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,85,100,1,0,1,3,3,4,38,38,38,1
-Style: translation,RND Lyric SC,74.8,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,85,100,1,0,1,3,3,1,38,38,38,1
+Style: translation,RND Lyric SC,74.8,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,1,0,1,3,3,1,38,38,38,1
 Style: Kanji,東風ゴシック,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,12,0,1,3.02222,3.02222,6,38,38,38,1
 
 [Events]
@@ -99,40 +99,40 @@ Dialogue: 0,0:00:00.40,0:00:05.40,Default,,0,0,0,,
 Dialogue: 0,0:04:53.27,0:04:55.27,Kanji,,0,0,0,,
 Dialogue: 0,0:02:18.26,0:02:20.26,Kanji,,0,0,0,,
 Dialogue: 0,0:02:18.26,0:02:20.26,Kanji,,0,0,0,,
-Dialogue: 0,0:00:11.66,0:00:16.85,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}以不可思议之力相互吸引
-Dialogue: 0,0:00:11.66,0:00:16.85,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf57}以{\kf32}不{\kf30}可{\kf39}思{\kf26}议{\kf92}之{\kf35}力{\kf24}相{\kf54}互{\kf92}吸{\kf39}引
-Dialogue: 0,0:00:17.07,0:00:22.89,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}大家心意相叠的那些时光
-Dialogue: 0,0:00:17.07,0:00:22.89,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf91}大{\kf39}家{\kf48}心{\kf28}意{\kf45}相{\kf28}叠{\kf61}的{\kf75}那{\kf59}些{\kf52}时{\kf56}光
-Dialogue: 0,0:00:22.59,0:00:32.30,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}忘情奔跑于悲喜交织的道路
-Dialogue: 0,0:00:22.59,0:00:32.30,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf72}忘{\kf58}情{\kf63}奔{\kf44}跑{\kf79}于{\kf68}悲{\kf132}喜{\kf78}交{\kf72}织{\kf80}的{\kf58}道{\kf167}路
-Dialogue: 0,0:00:32.47,0:00:40.96,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}前奏的故事
-Dialogue: 0,0:00:32.47,0:00:40.96,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf68}前{\kf34}奏{\kf270}的{\kf452}故{\kf25}事
-Dialogue: 0,0:00:55.46,0:01:01.16,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}这并非偶然 连预想都不容许
-Dialogue: 0,0:00:55.46,0:01:01.16,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf82}这{\kf41}并{\kf53}非{\kf46}偶{\kf53}然{\kf28} {\kf54}连{\kf46}预{\kf28}想{\kf26}都{\kf57}不{\kf27}容{\kf28}许
-Dialogue: 0,0:01:00.97,0:01:06.48,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}这更非必然 只是独善的美学
-Dialogue: 0,0:01:00.97,0:01:06.48,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf64}这{\kf22}更{\kf53}非{\kf37}必{\kf26}然{\kf25} {\kf35}只{\kf74}是{\kf81}独{\kf51}善{\kf27}的{\kf23}美{\kf32}学
-Dialogue: 0,0:01:06.48,0:01:12.19,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}以多维度的构图 挥舞着虚假
-Dialogue: 0,0:01:06.48,0:01:12.19,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf58}以{\kf37}多{\kf24}维{\kf43}度{\kf36}的{\kf36}构{\kf38}图{\kf27} {\kf59}挥{\kf50}舞{\kf55}着{\kf64}虚{\kf42}假
-Dialogue: 0,0:01:11.94,0:01:17.07,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}仿佛挑衅般 连天空之色也一并欺骗
-Dialogue: 0,0:01:11.94,0:01:17.07,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf59}仿{\kf22}佛{\kf44}挑{\kf38}衅{\kf23}般{\kf24} {\kf22}连{\kf39}天{\kf29}空{\kf22}之{\kf44}色{\kf22}也{\kf36}一{\kf25}并{\kf29}欺{\kf35}骗
-Dialogue: 0,0:01:17.13,0:01:20.16,translation,,0,0,0,fx,{\fad(300,250)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\fscy83\an2\pos(960,1038)}{\fs35\fsp7}我正走向新世界秩序\N{\fs68\fsp0}I am to the New World Order
-Dialogue: 0,0:01:20.16,0:01:22.86,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}那此刻的天候呢？
-Dialogue: 0,0:01:20.16,0:01:22.86,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf164}那{\kf16}此{\kf8}刻{\kf19}的{\kf19}天{\kf12}候{\kf22}呢{\kf10}？
-Dialogue: 0,0:01:22.60,0:01:25.60,translation,,0,0,0,fx,{\fad(300,250)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\fscy83\an2\pos(960,1038)}{\fs35\fsp7}神明将降临于世\N{\fs68\fsp0}God will come down to the world
-Dialogue: 0,0:01:25.60,0:01:28.11,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}是猛烈的风暴气象
-Dialogue: 0,0:01:25.60,0:01:28.11,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf154}是{\kf12}猛{\kf15}烈{\kf9}的{\kf14}风{\kf17}暴{\kf17}气{\kf13}象
-Dialogue: 0,0:01:28.02,0:01:33.85,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}风向自东北方而来 步步逼近的最后时限
-Dialogue: 0,0:01:28.02,0:01:33.85,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf60}风{\kf46}向{\kf35}自{\kf32}东{\kf31}北{\kf48}方{\kf30}而{\kf23}来{\kf1} {\kf46}步{\kf30}步{\kf38}逼{\kf45}近{\kf37}的{\kf23}最{\kf23}后{\kf11}时{\kf25}限
-Dialogue: 0,0:01:33.55,0:01:35.08,translation,,0,0,0,fx,{\fad(300,250)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\fscy83\an2\pos(960,1038)}{\fs35\fsp7}再一次\N{\fs68\fsp0}Once again
-Dialogue: 0,0:01:35.08,0:01:42.12,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}为了逝去的生命 我们已决不再逃避
-Dialogue: 0,0:01:35.08,0:01:42.12,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf173}为{\kf28}了{\kf32}逝{\kf55}去{\kf59}的{\kf28}生{\kf18}命{\kf14} {\kf38}我{\kf24}们{\kf59}已{\kf75}决{\kf27}不{\kf23}再{\kf25}逃{\kf24}避
-Dialogue: 0,0:01:43.94,0:01:50.45,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}那是联结未来与过去的 肉眼不见的某种存在
-Dialogue: 0,0:01:43.94,0:01:50.45,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf59}那{\kf31}是{\kf46}联{\kf36}结{\kf30}未{\kf29}来{\kf35}与{\kf45}过{\kf24}去{\kf28}的{\kf1} {\kf25}肉{\kf21}眼{\kf32}不{\kf38}见{\kf44}的{\kf40}某{\kf35}种{\kf23}存{\kf29}在
-Dialogue: 0,0:01:50.28,0:01:55.10,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}以堪称执念的坚韧
-Dialogue: 0,0:01:50.28,0:01:55.10,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf73}以{\kf45}堪{\kf63}称{\kf56}执{\kf33}念{\kf98}的{\kf42}坚{\kf72}韧
-Dialogue: 0,0:01:55.01,0:02:01.38,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}比宇宙漂浮的尘埃 更为微小的那份可能
-Dialogue: 0,0:01:55.01,0:02:01.38,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf74}比{\kf45}宇{\kf46}宙{\kf33}漂{\kf44}浮{\kf52}的{\kf35}尘{\kf29}埃{\kf1} {\kf17}更{\kf35}为{\kf33}微{\kf33}小{\kf33}的{\kf53}那{\kf36}份{\kf14}可{\kf25}能
-Dialogue: 0,0:02:01.30,0:02:06.48,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}你深信不疑的那双直率眼眸
-Dialogue: 0,0:02:01.30,0:02:06.48,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf74}你{\kf38}深{\kf25}信{\kf23}不{\kf24}疑{\kf41}的{\kf38}那{\kf55}双{\kf46}直{\kf23}率{\kf75}眼{\kf56}眸
-Dialogue: 0,0:02:06.78,0:02:18.51,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}所以我誓言 定会传递这份交接
-Dialogue: 0,0:02:06.78,0:02:18.51,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\fscy83\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf59}所{\kf24}以{\kf41}我{\kf49}誓{\kf90}言{\kf67} {\kf27}定{\kf50}会{\kf154}传{\kf106}递{\kf100}这{\kf32}份{\kf227}交{\kf146}接
+Dialogue: 0,0:00:11.66,0:00:16.85,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}以不可思议之力相互吸引
+Dialogue: 0,0:00:11.66,0:00:16.85,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf57}以{\kf32}不{\kf30}可{\kf39}思{\kf26}议{\kf92}之{\kf35}力{\kf24}相{\kf54}互{\kf92}吸{\kf39}引
+Dialogue: 0,0:00:17.07,0:00:22.89,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}大家心意相叠的那些时光
+Dialogue: 0,0:00:17.07,0:00:22.89,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf91}大{\kf39}家{\kf48}心{\kf28}意{\kf45}相{\kf28}叠{\kf61}的{\kf75}那{\kf59}些{\kf52}时{\kf56}光
+Dialogue: 0,0:00:22.59,0:00:32.30,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}忘情奔跑于悲喜交织的道路
+Dialogue: 0,0:00:22.59,0:00:32.30,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf72}忘{\kf58}情{\kf63}奔{\kf44}跑{\kf79}于{\kf68}悲{\kf132}喜{\kf78}交{\kf72}织{\kf80}的{\kf58}道{\kf167}路
+Dialogue: 0,0:00:32.47,0:00:40.96,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}前奏的故事
+Dialogue: 0,0:00:32.47,0:00:40.96,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf68}前{\kf34}奏{\kf270}的{\kf452}故{\kf25}事
+Dialogue: 0,0:00:55.46,0:01:01.16,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}这并非偶然 连预想都不容许
+Dialogue: 0,0:00:55.46,0:01:01.16,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf82}这{\kf41}并{\kf53}非{\kf46}偶{\kf53}然{\kf28} {\kf54}连{\kf46}预{\kf28}想{\kf26}都{\kf57}不{\kf27}容{\kf28}许
+Dialogue: 0,0:01:00.97,0:01:06.48,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}这更非必然 只是独善的美学
+Dialogue: 0,0:01:00.97,0:01:06.48,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf64}这{\kf22}更{\kf53}非{\kf37}必{\kf26}然{\kf25} {\kf35}只{\kf74}是{\kf81}独{\kf51}善{\kf27}的{\kf23}美{\kf32}学
+Dialogue: 0,0:01:06.48,0:01:12.19,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}以多维度的构图 挥舞着虚假
+Dialogue: 0,0:01:06.48,0:01:12.19,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf58}以{\kf37}多{\kf24}维{\kf43}度{\kf36}的{\kf36}构{\kf38}图{\kf27} {\kf59}挥{\kf50}舞{\kf55}着{\kf64}虚{\kf42}假
+Dialogue: 0,0:01:11.94,0:01:17.07,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}仿佛挑衅般 连天空之色也一并欺骗
+Dialogue: 0,0:01:11.94,0:01:17.07,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf59}仿{\kf22}佛{\kf44}挑{\kf38}衅{\kf23}般{\kf24} {\kf22}连{\kf39}天{\kf29}空{\kf22}之{\kf44}色{\kf22}也{\kf36}一{\kf25}并{\kf29}欺{\kf35}骗
+Dialogue: 0,0:01:17.13,0:01:20.16,translation,,0,0,0,fx,{\fad(300,250)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\fscy83\an2\pos(960,1038)}{\fs35\fsp7}我正走向新世界秩序\N{\fs68\fsp0}I am to the New World Order
+Dialogue: 0,0:01:20.16,0:01:22.86,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}那此刻的天候呢？
+Dialogue: 0,0:01:20.16,0:01:22.86,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf164}那{\kf16}此{\kf8}刻{\kf19}的{\kf19}天{\kf12}候{\kf22}呢{\kf10}？
+Dialogue: 0,0:01:22.60,0:01:25.60,translation,,0,0,0,fx,{\fad(300,250)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\fscy83\an2\pos(960,1038)}{\fs35\fsp7}神明将降临于世\N{\fs68\fsp0}God will come down to the world
+Dialogue: 0,0:01:25.60,0:01:28.11,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}是猛烈的风暴气象
+Dialogue: 0,0:01:25.60,0:01:28.11,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf154}是{\kf12}猛{\kf15}烈{\kf9}的{\kf14}风{\kf17}暴{\kf17}气{\kf13}象
+Dialogue: 0,0:01:28.02,0:01:33.85,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}风向自东北方而来 步步逼近的最后时限
+Dialogue: 0,0:01:28.02,0:01:33.85,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf60}风{\kf46}向{\kf35}自{\kf32}东{\kf31}北{\kf48}方{\kf30}而{\kf23}来{\kf1} {\kf46}步{\kf30}步{\kf38}逼{\kf45}近{\kf37}的{\kf23}最{\kf23}后{\kf11}时{\kf25}限
+Dialogue: 0,0:01:33.55,0:01:35.08,translation,,0,0,0,fx,{\fad(300,250)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\fscy83\an2\pos(960,1038)}{\fs35\fsp7}再一次\N{\fs68\fsp0}Once again
+Dialogue: 0,0:01:35.08,0:01:42.12,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}为了逝去的生命 我们已决不再逃避
+Dialogue: 0,0:01:35.08,0:01:42.12,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf173}为{\kf28}了{\kf32}逝{\kf55}去{\kf59}的{\kf28}生{\kf18}命{\kf14} {\kf38}我{\kf24}们{\kf59}已{\kf75}决{\kf27}不{\kf23}再{\kf25}逃{\kf24}避
+Dialogue: 0,0:01:43.94,0:01:50.45,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}那是联结未来与过去的 肉眼不见的某种存在
+Dialogue: 0,0:01:43.94,0:01:50.45,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf59}那{\kf31}是{\kf46}联{\kf36}结{\kf30}未{\kf29}来{\kf35}与{\kf45}过{\kf24}去{\kf28}的{\kf1} {\kf25}肉{\kf21}眼{\kf32}不{\kf38}见{\kf44}的{\kf40}某{\kf35}种{\kf23}存{\kf29}在
+Dialogue: 0,0:01:50.28,0:01:55.10,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}以堪称执念的坚韧
+Dialogue: 0,0:01:50.28,0:01:55.10,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf73}以{\kf45}堪{\kf63}称{\kf56}执{\kf33}念{\kf98}的{\kf42}坚{\kf72}韧
+Dialogue: 0,0:01:55.01,0:02:01.38,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}比宇宙漂浮的尘埃 更为微小的那份可能
+Dialogue: 0,0:01:55.01,0:02:01.38,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf74}比{\kf45}宇{\kf46}宙{\kf33}漂{\kf44}浮{\kf52}的{\kf35}尘{\kf29}埃{\kf1} {\kf17}更{\kf35}为{\kf33}微{\kf33}小{\kf33}的{\kf53}那{\kf36}份{\kf14}可{\kf25}能
+Dialogue: 0,0:02:01.30,0:02:06.48,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}你深信不疑的那双直率眼眸
+Dialogue: 0,0:02:01.30,0:02:06.48,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf74}你{\kf38}深{\kf25}信{\kf23}不{\kf24}疑{\kf41}的{\kf38}那{\kf55}双{\kf46}直{\kf23}率{\kf75}眼{\kf56}眸
+Dialogue: 0,0:02:06.78,0:02:18.51,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}所以我誓言 定会传递这份交接
+Dialogue: 0,0:02:06.78,0:02:18.51,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf59}所{\kf24}以{\kf41}我{\kf49}誓{\kf90}言{\kf67} {\kf27}定{\kf50}会{\kf154}传{\kf106}递{\kf100}这{\kf32}份{\kf227}交{\kf146}接

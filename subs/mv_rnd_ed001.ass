@@ -28,7 +28,7 @@ Style: Kanji-furigana,東風ゴシック,16.5,&H00FFFFFF,&H000000FF,&H00000000,&
 Style: Default-furigana,Arial,10,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1,1,2,10,10,10,1
 Style: Default,Arial,20,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,2,2,10,10,10,1
 Style: romaji,Roboto,45,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,80,100,0.5,0,1,2,2,4,25,25,25,1
-Style: translation,RND Lyric SC,49.5,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,80,100,0.5,0,1,2,2,1,25,25,25,1
+Style: translation,RND Lyric SC,49.5,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0.5,0,1,2,2,1,25,25,25,1
 Style: Kanji,東風ゴシック,32,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,8,0,1,2,2,6,25,25,25,1
 
 [Events]
@@ -1269,35 +1269,35 @@ Dialogue: 0,0:02:27.94,0:02:28.51,Kanji,,0,0,0,fx,{\an5\fad(0,100)\pos(1219,440)
 Dialogue: 0,0:02:27.94,0:02:28.51,Kanji,,0,0,0,fx,{\an5\fad(0,100)\pos(1219,480)\shad0\blur3\bord3\c&HFFFFFF&\3c&HDECCB1&\1a&H33&\t(0,250,0.8,\blur2\bord2\c&HDECCB1&\3c&H9D907D&)\t(427.5,570,\c&HF1CEA3&\3c&H3F3A33&\alpha&HFF&)}い
 Dialogue: 0,0:02:22.26,0:02:32.17,Kanji,,0,0,0,fx,{\fad(300,250)\c&HF1CEA3&\3c&H3F3A33&\shad0\an5\pos(1219,520)\blur3}で
 Dialogue: 0,0:02:28.51,0:02:31.90,Kanji,,0,0,0,fx,{\an5\fad(0,100)\pos(1219,520)\shad0\blur3\bord3\c&HFFFFFF&\3c&HDECCB1&\1a&H33&\t(0,250,0.8,\blur2\bord2\c&HDECCB1&\3c&H9D907D&)\t(2542.5,3390,\c&HF1CEA3&\3c&H3F3A33&\alpha&HFF&)}で
-Dialogue: 0,0:00:30.04,0:00:40.94,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}呐 你呼唤我的那嘹亮之声 撼动了我的心
-Dialogue: 0,0:00:30.04,0:00:40.94,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf130}呐{\kf38} {\kf42}你{\kf110}呼{\kf42}唤{\kf47}我{\kf76}的{\kf49}那{\kf40}嘹{\kf41}亮{\kf43}之{\kf81}声{\kf30} {\kf70}撼{\kf36}动{\kf42}了{\kf35}我{\kf95}的{\kf43}心
-Dialogue: 0,0:00:41.14,0:00:47.44,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}仰望的天空 亮得近乎耀眼
-Dialogue: 0,0:00:41.14,0:00:47.44,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf60}仰{\kf52}望{\kf62}的{\kf29}天{\kf54}空{\kf82} {\kf43}亮{\kf46}得{\kf44}近{\kf28}乎{\kf47}耀{\kf82}眼
-Dialogue: 0,0:00:47.54,0:00:53.72,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}那如常的笑容正闪闪发光
-Dialogue: 0,0:00:47.54,0:00:53.72,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf76}那{\kf39}如{\kf46}常{\kf34}的{\kf61}笑{\kf52}容{\kf57}正{\kf51}闪{\kf43}闪{\kf93}发{\kf65}光
-Dialogue: 0,0:00:53.72,0:01:04.29,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}是啊 我们 走过了无可替代的时光
-Dialogue: 0,0:00:53.72,0:01:04.29,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf123}是{\kf106}啊{\kf70} {\kf68}我{\kf73}们{\kf35} {\kf52}走{\kf56}过{\kf66}了{\kf53}无{\kf72}可{\kf51}替{\kf47}代{\kf63}的{\kf55}时{\kf67}光
-Dialogue: 0,0:01:04.83,0:01:10.64,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}无论悲伤的夜晚 喜悦的清晨
-Dialogue: 0,0:01:04.83,0:01:10.64,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf53}无{\kf38}论{\kf28}悲{\kf53}伤{\kf22}的{\kf37}夜{\kf29}晚{\kf49} {\kf25}喜{\kf51}悦{\kf43}的{\kf58}清{\kf94}晨
-Dialogue: 0,0:01:10.68,0:01:16.58,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}一切都连结于今天
-Dialogue: 0,0:01:10.68,0:01:16.58,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf78}一{\kf35}切{\kf74}都{\kf72}连{\kf88}结{\kf48}于{\kf150}今{\kf46}天
-Dialogue: 0,0:01:17.47,0:01:29.32,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}宛如奇迹的瞬间 此刻正降落在我们身上
-Dialogue: 0,0:01:17.47,0:01:29.32,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf90}宛{\kf66}如{\kf108}奇{\kf73}迹{\kf73}的{\kf83}瞬{\kf65}间{\kf64} {\kf75}此{\kf37}刻{\kf72}正{\kf77}降{\kf38}落{\kf69}在{\kf75}我{\kf75}们{\kf21}身{\kf25}上
-Dialogue: 0,0:01:29.32,0:01:40.24,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}光芒之中 彩虹横跨 描绘出耀眼的希望
-Dialogue: 0,0:01:29.32,0:01:40.24,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf85}光{\kf48}芒{\kf33}之{\kf44}中{\kf78} {\kf53}彩{\kf68}虹{\kf97}横{\kf38}跨{\kf33} {\kf108}描{\kf51}绘{\kf50}出{\kf64}耀{\kf118}眼{\kf77}的{\kf20}希{\kf27}望
-Dialogue: 0,0:01:40.05,0:01:46.66,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}无论梦想 心愿 乃至未来
-Dialogue: 0,0:01:40.05,0:01:46.66,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf85}无{\kf42}论{\kf44}梦{\kf39}想{\kf58} {\kf83}心{\kf35}愿{\kf43} {\kf58}乃{\kf57}至{\kf41}未{\kf76}来
-Dialogue: 0,0:01:46.68,0:01:52.82,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}与你一起 便觉能够实现
-Dialogue: 0,0:01:46.68,0:01:52.82,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf80}与{\kf36}你{\kf42}一{\kf95}起{\kf46} {\kf54}便{\kf47}觉{\kf27}能{\kf48}够{\kf89}实{\kf50}现
-Dialogue: 0,0:01:52.99,0:01:58.49,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}黑暗中也坚持的勇气
-Dialogue: 0,0:01:52.99,0:01:58.49,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf78}黑{\kf52}暗{\kf58}中{\kf46}也{\kf52}坚{\kf55}持{\kf43}的{\kf76}勇{\kf89}气
-Dialogue: 0,0:01:58.59,0:02:03.96,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}真想紧握于手中
-Dialogue: 0,0:01:58.59,0:02:03.96,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf85}真{\kf41}想{\kf45}紧{\kf115}握{\kf70}于{\kf143}手{\kf38}中
-Dialogue: 0,0:02:03.76,0:02:10.37,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}直到遥远宇宙的更深彼方
-Dialogue: 0,0:02:03.76,0:02:10.37,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf87}直{\kf47}到{\kf57}遥{\kf47}远{\kf47}宇{\kf85}宙{\kf47}的{\kf65}更{\kf56}深{\kf46}彼{\kf77}方
-Dialogue: 0,0:02:10.45,0:02:16.52,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}相叠的心意定会回响
-Dialogue: 0,0:02:10.45,0:02:16.52,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf82}相{\kf67}叠{\kf103}的{\kf47}心{\kf75}意{\kf41}定{\kf50}会{\kf85}回{\kf55}响
-Dialogue: 0,0:02:16.72,0:02:22.32,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}纵使光阴流转 彼此相守这份信念
-Dialogue: 0,0:02:16.72,0:02:22.32,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf47}纵{\kf32}使{\kf22}光{\kf21}阴{\kf26}流{\kf17}转{\kf23} {\kf19}彼{\kf20}此{\kf11}相{\kf122}守{\kf29}这{\kf20}份{\kf48}信{\kf104}念
-Dialogue: 0,0:02:22.26,0:02:32.17,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}请永远不要放手
-Dialogue: 0,0:02:22.26,0:02:32.17,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\fscy83\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf58}请{\kf233}永{\kf158}远{\kf78}不{\kf50}要{\kf243}放{\kf171}手
+Dialogue: 0,0:00:30.04,0:00:40.94,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}呐 你呼唤我的那嘹亮之声 撼动了我的心
+Dialogue: 0,0:00:30.04,0:00:40.94,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf130}呐{\kf38} {\kf42}你{\kf110}呼{\kf42}唤{\kf47}我{\kf76}的{\kf49}那{\kf40}嘹{\kf41}亮{\kf43}之{\kf81}声{\kf30} {\kf70}撼{\kf36}动{\kf42}了{\kf35}我{\kf95}的{\kf43}心
+Dialogue: 0,0:00:41.14,0:00:47.44,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}仰望的天空 亮得近乎耀眼
+Dialogue: 0,0:00:41.14,0:00:47.44,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf60}仰{\kf52}望{\kf62}的{\kf29}天{\kf54}空{\kf82} {\kf43}亮{\kf46}得{\kf44}近{\kf28}乎{\kf47}耀{\kf82}眼
+Dialogue: 0,0:00:47.54,0:00:53.72,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}那如常的笑容正闪闪发光
+Dialogue: 0,0:00:47.54,0:00:53.72,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf76}那{\kf39}如{\kf46}常{\kf34}的{\kf61}笑{\kf52}容{\kf57}正{\kf51}闪{\kf43}闪{\kf93}发{\kf65}光
+Dialogue: 0,0:00:53.72,0:01:04.29,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}是啊 我们 走过了无可替代的时光
+Dialogue: 0,0:00:53.72,0:01:04.29,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf123}是{\kf106}啊{\kf70} {\kf68}我{\kf73}们{\kf35} {\kf52}走{\kf56}过{\kf66}了{\kf53}无{\kf72}可{\kf51}替{\kf47}代{\kf63}的{\kf55}时{\kf67}光
+Dialogue: 0,0:01:04.83,0:01:10.64,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}无论悲伤的夜晚 喜悦的清晨
+Dialogue: 0,0:01:04.83,0:01:10.64,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf53}无{\kf38}论{\kf28}悲{\kf53}伤{\kf22}的{\kf37}夜{\kf29}晚{\kf49} {\kf25}喜{\kf51}悦{\kf43}的{\kf58}清{\kf94}晨
+Dialogue: 0,0:01:10.68,0:01:16.58,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}一切都连结于今天
+Dialogue: 0,0:01:10.68,0:01:16.58,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf78}一{\kf35}切{\kf74}都{\kf72}连{\kf88}结{\kf48}于{\kf150}今{\kf46}天
+Dialogue: 0,0:01:17.47,0:01:29.32,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}宛如奇迹的瞬间 此刻正降落在我们身上
+Dialogue: 0,0:01:17.47,0:01:29.32,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf90}宛{\kf66}如{\kf108}奇{\kf73}迹{\kf73}的{\kf83}瞬{\kf65}间{\kf64} {\kf75}此{\kf37}刻{\kf72}正{\kf77}降{\kf38}落{\kf69}在{\kf75}我{\kf75}们{\kf21}身{\kf25}上
+Dialogue: 0,0:01:29.32,0:01:40.24,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}光芒之中 彩虹横跨 描绘出耀眼的希望
+Dialogue: 0,0:01:29.32,0:01:40.24,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf85}光{\kf48}芒{\kf33}之{\kf44}中{\kf78} {\kf53}彩{\kf68}虹{\kf97}横{\kf38}跨{\kf33} {\kf108}描{\kf51}绘{\kf50}出{\kf64}耀{\kf118}眼{\kf77}的{\kf20}希{\kf27}望
+Dialogue: 0,0:01:40.05,0:01:46.66,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}无论梦想 心愿 乃至未来
+Dialogue: 0,0:01:40.05,0:01:46.66,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf85}无{\kf42}论{\kf44}梦{\kf39}想{\kf58} {\kf83}心{\kf35}愿{\kf43} {\kf58}乃{\kf57}至{\kf41}未{\kf76}来
+Dialogue: 0,0:01:46.68,0:01:52.82,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}与你一起 便觉能够实现
+Dialogue: 0,0:01:46.68,0:01:52.82,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf80}与{\kf36}你{\kf42}一{\kf95}起{\kf46} {\kf54}便{\kf47}觉{\kf27}能{\kf48}够{\kf89}实{\kf50}现
+Dialogue: 0,0:01:52.99,0:01:58.49,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}黑暗中也坚持的勇气
+Dialogue: 0,0:01:52.99,0:01:58.49,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf78}黑{\kf52}暗{\kf58}中{\kf46}也{\kf52}坚{\kf55}持{\kf43}的{\kf76}勇{\kf89}气
+Dialogue: 0,0:01:58.59,0:02:03.96,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}真想紧握于手中
+Dialogue: 0,0:01:58.59,0:02:03.96,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf85}真{\kf41}想{\kf45}紧{\kf115}握{\kf70}于{\kf143}手{\kf38}中
+Dialogue: 0,0:02:03.76,0:02:10.37,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}直到遥远宇宙的更深彼方
+Dialogue: 0,0:02:03.76,0:02:10.37,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf87}直{\kf47}到{\kf57}遥{\kf47}远{\kf47}宇{\kf85}宙{\kf47}的{\kf65}更{\kf56}深{\kf46}彼{\kf77}方
+Dialogue: 0,0:02:10.45,0:02:16.52,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}相叠的心意定会回响
+Dialogue: 0,0:02:10.45,0:02:16.52,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf82}相{\kf67}叠{\kf103}的{\kf47}心{\kf75}意{\kf41}定{\kf50}会{\kf85}回{\kf55}响
+Dialogue: 0,0:02:16.72,0:02:22.32,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}纵使光阴流转 彼此相守这份信念
+Dialogue: 0,0:02:16.72,0:02:22.32,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf47}纵{\kf32}使{\kf22}光{\kf21}阴{\kf26}流{\kf17}转{\kf23} {\kf19}彼{\kf20}此{\kf11}相{\kf122}守{\kf29}这{\kf20}份{\kf48}信{\kf104}念
+Dialogue: 0,0:02:22.26,0:02:32.17,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}请永远不要放手
+Dialogue: 0,0:02:22.26,0:02:32.17,translation,,0,0,0,fx,{\fad(300,250)\pos(50,670)\blur3\c&HF1CEA3&\3c&H3F3A33&\shad0}{\2c&HF1CEA3&\1c&HFFFFFF&}{\kf58}请{\kf233}永{\kf158}远{\kf78}不{\kf50}要{\kf243}放{\kf171}手

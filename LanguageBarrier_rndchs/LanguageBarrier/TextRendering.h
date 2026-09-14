@@ -143,6 +143,12 @@ struct TextRendering {
   int NUM_GLYPHS = 351;
   std::string fontPath;
   bool enabled = false;
+  // Quoting brackets (「」『』): drawn at a half-width step with their ink pulled
+  // to the cell's left edge, instead of full-width with the ink in the right
+  // half. Widths are in the same 32 = 1em units the layout table uses.
+  bool narrowQuotes = true;
+  uint16_t quoteWidth32 = 16;  // half an em
+  uint16_t quoteInset32 = 3;   // ink inset from the cell's left edge
   void disableReplacement();
   void enableReplacement();
   TextRendering();
