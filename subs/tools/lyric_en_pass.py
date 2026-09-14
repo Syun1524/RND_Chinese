@@ -92,16 +92,18 @@ def apply_pass(lines, styles, dialogues=None, tgts=None, timelines=None):
         orig_end = t2s(gf[2])
         prefix = re.match(r'^(?:\{[^}]*\})*', gf[9]).group(0)
         size = styles.get(gf[3].strip(), {}).get('size', 68) or 68
-        # 中文小注：略大一点，并加字距，让短小的汉字与长英文视觉平衡；
-        # 整行居中（\an2 底部居中 + \pos 到屏幕水平中心），避免贴左孤立。
-        note_fs = max(18, int(round(size * 0.52)))
-        note_sp = max(2, int(round(size * 0.10)))       # 字间距
+        # 用户拍板：英文大字比主歌词「大一丢丢」即可。主歌词最终渲染 =
+        # 样式 68 × 构建期 SIZE_SCALE 1.10 = 74.8；这里再放大 1.08 → ≈80.8。
+        scale = float(__import__('os').environ.get('LYRIC_SIZE_SCALE', '1.10'))
+        en_fs = round(size * 1.08 * scale, 1)
+        note_fs = max(18, int(round(size * 1.08 * scale * 0.52)))
+        note_sp = max(2, int(round(size * scale * 0.10)))   # 字间距
         # 英文与中文都居中：**丢掉原前缀里的 \pos**（否则与居中冲突），
         # 用 \an2 覆盖样式里的 \an1，再 \pos 到屏幕水平中心。
         keep = re.sub(re.escape(BS) + r'pos\([^)]*\)', '', prefix)
         keep = re.sub(re.escape(BS) + r'an\d', '', keep)
         en_text = ('%s{%sfscy83\\an2\\pos(960,1038)}{\\fs%d\\fsp%d}%s\\N{\\fs%g\\fsp0}%s'
-                   % (keep, BS, note_fs, note_sp, zh, size, en))
+                   % (keep, BS, note_fs, note_sp, zh, en_fs, en))
         orig_text = vis(gf[9])
 
         ov = None
