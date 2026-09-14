@@ -44,7 +44,7 @@
 | 图片重定向 | bg 18 / system 5 | **bg 64 / system 12 / movie 1** |
 | 影片字幕 | 英文卡拉OK | **中文逐字卡拉OK + 翻译轨**（三种模式可开关） |
 | 启动器 | `LauncherC0.exe`（Qt5，需十余个 DLL） | `RNDZhLauncher.exe`（单文件，无 Qt 依赖） |
-| 换装 | `swimsuitPatch`（只切泳装） | `fileIdRemap` 同归档引用，含 **cosplay 模式**（和服 / 泳装 / 体操服 / 猫耳） |
+| 换装 | `swimsuitPatch`（只切泳装） | `fileIdRemap` 保留LB重定向内部资源，同归档引用，含 cosplay 模式（和服 / 泳装 / 体操服 / 猫耳） |
 | 安装 / 卸载 | `nguninstall.exe` | 安装器 / 卸载器，**自动兼容含分号的目录名** |
 | 补丁体积 | 356 MB | **210.5 MB** |
 
