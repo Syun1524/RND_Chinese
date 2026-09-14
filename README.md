@@ -1,4 +1,4 @@
-# （测试中）ROBOTICS;NOTES DaSH 简体中文 AI 人工精校版
+# （测试中）ROBOTICS;NOTES DaSH 简体中文 AI 人工精校
 
 **ROBOTICS;NOTES DaSH**（MAGES/5pb，Steam 版）的简体中文汉化补丁。
 译文以**日语原文**为准，gemini3.0flash + 人工精校。
