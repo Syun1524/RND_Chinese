@@ -1616,7 +1616,7 @@ Dialogue: 0,0:01:50.28,0:01:55.10,translation,,0,0,0,fx,{\fad(300,250)\pos(63,10
 Dialogue: 0,0:01:50.28,0:01:55.10,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf73}以{\kf45}堪{\kf63}称{\kf56}执{\kf33}念{\kf98}的{\kf42}坚{\kf72}韧
 Dialogue: 0,0:01:55.01,0:02:01.38,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}比宇宙漂浮的尘埃 更为微小的那份可能
 Dialogue: 0,0:01:55.01,0:02:01.38,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf74}比{\kf45}宇{\kf46}宙{\kf33}漂{\kf44}浮{\kf52}的{\kf35}尘{\kf29}埃{\kf1} {\kf17}更{\kf35}为{\kf33}微{\kf33}小{\kf33}的{\kf53}那{\kf36}份{\kf14}可{\kf25}能
-Dialogue: 0,0:02:01.30,0:02:06.48,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}你深信不疑的那双直率眼眸
-Dialogue: 0,0:02:01.30,0:02:06.48,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf74}你{\kf38}深{\kf25}信{\kf23}不{\kf24}疑{\kf41}的{\kf38}那{\kf55}双{\kf46}直{\kf23}率{\kf75}眼{\kf56}眸
+Dialogue: 0,0:02:01.30,0:02:06.48,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}深信不疑的你 那双率直眼眸
+Dialogue: 0,0:02:01.30,0:02:06.48,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf72}深{\kf34}信{\kf27}不{\kf21}疑{\kf20}的{\kf30}你{\kf40} {\kf29}那{\kf67}双{\kf28}率{\kf22}直{\kf81}眼{\kf47}眸
 Dialogue: 0,0:02:06.78,0:02:18.51,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}所以我誓言 定会传递这份交接
 Dialogue: 0,0:02:06.78,0:02:18.51,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf59}所{\kf24}以{\kf41}我{\kf49}誓{\kf90}言{\kf67} {\kf27}定{\kf50}会{\kf154}传{\kf106}递{\kf100}这{\kf32}份{\kf227}交{\kf146}接
