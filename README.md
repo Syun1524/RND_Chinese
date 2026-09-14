@@ -3,7 +3,7 @@
 **ROBOTICS;NOTES DaSH**（MAGES/5pb，Steam 版）的简体中文汉化补丁。
 译文以**日语原文**为准，gemini3.0flash + 人工精校。
 
-- 当前版本：**v1.0**
+- 当前版本：**v1.1**
 - 技术基础：Committee of Zero 的英文优化补丁（LanguageBarrier 运行时），在其框架上替换为中文码表、字体、译文与图集
 - 适用：Steam 正版与免 DVD 版通用，装完保持游戏原有语言设定
 
