@@ -98,12 +98,12 @@ def apply_pass(lines, styles, dialogues=None, tgts=None, timelines=None):
         en_fs = round(size * 1.08 * scale, 1)
         note_fs = max(18, int(round(size * 1.08 * scale * 0.52)))
         note_sp = max(2, int(round(size * scale * 0.10)))   # 字间距
-        # 英文与中文都居中：**丢掉原前缀里的 \pos**（否则与居中冲突），
-        # 用 \an2 覆盖样式里的 \an1，再 \pos 到屏幕水平中心。
-        keep = re.sub(re.escape(BS) + r'pos\([^)]*\)', '', prefix)
-        keep = re.sub(re.escape(BS) + r'an\d', '', keep)
-        en_text = ('%s{%sfscy83\\an2\\pos(960,1038)}{\\fs%d\\fsp%d}%s\\N{\\fs%g\\fsp0}%s'
-                   % (keep, BS, note_fs, note_sp, zh, en_fs, en))
+        # 用户拍板：整段**左对齐**，与简中译文同列同锚点——原 ghost 行的前缀里
+        # 就带着 \pos(63,1000)（和普通歌词一模一样），所以直接沿用前缀即可，
+        # 不要再叠加 \an2/\pos(960,…) 去居中。
+        keep = prefix
+        en_text = ('%s{\\fs%d\\fsp%d}%s\\N{\\fs%g\\fsp0}%s'
+                   % (keep, note_fs, note_sp, zh, en_fs, en))
         orig_text = vis(gf[9])
 
         ov = None

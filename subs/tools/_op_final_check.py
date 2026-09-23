@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""最终确认 op001：日文层逐字行与原版一致；中文三处英文段居中、无残留 pos。"""
+r"""最终确认 op001：日文层逐字行与原版一致；中文三处英文段左对齐（\pos(63,1000)）。"""
 import io
 import re
 import sys
@@ -43,10 +43,10 @@ for ln in io.open(G, encoding='utf-8-sig', newline='').read().splitlines():
     if len(f) < 10 or f[3].strip() != 'translation':
         continue
     if BS + 'N' in f[9] and any(k in f[9] for k in ('New World', 'God will', 'Once again')):
-        centered = BS + 'an2' in f[9] and '960' in f[9]
-        clean = 'pos(63,' not in f[9]
+        centered = 'an2' not in f[9] and '960' not in f[9]
+        clean = 'pos(63,1000)' in f[9]
         txt = vis(f[9]).replace(BS + 'N', ' / ')
-        sys.stdout.write('  %s-%s  居中=%s  无残留pos=%s\n     %s\n'
+        sys.stdout.write('  %s-%s  左对齐=%s  锚点pos(63,1000)=%s\n     %s\n'
                          % (f[1], f[2], centered, clean, txt[:66]))
 print()
 print('竖排英文行数（右列 1818）:')

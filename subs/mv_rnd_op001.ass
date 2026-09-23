@@ -1599,15 +1599,15 @@ Dialogue: 0,0:01:06.48,0:01:12.19,translation,,0,0,0,fx,{\fad(300,250)\pos(63,10
 Dialogue: 0,0:01:06.48,0:01:12.19,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf58}以{\kf37}多{\kf24}维{\kf43}度{\kf36}的{\kf36}构{\kf38}图{\kf27} {\kf59}挥{\kf50}舞{\kf55}着{\kf64}虚{\kf42}假
 Dialogue: 0,0:01:11.94,0:01:17.07,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}仿佛挑衅般 连天空之色也一并欺骗
 Dialogue: 0,0:01:11.94,0:01:17.07,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf59}仿{\kf22}佛{\kf44}挑{\kf38}衅{\kf23}般{\kf24} {\kf22}连{\kf39}天{\kf29}空{\kf22}之{\kf44}色{\kf22}也{\kf36}一{\kf25}并{\kf29}欺{\kf35}骗
-Dialogue: 0,0:01:17.13,0:01:20.16,translation,,0,0,0,fx,{\fad(300,250)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\fscy83\an2\pos(960,1038)}{\fs42\fsp7}我正走向新世界秩序\N{\fs80.8\fsp0}I am to the New World Order
+Dialogue: 0,0:01:17.13,0:01:20.16,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\fs42\fsp7}我正走向新世界秩序\N{\fs80.8\fsp0}I am to the New World Order
 Dialogue: 0,0:01:20.16,0:01:22.86,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}那此刻的天候呢？
 Dialogue: 0,0:01:20.16,0:01:22.86,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf164}那{\kf16}此{\kf8}刻{\kf19}的{\kf19}天{\kf12}候{\kf22}呢{\kf10}？
-Dialogue: 0,0:01:22.60,0:01:25.60,translation,,0,0,0,fx,{\fad(300,250)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\fscy83\an2\pos(960,1038)}{\fs42\fsp7}神明将降临于世\N{\fs80.8\fsp0}God will come down to the world
+Dialogue: 0,0:01:22.60,0:01:25.60,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\fs42\fsp7}神明将降临于世\N{\fs80.8\fsp0}God will come down to the world
 Dialogue: 0,0:01:25.60,0:01:28.11,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}是猛烈的风暴气象
 Dialogue: 0,0:01:25.60,0:01:28.11,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf154}是{\kf12}猛{\kf15}烈{\kf9}的{\kf14}风{\kf17}暴{\kf17}气{\kf13}象
 Dialogue: 0,0:01:28.02,0:01:33.85,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}风向自东北方而来 步步逼近的最后时限
 Dialogue: 0,0:01:28.02,0:01:33.85,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf60}风{\kf46}向{\kf35}自{\kf32}东{\kf31}北{\kf48}方{\kf30}而{\kf23}来{\kf1} {\kf46}步{\kf30}步{\kf38}逼{\kf45}近{\kf37}的{\kf23}最{\kf23}后{\kf11}时{\kf25}限
-Dialogue: 0,0:01:33.55,0:01:35.08,translation,,0,0,0,fx,{\fad(300,250)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\fscy83\an2\pos(960,1038)}{\fs42\fsp7}再一次\N{\fs80.8\fsp0}Once again
+Dialogue: 0,0:01:33.55,0:01:35.08,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\fs42\fsp7}再一次\N{\fs80.8\fsp0}Once again
 Dialogue: 0,0:01:35.08,0:01:42.12,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}为了逝去的生命 我们已决不再逃避
 Dialogue: 0,0:01:35.08,0:01:42.12,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf173}为{\kf28}了{\kf32}逝{\kf55}去{\kf59}的{\kf28}生{\kf18}命{\kf14} {\kf38}我{\kf24}们{\kf59}已{\kf75}决{\kf27}不{\kf23}再{\kf25}逃{\kf24}避
 Dialogue: 0,0:01:43.94,0:01:50.45,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}那是联结未来与过去的 肉眼不见的某种存在
