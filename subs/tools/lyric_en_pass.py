@@ -92,11 +92,12 @@ def apply_pass(lines, styles, dialogues=None, tgts=None, timelines=None):
         orig_end = t2s(gf[2])
         prefix = re.match(r'^(?:\{[^}]*\})*', gf[9]).group(0)
         size = styles.get(gf[3].strip(), {}).get('size', 68) or 68
-        # 用户拍板：英文大字比主歌词「大一丢丢」即可。主歌词最终渲染 =
-        # 样式 68 × 构建期 SIZE_SCALE 1.10 = 74.8；这里再放大 1.08 → ≈80.8。
+        # 用户拍板：英文大字与简中译文**一样大**。主歌词最终渲染 =
+        # 样式 68 × 构建期 SIZE_SCALE 1.10 = 74.8，所以这里就用 size × scale，
+        # 不再额外放大（曾短暂用过 1.08，已按用户要求收回）。
         scale = float(__import__('os').environ.get('LYRIC_SIZE_SCALE', '1.10'))
-        en_fs = round(size * 1.08 * scale, 1)
-        note_fs = max(18, int(round(size * 1.08 * scale * 0.52)))
+        en_fs = round(size * scale, 1)
+        note_fs = max(18, int(round(size * scale * 0.52)))
         note_sp = max(2, int(round(size * scale * 0.10)))   # 字间距
         # 用户拍板：整段**左对齐**，与简中译文同列同锚点——原 ghost 行的前缀里
         # 就带着 \pos(63,1000)（和普通歌词一模一样），所以直接沿用前缀即可，
