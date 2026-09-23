@@ -105,9 +105,8 @@ def filler_zh(en):
     if en.startswith("Enako-chan"):
         # "Enako" is CoZ's ear-transcription of a shout in the MV audio.  It is
         # not in the game's own text, but the audio does call the name, so the
-        # user chose to keep it.  「〜炭」 mirrors how CoZ renders -chan and how
-        # the rest of this patch handles Frau-tan → 芙劳炭.
-        return "Enako炭，来和我们一起跳吧！"
+        # user chose to keep it.  Wording set by the user.
+        return "Enako酱来一起跳吧"
     if en.startswith("Oh man, now I really wanna dance"):
         return "糟了，我也真想跳起来……"
     if en.startswith("Ah, I'm beat"):
