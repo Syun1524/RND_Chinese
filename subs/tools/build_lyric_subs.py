@@ -50,11 +50,11 @@ KARAOKE = False       # --karaoke: per-character \kf sweep on timed lyric lines
 DIM_SCALE = 0.70      # --dim: unsung-side brightness on light-base lines (1.0 = invisible)
 
 SONGS = {
-    "mv_rnd_ed001":    "歌词翻译/mv_rnd_ed001/ed001_歌词对照.xlsx",
-    "mv_rnd_ed002":    "歌词翻译/mv_rnd_ed002/ed002_歌词对照.xlsx",
-    "mv_rnd_edfrau":   "歌词翻译/mv_rnd_edfrau/edfrau_歌词对照.xlsx",
-    "mv_rnd_livedance": "歌词翻译/mv_rnd_livedance/livedance_歌词对照.xlsx",
-    "mv_rnd_op001":    "歌词翻译/mv_rnd_op001/op001_歌词对照.xlsx",
+    "mv_rnd_ed001":    "歌词翻译/ed001_歌词对照.xlsx",
+    "mv_rnd_ed002":    "歌词翻译/ed002_歌词对照.xlsx",
+    "mv_rnd_edfrau":   "歌词翻译/edfrau_歌词对照.xlsx",
+    "mv_rnd_livedance": "歌词翻译/livedance_歌词对照.xlsx",
+    "mv_rnd_op001":    "歌词翻译/op001_歌词对照.xlsx",
 }
 VARIANTS = ["_tlonly.ass", ".ass"]  # _karaonly.ass has no rendered translation lines
 
@@ -103,10 +103,11 @@ def filler_zh(en):
     if en == "Frau-tan, c'mon!":
         return "芙劳炭，来吧！"
     if en.startswith("Enako-chan"):
-        # "Enako" is CoZ's ear-transcription of a shout in the MV audio; the name
-        # appears nowhere in the game's text (all encodings searched).  Ship the
-        # name-free call so no unverifiable Latin name lands in a Chinese line.
-        return "来和我们一起跳吧！"
+        # "Enako" is CoZ's ear-transcription of a shout in the MV audio.  It is
+        # not in the game's own text, but the audio does call the name, so the
+        # user chose to keep it.  「〜炭」 mirrors how CoZ renders -chan and how
+        # the rest of this patch handles Frau-tan → 芙劳炭.
+        return "Enako炭，来和我们一起跳吧！"
     if en.startswith("Oh man, now I really wanna dance"):
         return "糟了，我也真想跳起来……"
     if en.startswith("Ah, I'm beat"):
