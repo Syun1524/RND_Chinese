@@ -19,17 +19,36 @@ VIS = re.compile(r'\{[^}]*\}')
 # 就能让英文左缘正好落在中文译文的左列（x=63），同时让较短的中文小注
 # 在这条英文正上方居中。字体路径由 build_lyric_subs 在调用前塞进来。
 #
-# ★ 必须按**整数像素字号**量，不能按大字号量完再按比例缩：VSFilter 走 GDI，
-#   GDI 把每个字的 advance 取整到像素，缩放模型会差几像素（实测 1042.4 vs 1048）。
+# ★★ 字号必须换算成 GDI 实际用的 em，否则宽度会高估 ~45%（实测踩过）：
+#    VSFilter 走 GDI，`\fs` 被当作**字面高度**（usWinAscent+usWinDescent），
+#    不是 em 尺寸。本字体 1160+288 = 1448 / upem 1000 ⇒ 实际 em = fs / 1.448。
+#    不换算的话锚点算得太靠右，英文整行右移（用户实机截图发现：
+#    英文左缘 172px，应为 42px）。
 FONT_PATH = None
 _fonts = {}
+_emfac = [None]
+
+
+def _em_factor():
+    if _emfac[0] is None:
+        fac = 1.0
+        try:
+            from fontTools.ttLib import TTFont
+            f = TTFont(FONT_PATH, lazy=True)
+            cell = float(f['OS/2'].usWinAscent + f['OS/2'].usWinDescent)
+            if cell > 0:
+                fac = f['head'].unitsPerEm / cell
+        except Exception:
+            fac = 1.0
+        _emfac[0] = fac
+    return _emfac[0]
 
 
 def _text_width(text, fs):
     if not FONT_PATH or not text:
         return 0.0
     from PIL import ImageFont
-    px = max(1, int(round(fs)))
+    px = max(1, int(round(fs * _em_factor())))
     if px not in _fonts:
         _fonts[px] = ImageFont.truetype(FONT_PATH, px)
     return _fonts[px].getlength(text)
