@@ -1,4 +1,4 @@
-// RNDZhSetup — ROBOTICS;NOTES DaSH 简体中文补丁 安装程序
+﻿// RNDZhSetup — ROBOTICS;NOTES DaSH 简体中文补丁 安装程序
 // 原生 Win32 + GDI+，无外部依赖。由 7z SFX 解包后自动运行：
 //   SFX 把「Setup.exe + 全部补丁文件」解到临时目录 → 运行本程序 → 本程序把文件装进游戏目录。
 //
@@ -36,7 +36,7 @@ using namespace Gdiplus;
 static const int WIN_W = 480, WIN_H = 268;
 // 产品版本。⚠ 改版本要同步三处：这里、launcher/RNDZhLauncher.cpp 的 VER、
 // 成品ing/setup/build/build_installer.py 的 VERSION（决定包文件名）。
-static const wchar_t* VER = L"1.0";
+static const wchar_t* VER = L"1.2";
 static const Color
   C_BG      (255, 255, 255, 255),   // 窗口底
   C_PANEL   (255, 245, 246, 248),   // 顶部标题条
@@ -599,12 +599,32 @@ static bool RunInstall() {
     }
   }
 
-  // 7) 写回 boot.bat
+  // 7) 写回 boot.bat：让 Steam 的「开始游戏」直接进补丁启动器。
+  //
+  //    游戏原版 boot.bat 是 `start launcher.exe <语言>` —— 拉起 MAGES 自家那个
+  //    只有「Start Game / Screen Setting / Quit」的窗口。Steam 的启动配置里
+  //    executable 就是 boot.bat，所以改这一行等于把 Steam 的开始游戏也接到我们的启动器上。
+  //
+  //    ⚠ 不能指望 patchdef.json 的 hijackLauncher：那条分支要由**代理 DLL** 在
+  //    MAGES launcher.exe 里跑起来才会触发，而 launcher.exe 根本不导入 DINPUT8
+  //    （实测导入表只有 KERNEL32/USER32/GDI32/.../WINMM，也无延迟导入），
+  //    所以劫持对它是死配置。CoZ 同样绕开了它：他们的 boot.bat 直接写
+  //    `start LauncherC0.exe`。我们照做。
+  //
+  //    语言 token 必须留着：安装器、启动器、核对工具、手工安装脚本都靠读 boot.bat
+  //    里的 EN/JP 判存档目录（RNDZhLauncher.exe 这个名字里不含这两个子串，不会污染匹配）。
   SetStatus(L"正在完成…", 97);
   {
     std::wstring bb = Join(g_gameDir, L"boot.bat");
+    // 启动器缺失时（理论上不会，payload 里必有）退回原版写法，
+    // 免得写出指向不存在文件的 boot.bat、玩家点了没反应。
+    // ⚠ 必须用窄字符 const char*：std::ofstream 是窄流，喂 const wchar_t* 会走
+    //   operator<<(const void*) 重载，把**指针地址**当十六进制打进去
+    //   （实测写出 `start 008E4CC4 EN`，Steam 一启动就找不到文件）。
+    const char* target = Exists(Join(g_gameDir, L"RNDZhLauncher.exe"))
+                             ? "RNDZhLauncher.exe" : "launcher.exe";
     std::ofstream f(bb, std::ios::binary | std::ios::trunc);
-    f << "@echo off\r\n\r\nstart launcher.exe " << (lang == L"EN" ? "EN" : "JP") << "\r\n";
+    f << "@echo off\r\n\r\nstart " << target << " " << (lang == L"EN" ? "EN" : "JP") << "\r\n";
   }
 
   // 8) 清掉历史安装留下的残留。

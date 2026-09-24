@@ -1,4 +1,4 @@
-// RNDZhLauncher — ROBOTICS;NOTES DaSH 简体中文补丁 启动器
+﻿// RNDZhLauncher — ROBOTICS;NOTES DaSH 简体中文补丁 启动器
 // 原生 Win32 + GDI+，不依赖 Qt。布局：左品牌 / 右选项。
 //
 // 职责：
@@ -33,6 +33,7 @@
 #include <fstream>
 #include <sstream>
 #include <cwchar>
+#include <cstring>
 
 #pragma comment(lib, "gdiplus.lib")
 #pragma comment(lib, "shell32.lib")
@@ -63,7 +64,7 @@ static const int RIGHT_W = 425;   // 右栏固定宽度（放选项）
 
 // 产品版本。⚠ 改版本要同步三处：这里、成品ing/setup/src/RNDZhSetup.cpp 的 VER、
 // 成品ing/setup/build/build_installer.py 的 VERSION（决定包文件名）。
-static const wchar_t* VER = L"1.0";
+static const wchar_t* VER = L"1.2";
 // 产品标题（用户要求结尾带版本号）。窗口标题用这一份（游戏窗口标题不再改写）。
 static const std::wstring APP_TITLE =
     std::wstring(L"ROBOTICS;NOTES DaSH 简体中文 AI人工精校版 v") + VER;
@@ -82,7 +83,8 @@ static const Color
   C_SEL     (255, 226, 238, 252),   // 下拉项"当前选中"底
   C_HOVER   (255, 233, 237, 242),   // 悬停底（下拉项/主按钮）——要比 C_HILITE 明显，
                                     // 否则玩家感觉"没有反馈"（2026-09-13 用户反馈）
-  C_WHITE   (255, 255, 255, 255);
+  C_WHITE   (255, 255, 255, 255),
+  C_DOT     (255, 226,  61,  54);   // 更新小红点（「检查更新」按钮右上角）
 
 // ── DPI 缩放 ──
 // 三个 exe 以前都没声明 DPI 感知，系统 125% 缩放时 Windows 会把整个界面
@@ -142,12 +144,23 @@ static const int OUTFIT_N = 5;
 //   LB 的 mgsFileOpenHook 拦下模型归档的打开请求，按 fileIdRemap 把
 //   「默认服装的 model fileId」重指向「目标服装的 fileId」；
 //   命中即 return，不落到 fileRedirection。所以这是运行时重定向，不改任何游戏文件。
-static const wchar_t* OUTFIT_HINT =
-    L"LanguageBarrier 重定向模型归档，运行时切换该套立绘";
+//   （原来这里有一行灰色小字把这件事写给玩家看，2026-09-24 用户要求删掉 ——
+//     "cosplay 模式和影片字幕使用率不高"，而且这类实现说明对玩家没有用。
+//     技术细节留在这条注释里备查。）
 
 static const wchar_t* SUBS_LABEL[3] = { L"卡拉OK字幕 + 翻译", L"仅卡拉OK字幕", L"仅翻译" };
 static const wchar_t* SUBS_VALUE[3] = { L"all", L"karaonly", L"tlonly" };
-static const wchar_t* SUBS_HINT = L"mv播放时叠加的字幕轨";
+
+// ── 画面（对应原版启动器 Screen Setting 的两项）──
+// 游戏内设置菜单里也有这两项，但一旦把分辨率设成显示器不支持的档位就会黑屏、
+// 连菜单都进不去 —— 这里给一个"救急入口"（原版启动器的 Screen Setting 就是这作用）。
+// 值必须与 config.dat 里的枚举一致（见 ScreenCfgRead/Write 的注释）：
+//   displayMode: 0 = 窗口, 1 = 全屏
+//   resolution : 0 = 1024*576, 1 = 1280*720, 2 = 1920*1080
+// 分辨率文案照原版用星号（`1024*576`），玩家对照攻略时不会困惑。
+static const wchar_t* SCRN_LABEL[2] = { L"窗口", L"全屏" };
+static const wchar_t* RES_LABEL[3]  = { L"1024*576", L"1280*720", L"1920*1080" };
+static const int SCRN_N = 2, RES_N = 3;
 
 static const wchar_t* SET_KEY = L"zzOutfitSet";
 
@@ -155,7 +168,10 @@ struct State {
   bool on[OPT_COUNT];
   int  subs;            // 0/1/2
   int  outfit;          // 0..4
-  int  comboOpen = -1;  // -1 无 / 0 subs / 1 outfit
+  int  scrn;            // 0 = 窗口 / 1 = 全屏
+  int  res;             // 0..2（1024*576 / 1280*720 / 1920*1080）
+  bool scrnOk = false;  // config.dat 读到了吗（读不到就别写，免得凭空造一个文件）
+  int  openRow = -1;    // 展开的设置行（-1 全收起）—— 手风琴：同时只开一行
   int  hot = -1;        // 悬停项，用与 press 同一套 id
   int  press = -1;
 } st;
@@ -322,6 +338,76 @@ static void EnsureDir(const std::wstring& dir) {
   SHCreateDirectoryExW(nullptr, dir.c_str(), nullptr);
 }
 
+// ── 画面设置：读写游戏的 config.dat ──
+// 原版启动器的 Screen Setting 改的就是这个文件。游戏自己也读写它（游戏内设置菜单
+// 里的全屏/分辨率就是这两项），所以格式必须完全一致。
+//
+// ★ 只能**原位改 4 字节**，绝不整文件重写：
+//   实测日文存档 108 字节、英文存档 76 字节（长度不同），文件里还有控制器 GUID、
+//   窗口坐标、影片品质、语言等字段。整写会截掉后面的字段。
+//
+// 字段偏移（与 CoZ 开源启动器 realboot 的 GameConfig 逐字段核对过，且在本机
+// 两份实际存档上验证了取值合理）：
+//   +0x00  uint32（未知/版本）
+//   +0x04  控制器 GUID（40 字节）
+//   +0x2C  width       窗口宽
+//   +0x30  height      窗口高
+//   +0x34  displayMode 0 = 窗口, 1 = 全屏
+//   +0x38  resolution  0 = 1024*576, 1 = 1280*720, 2 = 1920*1080
+//   +0x3C  startWindowX    +0x40  startWindowY
+//   +0x44  movieQuality    +0x48  language
+static const long kOffDisplayMode = 0x34, kOffResolution = 0x38;
+static const long kCfgMinSize = 0x3C;   // 至少要够到 displayMode/resolution
+
+static const wchar_t* DetectLang();     // 定义在后面（要用 boot.bat 判语言）
+
+static std::wstring ConfigDatPath() {
+  wchar_t* docs = nullptr;
+  if (SHGetKnownFolderPath(FOLDERID_Documents, 0, nullptr, &docs) != S_OK) return L"";
+  std::wstring p = docs;
+  CoTaskMemFree(docs);
+  // 语言子目录与游戏一致（jpn/eng）—— 读 boot.bat 判定，和启动游戏时同一个来源
+  const wchar_t* lang = DetectLang();
+  p += L"\\My Games\\mages_steam\\Robotics Notes DASH\\";
+  p += (_wcsicmp(lang, L"JP") == 0) ? L"jpn" : L"eng";
+  p += L"\\config.dat";
+  return p;
+}
+
+static void LoadScreenCfg() {
+  std::wstring p = ConfigDatPath();
+  std::ifstream f(p, std::ios::binary);
+  if (!f) return;                                  // 没装过/没跑过游戏 → 保持默认
+  f.seekg(0, std::ios::end);
+  long sz = (long)f.tellg();
+  if (sz < kCfgMinSize) return;
+  unsigned char buf[8] = { 0 };
+  f.seekg(kOffDisplayMode);
+  f.read((char*)buf, 8);
+  if (f.gcount() != 8) return;
+  unsigned dm = 0, rs = 0;
+  memcpy(&dm, buf, 4); memcpy(&rs, buf + 4, 4);
+  st.scrn = (dm == 1) ? 1 : 0;
+  st.res  = (rs < (unsigned)RES_N) ? (int)rs : 0;
+  st.scrnOk = true;
+}
+
+static void SaveScreenCfg() {
+  if (!st.scrnOk) return;                          // 没读到过就不写，别凭空造文件
+  std::wstring p = ConfigDatPath();
+  // ★ 用 r+b（读写、不截断）而不是 wb —— 只覆盖这 4 个字节，其余原样保留。
+  std::fstream f(p, std::ios::binary | std::ios::in | std::ios::out);
+  if (!f) return;
+  f.seekg(0, std::ios::end);
+  if ((long)f.tellg() < kCfgMinSize) return;
+  unsigned dm = (st.scrn == 1) ? 1u : 0u;
+  unsigned rs = (unsigned)st.res;
+  f.seekp(kOffDisplayMode);
+  f.write((const char*)&dm, 4);
+  f.write((const char*)&rs, 4);
+  f.flush();
+}
+
 // 写配置：整份重写，未知键原样带上。
 // 换装核对工具写的 zz_<角色>_<变体> 属于未知键 → 会被保留，
 // 玩家在这里改开关不会把开发工具的当前核对项清掉。
@@ -398,6 +484,9 @@ static void LoadConfig() {
   if (sit != m.end())
     for (int i = 0; i < OUTFIT_N; i++)
       if (sit->second.find(OUTFIT_VALUE[i]) != std::wstring::npos) { st.outfit = i; break; }
+
+  // 画面设置不在 config.json 里，读游戏自己的 config.dat（见 LoadScreenCfg）
+  LoadScreenCfg();
 }
 
 // DXVK：d3d9/d3d10/d3d10_1/d3d10core/d3d11/dxgi 带/不带 .dll
@@ -571,35 +660,99 @@ static void DrawCloseBtn(Graphics& g, const RectF& r, bool hot) {
   g.DrawLine(&p, r.GetRight() - m, r.Y + m, r.X + m, r.GetBottom() - m);
 }
 
-// 下拉框外框 + 当前值 + 箭头
-static void DrawComboFrame(Graphics& g, const RectF& cr, const wchar_t* value, bool hot) {
-  FillRR(g, cr, 7, C_FIELD);
-  StrokeRR(g, cr, 7, hot ? C_ACCENT : C_BORDER, hot ? 1.4f : 1.f);
-  DrawTxt(g, value, F(14), C_TEXT, cr.X + 14, cr.Y + 8);
-  float cx = cr.GetRight() - 18, cy = cr.Y + 18;
-  SolidBrush db(C_DIM); PointF tri[3] = { {cx-5,cy-2},{cx+5,cy-2},{cx,cy+3} };
+// 一行设置：左边标签，右边**当前值** + 小三角。
+// 收起态就把当前值写在这里 —— 玩家不展开也能一眼看全所有设置，
+// 展开只是为了"改"。悬停时整行给一层浅底，暗示可点。
+// dim = 该项当前不生效（如全屏时的分辨率）。只把值调淡一档（C_DIM 而非 C_MUTED，
+// 后者太浅像坏掉的控件）—— 它仍可点开，玩家常要先选好分辨率再切回窗口模式。
+static void DrawSettingRow(Graphics& g, const RectF& r, const wchar_t* label,
+                           const wchar_t* value, bool hot, bool open,
+                           bool dim = false) {
+  if (hot || open) FillRR(g, r, 7, hot ? C_HOVER : C_PANEL);
+  DrawTxt(g, label, F(15), C_TEXT, r.X + 4, r.Y + 8);
+  // 值右对齐，给右侧的小三角留 22px
+  DrawTxt(g, value, F(14), dim ? C_DIM : C_TEXT, r.GetRight() - 22, r.Y + 9, 2);
+  // 小三角：收起时朝右、展开时朝下（比旋转箭头更好画也更清楚）
+  float cx = r.GetRight() - 10, cy = r.Y + 17;
+  SolidBrush db(open ? C_ACCENT : C_DIM);
+  PointF tri[3];
+  if (open) { tri[0] = { cx-4, cy-2 }; tri[1] = { cx+4, cy-2 }; tri[2] = { cx, cy+3 }; }
+  else      { tri[0] = { cx-2, cy-4 }; tri[1] = { cx-2, cy+4 }; tri[2] = { cx+3, cy }; }
   g.FillPolygon(&db, tri, 3);
 }
 
-// 下拉展开的选项列表（单独一个函数，便于最后绘制 —— 见 Paint 里的 z 序说明）。
-// 注意：ItemRect 定义在下面（几何区），所以本函数声明在前、实现放在几何之后。
-static void DrawComboItems(Graphics& g, const RectF& base, int n,
-                           const wchar_t* const* labels, int sel, int idBase, int hot);
+// 展开的选项列表（单独一个函数，便于最后绘制 —— 见 Paint 里的 z 序说明）。
+// 注意：RowBox/RowItemRect 定义在下面（几何区），所以本函数声明在前、实现放在几何之后。
+static void DrawRowItems(Graphics& g, int row, int n,
+                         const wchar_t* const* labels, int sel, int hot);
 
 // ── 几何 ──
 // 左栏宽度由**主题图的比例**决定（见顶部 LEFT_W 的推导），窗口高度固定 620。
 // 右栏所有控件从右边界反推 —— 以前这里是一堆手写死坐标，
 // StartRect() 的右边界曾超出窗口 10px（「开始游戏」被切），现在不会再有这种问题。
 static const float PAD_R = 24.f;                   // 右栏右边距
-static const float RXL   = (float)LEFT_W + 28.f;   // 右栏内容左边界
-static const float RW    = (float)WIN_W - PAD_R;   // 右栏内容右边界
+// ★ 必须写成**函数**，不能写成 `static const float`：
+//   RXL/RW 依赖 LEFT_W，而 LEFT_W 是运行时由主题图比例算出来的（ApplyThemeGeometry，
+//   在建窗口之前调用）。static const 在**程序启动时**就取值，那时 LEFT_W 还是初值，
+//   常量就永久过期了。以前 WIN_H=500 时算出来恰好也是 375（与初值相同），
+//   所以这个错一直隐形；WIN_H 一改就暴露成"标签跑到左栏图上"。
+static inline float RXLf() { return (float)LEFT_W + 28.f; }   // 右栏内容左边界
+static inline float RWf()  { return (float)WIN_W - PAD_R; }   // 右栏内容右边界
+#define RXL RXLf()
+#define RW  RWf()
 
-// 4 个复选框：行高 42（标题 15px + 灰色说明 11px）
-static RectF OptRect(int i)   { return RectF(RXL, 56.f + i * 42.f, RW - RXL, 26.f); }
-// 两个下拉：标签在左，控件在右
-static const float COMBO_X = 110.f;
-static RectF OutfitRect()     { return RectF(RXL + COMBO_X, 252.f, RW - (RXL + COMBO_X), 34.f); }
-static RectF ComboRect()      { return RectF(RXL + COMBO_X, 324.f, RW - (RXL + COMBO_X), 34.f); }
+// 命中 id：0..OPT_COUNT-1 选项 / 200 开始 / 201 检查更新 / 202 关闭 / 203 GitHub
+//         204 更新卡片 / 1000+i 第 i 个设置行的"行头"（点它展开/收起）
+//         1100+i*10+k 第 i 行展开后的第 k 个选项
+enum { ID_START = 200, ID_CHECK = 201, ID_CLOSE = 202, ID_GITHUB = 203,
+       ID_BANNER = 204,
+       ID_ROW = 1000, ID_ROWITEM = 1100 };
+// 四个设置行的语义（下标即 ROW 顺序）：0 = cosplay / 1 = 影片字幕 / 2 = 显示模式 / 3 = 分辨率
+enum { ROW_OUTFIT = 0, ROW_SUBS = 1, ROW_SCRN = 2, ROW_RES = 3 };
+
+// 4 个复选框：行高 37（标题 15px + 灰色说明 11px）
+// （原为 42；为了在**不加大窗口**的前提下腾出「画面」那一行，整体收紧 5px。
+//   收紧后仍保持"标题→说明→下一条"的清晰层次，不是简单挤压。）
+static RectF OptRect(int i)   { return RectF(RXL, 48.f + i * 37.f, RW - RXL, 26.f); }
+// ── 右栏下半：4 个「标签 + 当前值」行（点哪行展开哪行的选项）──
+// 原先是 3 个带外框的下拉 + 2 行灰色小字说明 + 3 条分隔线，视觉很碎、也占地方。
+// 现在统一成同构的 4 行：左边标签、右边当前值 + 小三角。
+// ★ **收起态就把当前值写在行里** —— 不展开也能一眼看全所有设置，
+//   而展开只是为了"改"。这比"折叠后只剩标题"实用得多。
+//
+// ★ 只有 cosplay 那一行带灰色小字（用户 2026-09-24 指定"至少对这一个补小注释"）：
+//   它的值（原版/和服/泳装/体操服/猫耳）不看解释不知道是干什么的；
+//   而「影片字幕」「显示模式」「分辨率」看字面就懂，不必解释。
+//   小字占一行（11px + 留白），所以它**下面三行整体下移 HINT_OFF**。
+static const wchar_t* OUTFIT_HINT =
+    L"LanguageBarrier 重定向模型归档，运行时切换该套立绘";
+static const float ROW_Y0 = 206.f, ROW_STEP = 46.f, ROW_H = 34.f;
+static const float HINT_OFF = 16.f;      // cosplay 那行小字占掉的高度
+static const int ROW_N = 4;
+static RectF RowRect(int i) {
+  float dy = (i >= 1) ? HINT_OFF : 0.f;   // 第 1 行（cosplay）之后都让出小字的位置
+  return RectF(RXL, ROW_Y0 + i * ROW_STEP + dy, RW - RXL, ROW_H);
+}
+// cosplay 那行下方的小字位置
+static RectF RowHintRect() { return RectF(RXL + 4.f, ROW_Y0 + ROW_H + 5.f, RW - RXL, 12.f); }
+// 主按钮的位置（RowBox 要拿它判断"向下弹会不会压住按钮"，故提前声明）
+static RectF StartRect();
+// 选项列表：优先向下弹；下方装不下（会压到主按钮）就向上弹。
+// 判定写成纯函数（不存状态），HitTest 与 Paint 各自算一次，结果必然一致。
+static bool RowOpensUp(int i, int n) {
+  float h = n * 34.f + 4;
+  return RowRect(i).GetBottom() + 2 + h > StartRect().Y - 6;
+}
+static RectF RowBox(int i, int n) {
+  RectF r = RowRect(i);
+  float h = n * 34.f + 4;
+  return RowOpensUp(i, n) ? RectF(r.X, r.Y - 2 - h, r.Width, h)
+                          : RectF(r.X, r.GetBottom() + 2, r.Width, h);
+}
+static RectF RowItemRect(int i, int n, int k) {
+  RectF b = RowBox(i, n);
+  return RectF(b.X + 1, b.Y + 2 + k * 34.f, b.Width - 2, 34.f);
+}
 // 主按钮：右下角对齐，宽 200 高 46，离底 24
 static RectF StartRect()      { return RectF(RW - 200.f, (float)WIN_H - 24.f - 46.f, 200.f, 46.f); }
 // 「检查更新」：主按钮左侧的小按钮 —— 比主按钮矮一截，底边与主按钮对齐
@@ -612,51 +765,52 @@ static RectF GithubRect()     { RectF cr = CheckRect();
                                 return RectF(cr.X - 6.f - 24.f, cr.Y, 24.f, 24.f); }
 // 自绘关闭按钮：右上角（窗口无标题栏，得自己给一个「×」）
 static RectF CloseRect()      { return RectF((float)WIN_W - 10.f - 26.f, 10.f, 26.f, 26.f); }
-// 下拉一律【向下】展开。换装 5 项、字幕 3 项，展开时下面要留得下 ——
-// 窗口高度按「字幕框底 + 3 项 + 主按钮」反推（见 WIN_H）。
-static RectF ItemRect(const RectF& base, int k) {
-  return RectF(base.X, base.GetBottom() + 2 + k * 34.f, base.Width, 34.f);
-}
 
-// 下拉列表的绘制（实现在这里，因为要用 ItemRect）
-static void DrawComboItems(Graphics& g, const RectF& base, int n,
-                           const wchar_t* const* labels, int sel, int idBase, int hot) {
-  // 先铺一层白底，避免选项和背景的分隔线/按钮混在一起
-  RectF box(base.X, base.GetBottom() + 2, base.Width, n * 34.f + 4);
+// 展开的选项列表（实现在这里，因为要用 RowBox/RowItemRect）
+static void DrawRowItems(Graphics& g, int row, int n,
+                         const wchar_t* const* labels, int sel, int hot) {
+  RectF box = RowBox(row, n);
   FillRR(g, box, 6, C_FIELD);
   for (int k = 0; k < n; k++) {
-    RectF ir = ItemRect(base, k);
-    bool isHot = (hot == idBase + k);
+    RectF ir = RowItemRect(row, n, k);
+    bool isHot = (hot == ID_ROWITEM + row * 10 + k);
     Color bg = isHot ? C_HOVER : (k == sel ? C_SEL : C_FIELD);
-    float rad = k == 0 ? 5.f : 0.f;
-    RectF rr(ir.X + 1, ir.Y, ir.Width - 2, ir.Height);
-    FillRR(g, rr, rad, bg);
+    float rad = (k == 0 || k == n - 1) ? 5.f : 0.f;
+    FillRR(g, ir, rad, bg);
     // 悬停反馈要一眼能看出来（2026-09-13 用户反馈"没有鼓起来的感觉"）：
     // 只变一点底色太淡，再加一圈主题色描边。
-    if (isHot) StrokeRR(g, rr, rad, C_ACCENT, 1.2f);
-    DrawTxt(g, labels[k], F(14), k == sel ? C_ACCENT : C_TEXT, ir.X + 12, ir.Y + 7);
+    if (isHot) StrokeRR(g, ir, rad, C_ACCENT, 1.2f);
+    DrawTxt(g, labels[k], F(14), k == sel ? C_ACCENT : C_TEXT, ir.X + 12, ir.Y + 8);
   }
   StrokeRR(g, box, 6, C_BORDER, 1.f);
 }
-
-// 命中 id：0..OPT_COUNT-1 选项 / 100+k subs / 200 开始 / 201 检查更新 / 202 关闭
-//         203 GitHub / 300 subs框 / 400+k outfit / 500 outfit框
-enum { ID_START = 200, ID_CHECK = 201, ID_CLOSE = 202, ID_GITHUB = 203,
-       ID_COMBO_SUBS = 300, ID_COMBO_OUTFIT = 500 };
 
 // ───────────────────── 检查更新（GitHub） ─────────────────────
 // 点「检查更新」拿到仓库的最新 release / tag 跟本地 VER 比一比。
 // 网络请求必须放后台线程：WinINet 是阻塞的，直接在消息循环里跑会让窗口假死。
 // 结果用 WM_APP+2 带回主线程处理（结果对象的生命周期也一并交过去）。
+//
+// ★ 启动即自动查一次（2026-09-15 用户要求）：有新版本时「检查更新」按钮右上角
+//   常亮小红点、并在窗口内出一张小卡片（点卡片去下载页）—— **不再弹系统对话框**。
+//   「已是最新」「查不到」仍只在按钮上闪一下文字，几秒后恢复。
 static const wchar_t* REPO_URL = L"https://github.com/Syun1524/RND_Chinese";
 static const wchar_t* REL_URL  = L"https://github.com/Syun1524/RND_Chinese/releases";
 static volatile LONG g_checking = 0;      // 0 空闲 / 1 查询中（防重复点击）
-// 「已是最新」「查不到」这类正常结果直接显示在按钮上、几秒后自动恢复，
-// **不弹窗**。★ 只有**确实有新版本**时才弹对话框问要不要去下载 ——
-// 「检查更新」本身就只是检查更新，不该为正常结果打断玩家
-//（2026-09-13 用户要求：不需要那么累赘）。
+// 「已是最新」「查不到」这类正常结果直接显示在按钮上、几秒后自动恢复，**不弹窗**。
 static std::wstring g_checkMsg;           // 非空时按钮显示它
 static const UINT_PTR TIMER_CHECKMSG = 1; // 用它定时清掉 g_checkMsg
+
+// 查到有新版本后的常驻状态（直到本版升级才消失）：
+static std::wstring g_newVer;             // 远程版本号（如 "v1.3"），空 = 没有新版本
+static std::wstring g_newUrl;             // 下载页链接（点卡片跳转用）
+// 卡片按下态（按下→抬起都在卡片上才跳转，和其它按钮同一手感）
+static bool g_bannerDown = false;
+
+// 更新卡片：**放在左栏主题图上**（版本号上方的小卡片）。
+// 原先它在右栏主按钮上方，会白占 36px —— 而它只在"确实有新版本"时才出现，
+// 平时那 36px 就是空的。搬到左栏后右栏省下这块空间，「画面」那一行才放得下
+// 而窗口尺寸不用变大。深色半透明底压在图上，本身也是常见的"提示卡"观感。
+static RectF BannerRect()     { return RectF(12.f, (float)WIN_H - 78.f, (float)LEFT_W - 24.f, 40.f); }
 
 // status: 0 = 有新版本 / 1 = 已是最新 / 2 = 查询失败
 struct UpdResult { int status; std::wstring latest; std::wstring url; };
@@ -795,6 +949,9 @@ static void Paint(HDC hdc) {
             F(10), C_MUTED, RW - 34.f, 29, 2);
 
     // ── 右：选项 ──
+    // 纵向节奏：复选框 48..190 ｜ 4 个设置行 206..368 ｜ 底部按钮 430..476
+    // （原先三行下拉各带分隔线和小字说明，视觉很碎；现在统一成同构的 4 行，
+    //   收起态直接把当前值写在行里，不展开也能看全设置。）
     DrawTxt(gr, L"选项", F(12), C_MUTED, RXL, 30);
     for (int i = 0; i < OPT_COUNT; i++) {
       RectF r = OptRect(i);
@@ -805,16 +962,29 @@ static void Paint(HDC hdc) {
       DrawTxtW(gr, OPT_HINT[i], F(11), C_MUTED, r.X + 32, r.Y + 19, RW - (r.X + 32));
     }
 
-    // ── cosplay 模式 ──
-    Pen sep0(C_BORDER, 1.f); gr.DrawLine(&sep0, RXL, 232.f, RW, 232.f);
-    DrawTxt(gr, L"cosplay 模式", F(15), C_TEXT, RXL, 261);
-    DrawComboFrame(gr, OutfitRect(), OUTFIT_LABEL[st.outfit], st.hot == ID_COMBO_OUTFIT);
-    DrawTxtW(gr, OUTFIT_HINT, F(11), C_MUTED, RXL, 292, RW - RXL);
-
-    Pen sep(C_BORDER, 1.f); gr.DrawLine(&sep, RXL, 312.f, RW, 312.f);
-    DrawTxt(gr, L"影片字幕", F(15), C_TEXT, RXL, 333);
-    DrawComboFrame(gr, ComboRect(), SUBS_LABEL[st.subs], st.hot == ID_COMBO_SUBS);
-    DrawTxtW(gr, SUBS_HINT, F(11), C_MUTED, RXL, 364, RW - RXL);
+    // ── 4 个设置行：cosplay 模式 / 影片字幕 / 显示模式 / 分辨率 ──
+    // 收起态 = 「标签 ……… 当前值 ▸」；点行头展开该项的选项列表。
+    // 全屏时分辨率那行淡一档（它不生效），但仍可点开 ——
+    // 玩家常要先选好分辨率再切回窗口模式。
+    {
+      // 第 2 行「显示模式」与第 3 行「分辨率」是两个独立下拉，
+      // 但语义上是一组（原版 Screen Setting 里就是 SCREEN MODE + RESOLUTION），
+      // 所以分成 4 行后仍挨在一起，中间不加分隔线。
+      const wchar_t* vals[ROW_N] = {
+        OUTFIT_LABEL[st.outfit], SUBS_LABEL[st.subs],
+        SCRN_LABEL[st.scrn], RES_LABEL[st.res]
+      };
+      const wchar_t* names[ROW_N] = { L"cosplay 模式", L"影片字幕", L"显示模式", L"分辨率" };
+      for (int i = 0; i < ROW_N; i++) {
+        bool dim = (i == ROW_RES && st.scrn == 1);
+        DrawSettingRow(gr, RowRect(i), names[i], vals[i],
+                       st.hot == ID_ROW + i, st.openRow == i, dim);
+      }
+      // cosplay 那行下方的小字 —— 只有这一行有（用户 2026-09-24 指定）。
+      // 其余三行（影片字幕/显示模式/分辨率）看字面就懂，不解释。
+      DrawTxtW(gr, OUTFIT_HINT, F(11), C_MUTED,
+               RowHintRect().X, RowHintRect().Y, RW - RXL);
+    }
 
     // ── 主按钮 ──
     // 浅色极简 + **直角**（2026-09-13 用户指定：棱角分明，不再圆角）。
@@ -829,10 +999,36 @@ static void Paint(HDC hdc) {
       gr.DrawRectangle(&bp, sr);
       DrawTxtCentered(gr, L"开始游戏", FTech(20, true), C_TEXT, sr); }
 
+    // ── 更新卡片：**左栏主题图上**的小卡片，只在查到新版本时出现 ──
+    // 整张卡片可点：点它打开下载页（2026-09-15 用户要求：小卡片 + 跳转，不弹窗）。
+    // 压在图上所以用**深色半透明底 + 白字**（浅色卡片压在照片上会看不清）；
+    // 左侧「新」字徽标（主题蓝底白字），右侧「前往下载 →」。
+    if (!g_newVer.empty()) {
+      RectF br = BannerRect();
+      bool hot = (st.hot == ID_BANNER);
+      SolidBrush fillb(Color(hot ? 235 : 210, 18, 24, 34));
+      FillRR(gr, br, 6, Color(hot ? 235 : 210, 18, 24, 34));
+      StrokeRR(gr, br, 6, C_ACCENT, hot ? 1.6f : 1.2f);
+      // 左侧「新」徽标
+      RectF tag(br.X + 9.f, br.Y + 10.f, 26.f, 20.f);
+      SolidBrush tagb(C_ACCENT);
+      gr.FillRectangle(&tagb, tag);
+      DrawTxtCentered(gr, L"新", F(11, true), C_WHITE, tag);
+      // 文案：发现新版本 vX.Y（当前版本号左下角已有，卡片里不重复）
+      std::wstring line = L"发现新版本 " + g_newVer;
+      DrawTxtW(gr, line.c_str(), F(13), C_WHITE, tag.GetRight() + 9.f,
+               br.Y + 10.f, br.Width - 160.f);
+      // 右侧「前往下载 →」
+      DrawTxt(gr, L"前往下载 →", F(12), C_WHITE, br.GetRight() - 11.f,
+              br.Y + 11.f, 2 /*右对齐*/);
+    }
+
     // ── 「检查更新」小按钮：贴在「开始游戏」左侧 ──
-    // 点它去 GitHub 查最新版本：**只有确实有新版本**才弹窗问要不要去下载；
-    // 「已是最新」「查不到」直接显示在按钮上、几秒后自动恢复，不打断玩家。
+    // 点它去 GitHub 查最新版本：有新版本 → 右上角亮小红点 + 窗口内出小卡片
+    // （**不弹系统对话框**）；「已是最新」「查不到」直接显示在按钮上、
+    // 几秒后自动恢复，不打断玩家。
     // 网络请求在后台线程跑（见 UpdateThread），查期间显示「检查中…」并挡住重复点击。
+    // ★ 启动即自动查一次（见 wWinMain），有更新不用点按钮也会亮红点。
     { RectF cr = CheckRect();
       bool busy = (g_checking != 0);
       bool hot  = (st.hot == ID_CHECK) && !busy;
@@ -842,7 +1038,12 @@ static void Paint(HDC hdc) {
       gr.DrawRectangle(&bp, cr);
       const wchar_t* txt = busy ? L"检查中…"
                         : (!g_checkMsg.empty() ? g_checkMsg.c_str() : L"检查更新");
-      DrawTxtW(gr, txt, F(11), busy ? C_MUTED : C_DIM, cr.X, cr.Y + 5, cr.Width, 1); }
+      DrawTxtW(gr, txt, F(11), busy ? C_MUTED : C_DIM, cr.X, cr.Y + 5, cr.Width, 1);
+      // 小红点：查到新版本后常亮（右上角，压在按钮边框上，直径 8）
+      if (!g_newVer.empty()) {
+        SolidBrush dotb(C_DOT);
+        gr.FillEllipse(&dotb, cr.GetRight() - 5.f, cr.Y - 4.f, 8.f, 8.f);
+      } }
 
     // ── GitHub 标志按钮：贴在「检查更新」左侧，直接开仓库主页 ──
     { RectF gb = GithubRect();
@@ -866,11 +1067,14 @@ static void Paint(HDC hdc) {
     // 必须放在所有控件之后：展开的选项会盖住下面的分隔线与主按钮，
     // 若按源码顺序（换装就在换装标题之后）绘制，会被后面画的「影片字幕」
     // 和「开始游戏」覆盖，看起来像下拉框被切了一块。
-    if (st.comboOpen == 1)
-      DrawComboItems(gr, OutfitRect(), OUTFIT_N, OUTFIT_LABEL, st.outfit,
-                     400, st.hot);
-    else if (st.comboOpen == 0)
-      DrawComboItems(gr, ComboRect(), 3, SUBS_LABEL, st.subs, 100, st.hot);
+    if (st.openRow == ROW_OUTFIT)
+      DrawRowItems(gr, ROW_OUTFIT, OUTFIT_N, OUTFIT_LABEL, st.outfit, st.hot);
+    else if (st.openRow == ROW_SUBS)
+      DrawRowItems(gr, ROW_SUBS, 3, SUBS_LABEL, st.subs, st.hot);
+    else if (st.openRow == ROW_SCRN)
+      DrawRowItems(gr, ROW_SCRN, SCRN_N, SCRN_LABEL, st.scrn, st.hot);
+    else if (st.openRow == ROW_RES)
+      DrawRowItems(gr, ROW_RES, RES_N, RES_LABEL, st.res, st.hot);
   }
   BitBlt(hdc, 0, 0, pw, ph, mem, 0, 0, SRCCOPY);
   SelectObject(mem, old); DeleteObject(bmp); DeleteDC(mem);
@@ -968,15 +1172,19 @@ static int HitTest(int px, int py) {
   auto in = [&](const RectF& r) {
     return x >= r.X && x <= r.GetRight() && y >= r.Y && y <= r.GetBottom();
   };
-  // 下拉优先：展开时它盖在下面的控件上，命中判定也必须先于它们
-  if (st.comboOpen == 1) for (int k = 0; k < OUTFIT_N; k++) if (in(ItemRect(OutfitRect(), k))) return 400 + k;
-  if (st.comboOpen == 0) for (int k = 0; k < 3; k++) if (in(ItemRect(ComboRect(), k))) return 100 + k;
+  // 展开的选项列表优先判定：它盖在别的控件上，命中判定也必须先于它们
+  if (st.openRow >= 0) {
+    static const int rowN[ROW_N] = { OUTFIT_N, 3, SCRN_N, RES_N };
+    int n = rowN[st.openRow];
+    for (int k = 0; k < n; k++)
+      if (in(RowItemRect(st.openRow, n, k))) return ID_ROWITEM + st.openRow * 10 + k;
+  }
   if (in(CloseRect())) return ID_CLOSE;
+  if (!g_newVer.empty() && in(BannerRect())) return ID_BANNER;
   if (in(StartRect())) return ID_START;
   if (in(CheckRect())) return ID_CHECK;
   if (in(GithubRect())) return ID_GITHUB;
-  if (in(OutfitRect())) return ID_COMBO_OUTFIT;
-  if (in(ComboRect())) return ID_COMBO_SUBS;
+  for (int i = 0; i < ROW_N; i++) if (in(RowRect(i))) return ID_ROW + i;
   for (int i = 0; i < OPT_COUNT; i++) {
     RectF r = OptRect(i);
     if (x >= r.X - 4 && x <= r.X + r.Width && y >= r.Y - 2 && y <= r.Y + 40) return i;
@@ -1005,16 +1213,12 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
     UpdResult* r = (UpdResult*)l;
     InterlockedExchange(&g_checking, 0);
     if (r) {
-      // ★ 只有**确实有新版本**才弹对话框（那是需要玩家做决定的事：
-      //   要不要去下载）。「已是最新」「查不到」都是正常结果，
-      //   写在按钮上几秒后自己消失就行 —— 不打断玩家
-      //   （2026-09-13 用户要求：检查更新就只是检查更新，别那么累赘）。
+      // ★ 不弹系统对话框（2026-09-15 用户要求）：有新版本 → 按钮亮小红点 +
+      //   窗口内出一张小卡片（点它去下载页）；「已是最新」「查不到」仍只是
+      //   按钮上的临时文字，几秒后自己消失。
       if (r->status == 0) {
-        std::wstring msg = L"发现新版本 " + r->latest + L"（当前 v" + VER +
-                           L"）。\n\n是否前往下载？";
-        if (MessageBoxW(h, msg.c_str(), L"检查更新",
-                        MB_YESNO | MB_ICONINFORMATION) == IDYES)
-          ShellExecuteW(h, L"open", r->url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        g_newVer = r->latest;
+        g_newUrl = r->url;
       } else if (r->status == 1) {
         g_checkMsg = std::wstring(L"已是最新 v") + VER;
         SetTimer(h, TIMER_CHECKMSG, 4000, nullptr);
@@ -1044,23 +1248,47 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
     return 0;
   }
   case WM_MOUSELEAVE: st.hot = -1; InvalidateRect(h, nullptr, FALSE); return 0;
-  case WM_LBUTTONDOWN: { st.press = HitTest(GET_X_LPARAM(l), GET_Y_LPARAM(l)); return 0; }
+  case WM_LBUTTONDOWN: {
+    // ★ 必须记录按下的是哪一项：WM_LBUTTONUP 用 `id == st.press` 判「按下与抬起
+    //   在同一控件上」才执行动作（防止按下后拖走再松手误触发）。
+    //   漏掉这一行 → st.press 永远是初值 -1 → **所有按钮/勾选框/下拉全都没反应**。
+    st.press = HitTest(GET_X_LPARAM(l), GET_Y_LPARAM(l));
+    if (st.press == ID_BANNER) g_bannerDown = true;
+    return 0; }
   case WM_LBUTTONUP: {
     int id = HitTest(GET_X_LPARAM(l), GET_Y_LPARAM(l));
-    if (id == st.press) {
+    bool bannerDown = g_bannerDown; g_bannerDown = false;
+    if (id == st.press || (bannerDown && id == ID_BANNER)) {
       bool saveNow = false;
       if (id >= 0 && id < OPT_COUNT) { st.on[id] = !st.on[id]; InvalidateRect(h, nullptr, FALSE); saveNow = true; }
-      else if (id >= 100 && id < 103) { st.subs = id - 100; st.comboOpen = -1; InvalidateRect(h, nullptr, FALSE); saveNow = true; }
-      else if (id >= 400 && id < 400 + OUTFIT_N) { st.outfit = id - 400; st.comboOpen = -1; InvalidateRect(h, nullptr, FALSE); saveNow = true; }
-      else if (id == ID_COMBO_SUBS) { st.comboOpen = (st.comboOpen == 0) ? -1 : 0; InvalidateRect(h, nullptr, FALSE); }
-      else if (id == ID_COMBO_OUTFIT) { st.comboOpen = (st.comboOpen == 1) ? -1 : 1; InvalidateRect(h, nullptr, FALSE); }
+      // 点行头：展开/收起该项的选项（手风琴 —— 同时只开一行，免得撑破窗口）
+      else if (id >= ID_ROW && id < ID_ROW + ROW_N) {
+        int r = id - ID_ROW;
+        st.openRow = (st.openRow == r) ? -1 : r;
+        InvalidateRect(h, nullptr, FALSE);
+      }
+      // 点选项：写入对应的值
+      else if (id >= ID_ROWITEM) {
+        int r = (id - ID_ROWITEM) / 10, k = (id - ID_ROWITEM) % 10;
+        if (r == ROW_OUTFIT && k < OUTFIT_N) { st.outfit = k; saveNow = true; }
+        else if (r == ROW_SUBS && k < 3) { st.subs = k; saveNow = true; }
+        else if (r == ROW_SCRN && k < SCRN_N) { st.scrn = k; SaveScreenCfg(); }
+        else if (r == ROW_RES && k < RES_N) { st.res = k; SaveScreenCfg(); }
+        st.openRow = -1;
+        InvalidateRect(h, nullptr, FALSE);
+      }
       else if (id == ID_START) { LaunchGame(); }
       else if (id == ID_CHECK) { StartUpdateCheck(); }
+      else if (id == ID_BANNER) {   // 点更新卡片 → 打开下载页（卡片消失，红点熄灭）
+        ShellExecuteW(h, L"open", g_newUrl.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        g_newVer.clear(); g_newUrl.clear();
+        InvalidateRect(h, nullptr, FALSE);
+      }
       else if (id == ID_GITHUB) { ShellExecuteW(h, L"open", REPO_URL, nullptr, nullptr, SW_SHOWNORMAL); }
       else if (id == ID_CLOSE) { PostMessageW(h, WM_CLOSE, 0, 0); }
       // 立刻落盘：玩家可能在这里改完就关窗口、再用 Steam 或 boot.bat 直启游戏
       if (saveNow) SaveConfig();
-    } else if (st.comboOpen >= 0 && id == -1) { st.comboOpen = -1; InvalidateRect(h, nullptr, FALSE); }
+    } else if (st.openRow >= 0 && id == -1) { st.openRow = -1; InvalidateRect(h, nullptr, FALSE); }
     st.press = -1; return 0;
   }
   case WM_PAINT: { PAINTSTRUCT ps; HDC dc = BeginPaint(h, &ps); Paint(dc); EndPaint(h, &ps); return 0; }
@@ -1140,6 +1368,10 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
                            style, (sw - ww) / 2, (sh - wh) / 2, ww, wh,
                            nullptr, nullptr, hInst, nullptr);
   ShowWindow(g_hwnd, SW_SHOW); UpdateWindow(g_hwnd);
+
+  // 启动即自动查一次更新（后台线程，不卡窗口）：有新版本时按钮亮小红点 +
+  // 出现更新卡片，玩家不用点「检查更新」也能知道（2026-09-15 用户要求）。
+  StartUpdateCheck();
 
   MSG msg;
   while (GetMessageW(&msg, nullptr, 0, 0)) { TranslateMessage(&msg); DispatchMessageW(&msg); }

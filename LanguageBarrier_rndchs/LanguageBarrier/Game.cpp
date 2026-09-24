@@ -363,6 +363,47 @@ static void titleMenuWidthsInit() {
   LanguageBarrierLog("TitleMenuWidths: patched to localized widths");
 }
 
+// The window title is an ASCII literal in .rdata that the game copies into a
+// std::string and passes as both lpClassName and lpWindowName of
+// CreateWindowExA. The executable spells the product "DASH" while it is
+// actually "DaSH", and since the literal is only ever read, rewriting it in
+// place during init (long before the window exists) fixes the title without a
+// hook. The signature *is* the original string, so a match already proves the
+// buffer holds it.
+static const char kWindowTitleOriginal[] = "Robotics;Notes DASH";
+
+static void windowTitleInit() {
+  if (config["patch"].count("windowTitle") == 0) return;
+  const std::string title = config["patch"]["windowTitle"].get<std::string>();
+  if (title.empty()) return;
+
+  uintptr_t literal = sigScan("game", "windowTitle", true);
+  if (literal == NULL) {
+    LanguageBarrierLog("WindowTitle: signature not found; left as-is");
+    return;
+  }
+
+  // The game builds the name as std::string(literal, 19) and hands that same
+  // object to CreateWindowExA as both the class name and the window name, so
+  // the replacement may be shorter (pad with NULs to keep the two in sync) but
+  // never longer: the save-directory path is stored directly behind the
+  // literal and must not be overwritten.
+  const size_t kTitleLen = sizeof(kWindowTitleOriginal) - 1;
+  if (title.size() > kTitleLen) {
+    LanguageBarrierLog("WindowTitle: replacement too long; left as-is");
+    return;
+  }
+
+  char patched[sizeof(kWindowTitleOriginal)];
+  memcpy(patched, kWindowTitleOriginal, sizeof(patched));
+  memcpy(patched, title.c_str(), title.size());
+  memset(patched + title.size(), '\0', kTitleLen - title.size());
+  patched[kTitleLen] = '\0';
+
+  memcpy_perms((void*)literal, patched, sizeof(patched));
+  LanguageBarrierLog("WindowTitle: patched to \"" + title + "\"");
+}
+
 void gameInit() {
   SetProcessDPIAware();
   std::ifstream in("languagebarrier\\stringReplacementTable.bin",
@@ -533,6 +574,7 @@ void gameInit() {
   }
 
   titleMenuWidthsInit();
+  windowTitleInit();
 }
 
 // earlyInit is called after all the subsystems have been initialised but before

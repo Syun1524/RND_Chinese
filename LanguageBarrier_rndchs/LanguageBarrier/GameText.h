@@ -113,6 +113,17 @@ LB_GLOBAL bool BACKLOG_NAME_ALIGN;
 LB_GLOBAL int BACKLOG_BODY_GAP;
 LB_GLOBAL bool BACKLOG_NAME_DEBUG;
 
+// Per-call-site horizontal shifts for drawTwipoContent, keyed by the return
+// address of the caller (see twipoContentFixes in patchdef.json).
+//
+// The phone mail header draws its field captions and its right-anchored date
+// block through this one shared routine. Captions are placed at a hard-coded x
+// while the date block is measured from the right edge, so a translation that
+// widens the date pushes it left into the caption. A negative dx pulls the
+// affected caption out of the way. TWIPO_CONTENT_DEBUG dumps each hit to
+// log.txt.
+LB_GLOBAL bool TWIPO_CONTENT_DEBUG;
+
 // Allow a line break between CJK/fullwidth characters, and at the boundary
 // between a CJK character and a Latin word.
 //

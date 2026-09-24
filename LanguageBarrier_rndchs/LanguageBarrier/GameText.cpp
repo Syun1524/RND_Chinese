@@ -409,6 +409,27 @@ typedef struct {
 } SpriteFix_t;
 static std::map<uintptr_t, SpriteFix_t> retAddrToSpriteFixes;
 
+// drawTwipoContent draws more than Twipo: the phone mail header reuses it for
+// its field captions ("Subject"/"Sender"/"Received") and for the date block.
+// The captions sit at a hard-coded x, but the date block is right-anchored, so
+// a translation that widens the date walks left into the caption. Keyed by
+// return address so each call site can be nudged on its own.
+typedef struct {
+  int dx;
+} TwipoContentOffset_t;
+static std::map<uintptr_t, TwipoContentOffset_t> retAddrToTwipoContentFixes;
+
+// The mail date is drawn right-to-left from one shared buffer: the game formats
+// a number with FormatNumber, measures that buffer, then draws it. The English
+// layout emits day/month as bare numbers ("9/2") with no day marker, so a
+// Chinese date has to grow a trailing "日".
+//
+// The marker is added from the width hook (see appendMailDayMarker), which runs
+// on the same buffer the draw will read, so the extra cell is both reserved in
+// the layout and painted.
+static uintptr_t gameExeMailDayMeasureRet = NULL;
+static bool MAIL_DAY_MARKER = false;
+
 static uintptr_t gameExeCcBacklogNamePosCode = NULL;       // = 0x00454FE9
 static uintptr_t gameExeCcBacklogNamePosAdjustRet = NULL;  // = 0x00454FEF
 
@@ -1006,6 +1027,41 @@ void gameTextInit() {
         else
           *name2var[i].ptr = 0;
       }
+    }
+  }
+  // drawTwipoContent fixes, keyed by the return address of the call site so
+  // each caller of the shared draw routine can be shifted independently.
+  TWIPO_CONTENT_DEBUG = false;
+  if (config["patch"].count("twipoContentDebug") == 1)
+    TWIPO_CONTENT_DEBUG = config["patch"]["twipoContentDebug"].get<bool>();
+  const auto& twipoContentFixes =
+      config["patch"].find("twipoContentFixes");
+  if (twipoContentFixes != config["patch"].end() &&
+      twipoContentFixes->is_array()) {
+    for (const json& item : *twipoContentFixes) {
+      if (!item.is_object()) continue;
+      auto sigNameIter = item.find("sigName");
+      if (sigNameIter == item.end() || !sigNameIter->is_string()) continue;
+      uintptr_t targetPtr = sigScan("game", sigNameIter->get<std::string>().c_str());
+      if (!targetPtr) continue;
+      TwipoContentOffset_t& fix = retAddrToTwipoContentFixes[targetPtr];
+      auto dxIter = item.find("dx");
+      fix.dx = (dxIter != item.end() && dxIter->is_number_integer())
+                   ? dxIter->get<int>()
+                   : 0;
+    }
+  }
+  // The English mail layout has no day marker, so a Chinese date has to grow
+  // one. Defaults on for this patch; mailDayMarker=false restores "9/2".
+  MAIL_DAY_MARKER = true;
+  if (config["patch"].count("mailDayMarker") == 1)
+    MAIL_DAY_MARKER = config["patch"]["mailDayMarker"].get<bool>();
+  if (MAIL_DAY_MARKER) {
+    gameExeMailDayMeasureRet = sigScan("game", "mailDayMeasure");
+    if (!gameExeMailDayMeasureRet) {
+      MAIL_DAY_MARKER = false;
+      LanguageBarrierLog(
+          "mailDayMarker: signature not found, leaving the date as-is");
     }
   }
   if (NEEDS_CC_BACKLOG_NAME_POS_ADJUST) {
@@ -2634,6 +2690,20 @@ int __cdecl drawTwipoContentHook(int textureId, int startX, int startY,
                                   a12, a13, a14);
     ;
   }
+
+  auto twipoFixIter =
+      retAddrToTwipoContentFixes.find((uintptr_t)_ReturnAddress());
+  if (twipoFixIter != retAddrToTwipoContentFixes.end()) {
+    startX += twipoFixIter->second.dx;
+    if (TWIPO_CONTENT_DEBUG) {
+      std::stringstream dbg;
+      dbg << "twipoContentFix: ret=" << std::hex << (uintptr_t)_ReturnAddress()
+          << std::dec << " dx=" << twipoFixIter->second.dx
+          << " startX=" << startX;
+      LanguageBarrierLog(dbg.str());
+    }
+  }
+
   int xOffset, yOffset;
   xOffset = 0;
   yOffset = 0;
@@ -3131,10 +3201,65 @@ signed int drawSingleTextLineHook(int textureId, int startX, signed int startY,
                                        maxLength, color, glyphSize, opacity);
 }
 
+// Append the day marker to a mail date's day number, in place.
+//
+// The English mail layout ends the date with a bare day number ("9/2"), while
+// the Japanese one carries its own 日 slot. So a Chinese date in the English
+// layout has to grow the marker itself.
+//
+// This runs from the width hook, on the buffer the caller is about to measure
+// and then draw: the same stack buffer serves both. Inserting before the 0xFF
+// terminator therefore both reserves the extra cell (the block is right
+// anchored, so it slides left instead of overrunning the panel) and gets the
+// glyph drawn. Measured-only or drawn-only would give a shifted block or a
+// marker past the edge.
+static void appendMailDayMarker(char* sc3string, unsigned int maxCharacters) {
+  if (TextRendering::Get().fullCharMap.empty()) return;
+  const size_t dayId = TextRendering::Get().fullCharMap.find(L'\u65e5');
+  if (dayId == std::wstring::npos || dayId > 0x7FFF) return;
+
+  // The caller's buffer runs from ebp-0x104 up to the stack cookie at ebp-4, so
+  // it holds 0x100 bytes and a glyph costs two. Never scan further than that:
+  // the caller passes 0 for maxCharacters, which the hook widens to 255 -- more
+  // than the buffer can hold, so bounding by that alone would read past it.
+  const unsigned int limit = min(maxCharacters, (unsigned int)(0x100 / 2) - 1);
+
+  // Walk to the terminator. Anything but plain glyphs means this is not the
+  // shape we expect, so leave the string alone.
+  char* p = sc3string;
+  unsigned int glyphs = 0;
+  int lastGlyph = -1;
+  while (glyphs <= limit) {
+    const unsigned char c = (unsigned char)*p;
+    if (c == 0xFF) break;
+    if (c >= 0x80) {
+      lastGlyph = ((c & 0x7F) << 8) | (unsigned char)p[1];
+      p += 2;
+    } else {
+      return;
+    }
+    glyphs++;
+  }
+  if ((unsigned char)*p != 0xFF) return;
+  // Already marked: the hook can see the same buffer more than once.
+  if (lastGlyph == (int)dayId) return;
+  // The date number is a digit or two; refuse anything longer so a surprise
+  // string cannot run past the caller's buffer.
+  if (glyphs > 8) return;
+
+  p[0] = (char)(0x80 | (dayId >> 8));
+  p[1] = (char)(dayId & 0xFF);
+  p[2] = (char)0xFF;
+}
+
 int __cdecl getSc3StringDisplayWidthHook(char* sc3string,
                                          unsigned int maxCharacters,
                                          int baseGlyphSize) {
   if (!maxCharacters) maxCharacters = DEFAULT_MAX_CHARACTERS;
+  if (MAIL_DAY_MARKER && gameExeMailDayMeasureRet &&
+      (uintptr_t)_ReturnAddress() == gameExeMailDayMeasureRet) {
+    appendMailDayMarker(sc3string, maxCharacters);
+  }
   ScriptThreadState sc3;
   int sc3evalResult;
   int result = 0;

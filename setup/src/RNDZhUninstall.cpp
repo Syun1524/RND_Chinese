@@ -224,15 +224,27 @@ static bool RunUninstall() {
       CopyFileW(orig.c_str(), bb.c_str(), FALSE);
     } else if (InBackup(L"boot.bat")) {
       CopyFileW(Join(bak, L"boot.bat").c_str(), bb.c_str(), FALSE);
-    } else if (Exists(bb)) {
-      // 无备份：把它改回不触发劫持的样子
+    }
+    // 兜底：恢复出来的内容若仍指向补丁启动器，就改回原版写法。
+    // 触发场景：重装过的目录里，最新备份存的是上一次装好的 boot.bat
+    // （指向 RNDZhLauncher.exe），而卸载会把它删掉 —— 留着就指向不存在的文件。
+    // 语言从**当前内容**解析（安装时写进去的就是 EN/JP），别硬编码：
+    // 英文版玩家被改成 JP 会让存档目录对不上。
+    // RNDZhLauncher.exe / LauncherC0.exe 这两个名字里都不含 EN/JP 子串，
+    // 所以命中的必然是语言 token。
+    if (Exists(bb)) {
       std::ifstream in(bb, std::ios::binary);
       std::stringstream ss; ss << in.rdbuf();
       std::string t = ss.str();
-      if (t.find("RNDZhLauncher") != std::string::npos ||
-          t.find("LauncherC0") != std::string::npos) {
+      std::string up = t;
+      for (auto& c : up) c = (char)toupper((unsigned char)c);
+      if (up.find("RNDZHLAUNCHER") != std::string::npos ||
+          up.find("LAUNCHERC0") != std::string::npos) {
+        size_t e = up.find("EN"), j = up.find("JP");
+        const char* lang = (e != std::string::npos &&
+                            (j == std::string::npos || e < j)) ? "EN" : "JP";
         std::ofstream f(bb, std::ios::binary | std::ios::trunc);
-        f << "@echo off\r\n\r\nstart launcher.exe JP\r\n";
+        f << "@echo off\r\n\r\nstart launcher.exe " << lang << "\r\n";
       }
     }
   }

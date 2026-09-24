@@ -164,6 +164,9 @@ void loadJsonConstants() {
   BACKLOG_NAME_DEBUG = false;
   if (config["patch"].count("backlogNameDebug") == 1)
     BACKLOG_NAME_DEBUG = config["patch"]["backlogNameDebug"].get<bool>();
+  TWIPO_CONTENT_DEBUG = false;
+  if (config["patch"].count("twipoContentDebug") == 1)
+    TWIPO_CONTENT_DEBUG = config["patch"]["twipoContentDebug"].get<bool>();
   // Speaker-name column defaults on; backlogNameAlign=false restores the game's
   // own centring for an A/B on a live install.
   BACKLOG_NAME_ALIGN = true;
