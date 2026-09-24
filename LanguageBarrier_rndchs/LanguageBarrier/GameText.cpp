@@ -1064,6 +1064,31 @@ void gameTextInit() {
           "mailDayMarker: signature not found, leaving the date as-is");
     }
   }
+  // The mail header picks a field's value x from two hard-coded literals by
+  // game language: Japanese -> push 0x71 (113), English -> push 0x99 (153).
+  // The Japanese one sits 60 units further left, which reads as cramped against
+  // the 2-character "主题" caption, so the two versions disagree.
+  //
+  // Force the English literal by turning the selecting jne into a jmp: both are
+  // 2-byte forms (75 rel8 / EB rel8) taking the same rel8, so this is a
+  // same-length, single-byte overwrite and the layout becomes language
+  // independent. That lets the dx table below carry one entry per site instead
+  // of one per (site, language) pair.
+  //
+  // Rewriting the Japanese literal instead does NOT work: it is a push imm8,
+  // whose operand is signed, so 0x99 would mean -103 and push the value off the
+  // left edge of the panel.
+  {
+    static const char* const kJpBranchSigs[] = {
+        "mailHeaderSubjectValueJpBranch",
+        "mailHeaderSenderValueJpBranch",
+    };
+    for (size_t i = 0; i < sizeof(kJpBranchSigs) / sizeof(*kJpBranchSigs); i++) {
+      unsigned char* ptr = (unsigned char*)sigScan("game", kJpBranchSigs[i]);
+      if (!ptr) continue;
+      if (ptr[0] == 0x75) memset_perms(ptr, 0xEB, 1);
+    }
+  }
   if (NEEDS_CC_BACKLOG_NAME_POS_ADJUST) {
     gameExeCcBacklogNamePosAdjustRet =
         sigScan("game", "ccBacklogNamePosAdjustRet");
