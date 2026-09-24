@@ -64,7 +64,7 @@ static const int RIGHT_W = 425;   // 右栏固定宽度（放选项）
 
 // 产品版本。⚠ 改版本要同步三处：这里、成品ing/setup/src/RNDZhSetup.cpp 的 VER、
 // 成品ing/setup/build/build_installer.py 的 VERSION（决定包文件名）。
-static const wchar_t* VER = L"1.2";
+static const wchar_t* VER = L"1.3";
 // 产品标题（用户要求结尾带版本号）。窗口标题用这一份（游戏窗口标题不再改写）。
 static const std::wstring APP_TITLE =
     std::wstring(L"ROBOTICS;NOTES DaSH 简体中文 AI人工精校版 v") + VER;

@@ -36,7 +36,7 @@ using namespace Gdiplus;
 static const int WIN_W = 480, WIN_H = 268;
 // 产品版本。⚠ 改版本要同步三处：这里、launcher/RNDZhLauncher.cpp 的 VER、
 // 成品ing/setup/build/build_installer.py 的 VERSION（决定包文件名）。
-static const wchar_t* VER = L"1.2";
+static const wchar_t* VER = L"1.3";
 static const Color
   C_BG      (255, 255, 255, 255),   // 窗口底
   C_PANEL   (255, 245, 246, 248),   // 顶部标题条

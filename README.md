@@ -3,7 +3,7 @@
 **ROBOTICS;NOTES DaSH**（MAGES/5pb，Steam 版）的简体中文汉化补丁。
 译文以**日语原文**为准，gemini3.0flash + 人工精校。
 
-- 当前版本：**v1.2**
+- 当前版本：**v1.3**
 - 技术基础：Committee of Zero 的英文优化补丁（LanguageBarrier 运行时），在其框架上替换为中文码表、字体、译文与图集
 - 适用：Steam 正版与免 DVD 版通用，装完保持游戏原有语言设定
 
@@ -24,7 +24,7 @@
 ## 怎么装
 
 1. **先完全退出游戏**（进程会锁住补丁文件）。
-2. 双击 `RNDZh-Setup-v1.2.exe`，安装器会自动找到游戏目录（Steam 库或免 DVD 目录都能认）。
+2. 双击 `RNDZh-Setup-v1.3.exe`，安装器会自动找到游戏目录（Steam 库或免 DVD 目录都能认）。
 3. 点「安装」。装完点「RNDZhLauncher.exe」启动即可。
 
 卸载：运行游戏目录里的 `卸载汉化.exe`，会还原到装补丁前的状态。

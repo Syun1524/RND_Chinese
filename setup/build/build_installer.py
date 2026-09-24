@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """构建单文件安装包 RNDZh-Setup-v<版本>.exe（官方 SFX 安装器模式）
 
 拼装方式（与 LZMA SDK 的 DOC/installer.txt + bin/installer/cr.bat 一致）：
@@ -39,7 +39,7 @@ SETUP = os.path.join(SETUP_DIR, 'bin', 'RNDZhSetup.exe')
 # 成品安装包直接输出到 setup/ 根，方便取用
 OUT_DIR = SETUP_DIR
 
-VERSION = '1.0'
+VERSION = '1.3'
 TITLE = 'ROBOTICS;NOTES DaSH 简中补丁 AI人工精校版'
 # 一行说清「装什么 + 前提」。不做无意义的二次确认 ——
 # 真正需要用户确认的是安装器界面里的「开始安装」。
