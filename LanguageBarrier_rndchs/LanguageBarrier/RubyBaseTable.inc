@@ -51,7 +51,6 @@ static const RubyBaseEntry RUBY_BASE_ENTRIES[] = {
     {L"copy", L"\u590D\u5236\u54C1"},
     {L"robota", L"\u52B3\u5F79"},
     {L"soeur", L"\u59D0\u59B9"},
-    {L"\u2022\u2022", L"\u4E13\u4E1A\u4EBA\u58EB"},
     {L"\u3042\u3044\u3064", L"\u30C1\u30E7\u30AB\u30E1\u30F3"},
     {L"\u3042\u3044\u3064", L"\u5F7C\u4EBF\u30B3\u30A6"},
     {L"\u3042\u306E\u3053", L"\u30ED\u30DC\u30C3\u30C8"},
@@ -118,11 +117,11 @@ static const RubyBaseEntry RUBY_BASE_ENTRIES[] = {
     {L"\u66FF\u8EAB", L"\u5192\u724C\u8D27"},
     {L"\u6C42\u57FA\u60C5", L"\u641E\u70B9BL"},
     {L"\u6CA1\u3001\u6CA1\u95EE\u9898", L"Be\u3001Bene"},
-    {L"\u7535\u8111\u9B54\u672F\u5E08", L"Wizard"},
     {L"\u76D8\u53E4\u5927\u9646", L"Pangea"},
     {L"\u8001\u672C\u884C", L"\u62FF\u624B\u597D\u620F"},
     {L"\u804C\u4E1A\u75C5", L"\u672C\u6027"},
     {L"\u8299\u52B3", L"\u5979"},
+    {L"\u8336\u58F6", L"\u5343\u4EE3\u9999"},
     {L"\u8FD9\u5BB6\u4F19", L"\u88C5\u7F6E"},
     {L"\u8FD9\u5BB6\u4F19", L"\u94A2\u52362\u53F7"},
     {L"\u8FD9\u8FB9", L"\u821E\u53F0\u540E\u53F0"},
@@ -136,8 +135,7 @@ static const RubyBaseEntry RUBY_BASE_ENTRIES[] = {
     {L"\u90A3\u4E2A\u7537\u4EBA", L"\u541B\u5C9B\u6643"},
     {L"\u90A3\u4E9B\u5B69\u5B50", L"\u673A\u5668\u4EBA"},
     {L"\u90A3\u5BB6\u4F19", L"\u5343\u4EE3\u9999\u9762"},
-    {L"\u90A3\u73A9\u610F\u513F", L"\u767E\u9999\u679C\u9992\u5934"},
-    {L"\u9152\u58F6", L"\u5343\u4EE3\u9999"},
+    {L"\u90A3\u73A9\u610F\u513F", L"\u767E\u9999\u679C\u8089\u5305"},
 };
 
 static const int RUBY_BASE_ENTRY_COUNT = (int)(sizeof(RUBY_BASE_ENTRIES) / sizeof(RUBY_BASE_ENTRIES[0]));
