@@ -72,6 +72,22 @@ for ln in io.open(G, encoding='utf-8-sig', newline='').read().splitlines():
         sys.stdout.write('  %s-%s  小注居中=%s  英文左缘=%.1f(目标63) %s\n     %s\n'
                          % (f[1], f[2], centered, left, 'OK' if ok_left else 'BAD', txt[:66]))
 print()
+print(r'英文扫色行（\kf，与中文歌词同一套视效）：')
+for ln in io.open(G, encoding='utf-8-sig', newline='').read().splitlines():
+    if not ln.startswith('Dialogue:'):
+        continue
+    f = ln.split(',', 9)
+    if len(f) < 10 or f[3].strip() != 'translation':
+        continue
+    if 'an2' not in f[9] or 'kf' not in f[9]:
+        continue
+    ks = [int(x) for x in re.findall(r'kf(\d+)', f[9])]
+    span = (t2s(f[2]) - t2s(f[1])) * 100
+    fit = 0 <= span - sum(ks) < 120
+    sys.stdout.write('  %s-%s  %d 个音节  kf 总 %.2fs / 窗口 %.2fs  %s\n'
+                     % (f[1], f[2], len(ks), sum(ks) / 100.0, span / 100.0,
+                        'OK' if fit else 'BAD'))
+print()
 print('竖排英文行数（右列 1818）:')
 n = sum(1 for l in io.open(G, encoding='utf-8-sig', newline='').read().splitlines()
         if l.startswith('Dialogue:') and ',Kanji,' in l and 'pos(1818,' in l and vis(l.split(',', 9)[9]).isascii())

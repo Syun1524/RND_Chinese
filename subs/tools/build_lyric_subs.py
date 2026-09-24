@@ -679,8 +679,11 @@ def main():
             # per-song extra pass (op001's sung-English segments: English on the
             # Japanese layer, English big + Chinese note on the Chinese layer)
             if base in EN_PASS:
-                try:                       # pass needs the font to centre the note
+                try:                       # pass needs font + CoZ's sweep palette
                     lyric_en_pass.FONT_PATH = FONT_PATH
+                    lyric_en_pass.TEMPLATE_DIR = TEMPLATE
+                    lyric_en_pass.sweep_colors = sweep_colors
+                    lyric_en_pass.SWEEP = globals()["KARAOKE"]
                 except Exception:
                     pass
                 out_lines = EN_PASS[base](out_lines, styles, dialogues, tgts,

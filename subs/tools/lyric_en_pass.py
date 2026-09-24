@@ -10,10 +10,21 @@ CoZ 把三句英文 rap/chant **只**记在 romaji 层，Kanji 层那几秒没�
 
 中文措辞（用户指定）：我正走向新世界秩序 / 神明将降临于世 / 再一次
 """
+import io
+import os
 import re
 
 BS = chr(92)
 VIS = re.compile(r'\{[^}]*\}')
+KSYL = re.compile(re.escape(BS) + r'k(?:f|o)?(\d+)\}')
+
+# 由 build_lyric_subs 在调用 pass 前塞进来：
+#   TEMPLATE_DIR —— 英文原版字幕目录（取 romaji 的 \k 时间轴）
+#   sweep_colors —— 复用它那套调色（暗底扫白 / 亮底从暗调回本色）
+#   SWEEP        —— 是否加扫色（跟主构建的 --karaoke 同一个开关）
+TEMPLATE_DIR = None
+sweep_colors = None
+SWEEP = True
 
 # 宽度测量：英文行是整个文字块里最宽的一行，用它的宽度反推 \an2 的锚点，
 # 就能让英文左缘正好落在中文译文的左列（x=63），同时让较短的中文小注
@@ -52,6 +63,68 @@ def _text_width(text, fs):
     if px not in _fonts:
         _fonts[px] = ImageFont.truetype(FONT_PATH, px)
     return _fonts[px].getlength(text)
+
+
+def _romaji_tokens(en0):
+    """CoZ 的 romaji karaoke 行（起点 = 这段英文的起唱）→ [(文本, 时长cs)]。
+    CoZ 把英文唱词和随后的日文歌词放在**同一条 \\k 流**里，所以开头那几个
+    token 正好就是这段英文的时间轴。
+
+    用 re.split 按标签切，避免手工找下标时把下一个标签的 `{` 卷进文本里。"""
+    if not TEMPLATE_DIR:
+        return None
+    path = os.path.join(TEMPLATE_DIR, 'mv_rnd_op001.ass')
+    for ln in io.open(path, encoding='utf-8-sig', newline=''):
+        if not ln.startswith('Comment:'):
+            continue
+        f = ln.rstrip().split(',', 9)
+        if len(f) < 10 or f[3].strip() != 'romaji' or 'retime' in f[9]:
+            continue
+        if abs(t2s(f[1]) - en0) > 0.05:
+            continue
+        parts = re.split(re.escape(BS) + r'k(?:f|o)?(\d+)\}', f[9])
+        # parts = [前导, dur0, text0, dur1, text1, ...]
+        # 每段文本的**末尾**带着下一个标签的开头 '{'（源文件里标签写作 {\kNN}），
+        # 必须剥掉，否则它会作为普通字符被渲染出来。
+        toks = []
+        for i in range(1, len(parts) - 1, 2):
+            txt = parts[i + 1]
+            if txt.endswith('{'):
+                txt = txt[:-1]
+            toks.append((txt, int(parts[i])))
+        return toks
+    return None
+
+
+def _en_sweep(en, en0, lead_cs=0):
+    r"""英文行的 \kf 扫色负载 + 总时长(cs)。
+
+    只取属于**英文唱词**的那些 token：同一条 romaji 行后面接着日文歌词，
+    那些音节不能算到这一行头上。边界靠字母比对（忽略空格/标点）确定：
+    累积到与英文文本等长就停；中途对不上就放弃（不猜）。
+
+    lead_cs：本行显示起点到**起唱**之间的空档（\fad 那 0.3s）。按中文歌词的
+    既有做法，把这段垫进**首字**的时长里 —— 首字从行一出现就开始慢慢填，
+    其余各字仍严格跟着唱腔走（另起一个空 \kf 标签也可以，但与既有风格不一致）。"""
+    toks = _romaji_tokens(en0)
+    if not toks:
+        return None, 0
+    want = re.sub(r'[^A-Za-z]', '', en).lower()
+    got, units = '', []
+    for txt, dur in toks:
+        if len(got) >= len(want):
+            break
+        got += re.sub(r'[^A-Za-z]', '', txt).lower()
+        if not want.startswith(got):
+            return None, 0
+        units.append([txt, dur])
+    if len(got) != len(want) or not units:
+        return None, 0
+    if lead_cs > 0:
+        units[0][1] += lead_cs
+    payload = ''.join('{%skf%d}%s' % (BS, d, t) for t, d in units)
+    return payload, sum(d for _, d in units)
+
 
 # (英文起唱, 日文起唱, 中文行原点, 英文原文, 中文小注)
 SEGS = [
@@ -152,6 +225,35 @@ def apply_pass(lines, styles, dialogues=None, tgts=None, timelines=None):
                    % (keep, note_fs, note_sp, zh, en_fs, en))
         orig_text = vis(gf[9])
 
+        # ---- 英文扫色 overlay（与中文歌词同一套视觉语言）----
+        # 单独一条只含英文的行：\an2 锚点相同 ⇒ 底边与 ghost 的英文行重合，
+        # 逐字 \kf 按 CoZ 记在 romaji 层的音节时长从左往右扫。
+        # ★ 中文小注**不参与扫色**：它是翻译注解、不是唱的内容，跟着扫会抢戏；
+        #   而且它就压在英文上方，英文本身已经在指示进度了。
+        ov_en = None
+        if SWEEP and sweep_colors is not None:
+            # 空档 = ghost 显示起点 → 英文起唱（这一段扫色原地不动）。
+            # ★ 必须夹住窗口：CoZ 的 \k 总和偶尔比显示窗口长 1cs（两端各自
+            #   四舍五入），不夹的话扫色会在行结束之后才走完、末字永远填不满。
+            lead_cs = max(0, int(round((en0 - tr0) * 100)))
+            win_cs = int(round((jp0 - tr0) * 100))
+            payload, total_cs = _en_sweep(en, en0, lead_cs)
+            if payload:
+                body_cs = total_cs - lead_cs
+                lead_cs = max(0, min(lead_cs, win_cs - body_cs))
+                payload, total_cs = _en_sweep(en, en0, lead_cs)
+            if payload and total_cs:
+                sec, prim = sweep_colors(keep)
+                tag = '{' + BS + '2c&H' + sec + '&'
+                if prim:
+                    tag += BS + '1c&H' + prim + '&'
+                tag += '}'
+                ef, eeol = _fld(ghost)
+                ef2 = list(ef)
+                # 起点同 ghost：开场那 0.3s 先静态显示，唱起来再开始扫
+                ef2[1], ef2[2] = sec2ass(tr0), sec2ass(jp0)
+                ef2[9] = (keep + '{\\fs%g\\fsp0}' % en_fs + tag + payload)
+                ov_en = ','.join(ef2) + eeol
         ov = None
         # overlay = 同一起点、含 kf 的那条（底行本身不含 kf，不会误配）
         oi = None
@@ -186,12 +288,17 @@ def apply_pass(lines, styles, dialogues=None, tgts=None, timelines=None):
 
         out[gi] = _set_text(_set_time(ghost, tr0, jp0), en_text, replace_prefix=True)
         jp_ghost = _set_text(_set_time(ghost, jp0, orig_end), orig_text)
+        # 顺序：英文 ghost → 英文扫色 → 日文 ghost → 日文扫色。
+        # 每条 overlay 紧跟自己的 ghost（VSFilter 同层按文件顺序叠放，
+        # 后画的盖在上面；也让 _sweep_verify 的「ghost 后一条即 overlay」成立）。
+        ins = []
+        if ov_en:
+            ins.append(ov_en)
+        ins.append(jp_ghost)
         if ov:
-            out[gi] = out[gi]
-            out.insert(gi + 1, jp_ghost)
-            out.insert(gi + 2, ov)
-        else:
-            out.insert(gi + 1, jp_ghost)
+            ins.append(ov)
+        for k, extra in enumerate(ins):
+            out.insert(gi + 1 + k, extra)
 
     for _, rows in sorted(jp_adds, key=lambda x: x[0], reverse=True):
         block = rows if isinstance(rows, list) else [rows]
