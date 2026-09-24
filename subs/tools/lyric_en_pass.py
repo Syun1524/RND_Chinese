@@ -15,6 +15,25 @@ import re
 BS = chr(92)
 VIS = re.compile(r'\{[^}]*\}')
 
+# 宽度测量：英文行是整个文字块里最宽的一行，用它的宽度反推 \an2 的锚点，
+# 就能让英文左缘正好落在中文译文的左列（x=63），同时让较短的中文小注
+# 在这条英文正上方居中。字体路径由 build_lyric_subs 在调用前塞进来。
+#
+# ★ 必须按**整数像素字号**量，不能按大字号量完再按比例缩：VSFilter 走 GDI，
+#   GDI 把每个字的 advance 取整到像素，缩放模型会差几像素（实测 1042.4 vs 1048）。
+FONT_PATH = None
+_fonts = {}
+
+
+def _text_width(text, fs):
+    if not FONT_PATH or not text:
+        return 0.0
+    from PIL import ImageFont
+    px = max(1, int(round(fs)))
+    if px not in _fonts:
+        _fonts[px] = ImageFont.truetype(FONT_PATH, px)
+    return _fonts[px].getlength(text)
+
 # (英文起唱, 日文起唱, 中文行原点, 英文原文, 中文小注)
 SEGS = [
     (77.43, 80.16, 77.13, "I am to the New World Order", "我正走向新世界秩序"),
@@ -99,10 +118,17 @@ def apply_pass(lines, styles, dialogues=None, tgts=None, timelines=None):
         en_fs = round(size * scale, 1)
         note_fs = max(18, int(round(size * scale * 0.52)))
         note_sp = max(2, int(round(size * scale * 0.10)))   # 字间距
-        # 用户拍板：整段**左对齐**，与简中译文同列同锚点——原 ghost 行的前缀里
-        # 就带着 \pos(63,1000)（和普通歌词一模一样），所以直接沿用前缀即可，
-        # 不要再叠加 \an2/\pos(960,…) 去居中。
-        keep = prefix
+        # 排版：英文左缘对齐中文译文那一列（x=63），中文小注仍**居中于英文上方**。
+        # ASS 的 \an2（底部居中）是「每一行各自以锚点 x 为中心」，所以把锚点放在
+        # 英文行的中点，英文左缘就正好落在 63，小注也自然居中于英文之上。
+        # 英文是块内最宽的一行，故锚点 = 63 + 英文宽/2。
+        w_en = _text_width(en, en_fs)
+        if w_en:
+            keep = re.sub(re.escape(BS) + r'pos\([^)]*\)', '', prefix)
+            keep = re.sub(re.escape(BS) + r'an\d', '', keep)
+            keep += ('{' + BS + 'an2' + BS + 'pos(%g,1000)}' % round(63 + w_en / 2.0, 1))
+        else:
+            keep = prefix          # 测不出宽度就退回两行都左对齐（不猜）
         en_text = ('%s{\\fs%d\\fsp%d}%s\\N{\\fs%g\\fsp0}%s'
                    % (keep, note_fs, note_sp, zh, en_fs, en))
         orig_text = vis(gf[9])

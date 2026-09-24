@@ -43,10 +43,11 @@ for ln in io.open(G, encoding='utf-8-sig', newline='').read().splitlines():
     if len(f) < 10 or f[3].strip() != 'translation':
         continue
     if BS + 'N' in f[9] and any(k in f[9] for k in ('New World', 'God will', 'Once again')):
-        centered = 'an2' not in f[9] and '960' not in f[9]
-        clean = 'pos(63,1000)' in f[9]
+        # 英文左缘必须落在中文译文列(x=63)：n2 锚点在英文行中点
+        centered = 'an2' in f[9] and 'pos(960' not in f[9]
+        clean = 'pos(63,1000)' not in f[9] and 'pos(' in f[9]
         txt = vis(f[9]).replace(BS + 'N', ' / ')
-        sys.stdout.write('  %s-%s  左对齐=%s  锚点pos(63,1000)=%s\n     %s\n'
+        sys.stdout.write('  %s-%s  小注居中=%s  锚点随英文宽=%s\n     %s\n'
                          % (f[1], f[2], centered, clean, txt[:66]))
 print()
 print('竖排英文行数（右列 1818）:')

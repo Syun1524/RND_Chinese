@@ -679,6 +679,10 @@ def main():
             # per-song extra pass (op001's sung-English segments: English on the
             # Japanese layer, English big + Chinese note on the Chinese layer)
             if base in EN_PASS:
+                try:                       # pass needs the font to centre the note
+                    lyric_en_pass.FONT_PATH = FONT_PATH
+                except Exception:
+                    pass
                 out_lines = EN_PASS[base](out_lines, styles, dialogues, tgts,
                                           timelines[base])
             # livedance 第二声部：补 CoZ 只画在 romaji - Copy 层的和声的中文行
