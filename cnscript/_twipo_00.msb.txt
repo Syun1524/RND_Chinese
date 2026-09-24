@@ -691,7 +691,7 @@ YULUKA
 FARIS_NYAN2
 菲莉丝・喵喵
 Phenix_in_CrimsonTruth
-凤凰院凶真（bot)
+凤凰院凶真（bot）
 B_TITOR
 桶子
 UMISHO
@@ -1505,7 +1505,7 @@ zundoko_zunzun_2018
 @DAITOKU_JUNJUN 我们这边很快就逃走了所以没问题……真是遭殃了呢。别介意！！！
 @UMISHO @SUBARU_M45 你们两个，今天看到的事情全都忘掉！！！
 @AKIPOPOPOPOOON @SUBARU_M45 今天看到的事？什么东西来着？
-@AKIPOPOPOPOOON @SUBARU_M45 我们才没有看到学姐穿灯笼裤的样子呢
+@AKIPOPOPOPOOON @UMISHO 我们才没有看到学姐穿灯笼裤的样子呢
 @SUBARU_M45 @UMISHO @AKIPOPOPOPOOON 我完全没忘掉……
 @DAITOKU_JUNJUN 对不起。是我失言了。这次真的会忘掉的
 体操服配灯笼裤的BL也太小众了吧
@@ -1526,12 +1526,12 @@ zundoko_zunzun_2018
 @AKIPOPOPOPOOON 过阵子会去的
 明明是我，竟然连准备工作都无法顺利进行
 @SUBARU_M45 是关于机器人讲座的事吗？偶尔换换心情怎么样？愿意的话要不要帮忙找地理标签？
-@SUBARU_M45 我觉得那并不能算作转换心情。而且你那边不是有值得信赖的搭档在吗
+@UMISHO 我觉得那并不能算作转换心情。而且你那边不是有值得信赖的搭档在吗
 @SUBARU_M45 很遗憾，今天休假
 @SUBARU_M45 说起来，你为什么要换账号？
 @UMISHO 因为那边有个时不时指名道姓呼唤我的人
 @SUBARU_M45 没关系吧，Mr. Plei
-@UMISHO Nonsense
+@UMISHO 荒谬
 诶，等下。这是什么互动。等下。太可爱了，可爱得我要秃了，发际线都要没了
 久违地见到了女儿青梅竹马的那个青年。看样子正朝着目标努力着。妻子也很想见他，还请务必再来家里坐坐
 @TNSC_SENOMIYA 感谢您的邀请。我们这边小秋穗也会偶尔过来玩哦。家里变得热闹了，我丈夫也很开心
@@ -1615,7 +1615,7 @@ HUG本身明明是很棒的产品来着。太可惜了 [ruby-base]#ZACOZACO[ruby
 @UNCLE_DARU @UMISHO @SUBARU_M45 看来这3个人都没在反省呢
 对你们感到轻蔑……
 我觉得H是绝对不行的
-@UNCLE_DARU 如果把那副眼镜借给我我就原谅你们。当然学长和眼镜都要穿泳装哦
+@UNCLE_DARU @UMISHO @SUBARU_M45 如果把那副眼镜借给我我就原谅你们。当然学长和眼镜都要穿泳装哦
 @UNCLE_DARU 我要告密咯？
 @AKIPOPOPOPOOON @DAITOKU_JUNJUN @FRAUKOUJIRO @AIRI_GEZI_AIRI @SISTER_BRAUN 对不起
 @AKIPOPOPOPOOON @DAITOKU_JUNJUN @FRAUKOUJIRO @AIRI_GEZI_AIRI @SISTER_BRAUN 对不起
@@ -1808,7 +1808,7 @@ HUG本身明明是很棒的产品来着。太可惜了 [ruby-base]#ZACOZACO[ruby
 @MAYUSY_1234 对不起
 「瞬间将对手周围连同大气一起冰封。对手必死无疑」
 @Phenix_in_CrimsonTruth 是在说酒吗？
-Nonsense。竟然会被拒绝。伤脑筋
+荒谬。竟然会被拒绝。伤脑筋
 竟然说要从机器人毕业，吓了我一跳……
 @SUBARU_M45 @DAITOKU_JUNJUN 抱歉。但你们两个一定能做到的
 今天也要特训！！！ 我一定会让大家认可的！！！
@@ -1874,7 +1874,7 @@ nashishenmehuangyou?
 @SUBARU_M45 啊哈哈……其实我也一样
 @DAITOKU_JUNJUN @AIRI_GEZI_AIRI 同感。所以说我要贯彻我的作风蹲家里咯。嫁女大赛？那是什么能吃吗？
 @FRAUKOUJIRO 明天如果不来，我就去接你哦♪
-秒回是什么意思……真是恐怖（（（（;゜Д゜））））嘎吱～嘎吱～发抖发抖
+秒回是什么意思……真是恐怖((((;゜Д゜))))嘎吱～嘎吱～发抖发抖
 雨过天晴。总之，一边观望事态发展，一边做我该做的事吧
 小秋穗好像倒下了。听说我家儿子陪着她，真担心啊
 @FUMIKO_TANEGASHIMA 让您担心了。好像没什么大碍
@@ -1902,7 +1902,7 @@ nashishenmehuangyou?
 跟店长商量后他答应了！！！谢谢店长！！！
 所以，疾风怒涛～，元气十足，钢巴雷尔——！！！！！
 啊哈哈，干劲十足呢
-这也太两极分化了。真是nonsense
+这也太两极分化了。真是荒谬
 街上的机器人目前恢复率40% [ruby-base]TABOO_NEWS[ruby-text-end] [ruby-base]http://tn.o/0826xx[ruby-text-end] 去年的太阳风暴以及所谓的「RIICH事件」的影响似乎还在持续呢（待续）
 外卖机器人真的超级方便。上网下单什么都能送过来。因为对方是机器人所以不用紧张，就算穿着很邋遢的样子去应门也没什么好害羞的。真希望它们能早点复活呢♪
 @SHININGFINGER_MK 邋遢的样子……吞口水
@@ -1910,7 +1910,7 @@ nashishenmehuangyou?
 8月26日 真由氏午餐 今天也是炸鸡定食☆
 @SHININGFINGER_MK 那台外卖机器人的内置摄像头没准把你的邋遢样子全都保存下来了哦。话说我以前好像见过那种偷拍录像
 @B_TITOR 告诉我那家卖偷拍录像的店。我会全力去把它给砸了的♪
-@SHININGFINGER_MK 这、这是指物理意义上的吗（（（（ ;゜Д゜）））嘎吱～嘎吱～发抖发抖
+@SHININGFINGER_MK 这、这是指物理意义上的吗(((( ;゜Д゜)))嘎吱～嘎吱～发抖发抖
 「这一切都是命运石之门的选择。El Psy Kongroo」
 我在这里宣告！！！我再也不会说要从机器人毕业了！！！
 种高机器人社复活！！！燃起来了————————！！！
@@ -1953,7 +1953,7 @@ nashishenmehuangyou?
 终于！！！终于完成了！！！这一切都是多亏了大家！！！谢谢！！！最喜欢你们了！！！
 那张脸还不赖。仔细看的话也不算看不出是钢巴雷尔。至少我不讨厌
 @SUBARU_M45 我也觉得！很可爱吧
-@SUBARU_M45 @DAITOKU_JUNJUN 讨厌啦。因为模组本来就好，那是当然的吧。钢巴雷尔是尊贵的
+@SUBARU_M45 @DAITOKU_JUNJUN 讨厌啦。因为模组本来就好，那是当然的吧。钢巴雷尔太尊了
 @UMISHO @FRAUKOUJIRO @DAITOKU_JUNJUN @AKIPOPOPOPOOON @SUBARU_M45 大家辛苦了！
 @UMISHO @FRAUKOUJIRO @DAITOKU_JUNJUN @SUBARU_M45 @AIRI_GEZI_AIRI 谢谢大家！！！明天一起加油吧！！！
 看来大家都吓了一跳呢。剩下的就拜托你们了，机器人社！！
@@ -2215,16 +2215,16 @@ El Psy Kongroo
 从打工处的客人那里听到了有趣的事
 @AKIPOPOPOPOOON 什么什么，什么事？
 @DAITOKU_JUNJUN 明天见了再说。在这之前先期待着吧
-突然就这么有干劲了，到底是经历了什么心理转变？Nonsense。无法理解
+突然就这么有干劲了，到底是经历了什么心理转变？荒谬。无法理解
 没想到真的存在，这难道就是……命运！
 稍微有点兴趣，查了查关于种子岛的Menkou什么的，还挺有趣的
 原来是这样，「千代香」说的就是茶壶啊。懂了
 宝物啊，宝物啊啊！
 咕……好不甘心……但还是很有感觉（啊啊
-话说这也吃太多了吧？照这样下去钱包要（（（（;゜Д゜））））嘎吱～嘎吱～发抖发抖
+话说这也吃太多了吧？照这样下去钱包要((((;゜Д゜))))嘎吱～嘎吱～发抖发抖
 既然引起这么大的骚动，那就肯定存在！！！啊～要是没打工的话，马上就去搜寻了！！！
 @AKIPOPOPOPOOON 好好打工
-Menkou什么的简直愚蠢透顶。Nonsense啊
+Menkou什么的简直愚蠢透顶。荒谬啊
 濡嫁女小姐，好在意啊
 没想到对方会主动联系，难道是要下雪了吗？
 又被拜托做些奇怪的事了。哎呀，故事是挺喜欢的，但让我亲眼看的话就不要了～
@@ -2241,7 +2241,7 @@ Menkou什么的简直愚蠢透顶。Nonsense啊
 8月25日 真由氏午餐 今天是咖喱饭☆
 @B_TITOR @YANABAYASHI_ULUKA 光凭神社神主好像很懂妖怪这种印象就这样认定人家，琉华喵太可怜了喵。不过……这次挺幸运喵。毕竟是菲莉丝碰巧看到了@B_TITOR喵的推文呢
 @B_TITOR @YANABAYASHI_ULUKA 所以说，无论什么都可以来问这个菲莉丝喵。妖怪也好，精灵也好，猫耳女仆的事也好。还有关于迟早会到来的约定之日「Promise Triangle」什么的也可以喵！Come oooon喵！=゜w゜=
-@FARIS_NYAN2 菲莉丝炭都这把年纪了还这么离谱啊
+@FARIS_NYAN2 菲莉丝炭年龄也不小了，差不多得了吧
 @B_TITOR 在说什么喵？=゜w゜=
 @UMISHO 又在外面晃到这么晚！明明还是考生，快点回家来念书！
 濡嫁女啊。湿身的女人可是公认的性感的代名词。如果真有的话还真想见识一下
@@ -2261,7 +2261,7 @@ Homo
 呜哇。第一次见到真实的修罗场。而且还。。。
 @AKIPOPOPOPOOON 有点在意……
 @AIRI_GEZI_AIRI 下次再聊吧
-到底是怎么回事。突然搞成那样……。Nonsense啊
+到底是怎么回事。突然搞成那样……。荒谬啊
 总之得找个时间再好好商量一下
 别以为只要是同性就什么都行啊！
 先说好我只认学长×眼镜这一对。别的我可不认
@@ -2282,7 +2282,7 @@ Homo
 @AKIPOPOPOPOOON 没能帮上太多忙真对不起！但我会尽力的，加油吧！押忍！
 只能硬上了。为了能恢复原状
 @SUBARU_M45 期待着你的表现哦，S君！！！！
-@AKIPOPOPOPOOON Nonsense
+@AKIPOPOPOPOOON 荒谬
 @FRAUKOUJIRO 还在家吗？我现在在机器人诊所
 出门了吗？还是假装不在家？程序那块该怎么办啊……
 抱歉给大家添麻烦了。此处设施和职员都没有受损。让大家担心了
@@ -2440,7 +2440,7 @@ Homo
 @UMISHO 今天多谢了！下次大家再一起去吧！
 @SISTER_BRAUN 能玩得开心就好
 关于起床简直痛苦到极点这件事。全身都软绵绵的。去海边或泳池后肯定会这样，肌肉酸痛肯定明天或后天就会出现
-@AIRI_GEZI_AIRI 我从来没试过肌肉酸痛呢
+@UNCLE_DARU 我从来没试过肌肉酸痛呢
 @AIRI_GEZI_AIRI 这就是年轻吗
 @AIRI_GEZI_AIRI @UNCLE_DARU 这就是年轻吗
 ???
@@ -2464,7 +2464,7 @@ Homo
 「你那件衬衫都被汗水浸透明了啊！很危险的啊！」我到底有多少次想这么说出口呢。也罢，毕竟我是绅士，还是忍住了
 @B_TITOR 不，那种时候就该说出来啊
 @B_TITOR 举报了喵。确切地说，是跟某位显像管的人告密了喵=゜w゜=
-等等，回东京的话绝对死定了（（（（ ;゜Д゜）））嘎吱～嘎吱～发抖发抖
+等等，回东京的话绝对死定了(((( ;゜Д゜)))嘎吱～嘎吱～发抖发抖
 @SISTER_BRAUN 今天聊的事，我再问一次，还是不行吗？
 @UMISHO 不行♪
 @SISTER_BRAUN 真的不行吗？
@@ -2477,7 +2477,7 @@ Homo
 @AKIPOPOPOPOOON 没什么，什么事都没有
 哎呀真是的。明明是暑假，居然在这个时间出门。虽然说毕竟不是高中生了，不想被父母啰啰嗦嗦的也是人之常情吧
 去年台风天乱来结果受伤的事难道忘了吗。真是的
-男孩子偶尔会倔强乱来得吓人一跳呢。或许正因如此才叫男孩子吧
+男孩子偶尔会倔强、乱来得让人吃惊呢。或许正因如此才叫男孩子吧
 (意味深)
 @SISTER_BRAUN 这就是年轻啊。话说在我看来你也很年轻啊。水灵灵的
 叔叔我刚刚说了句好话。谁来夸夸我
@@ -2485,8 +2485,8 @@ Homo
 @UMISHO 原本还想请你今天也帮忙的。毕竟马上就要正式登台，实在是忙得不可开交。抱歉，明天能拜托你吗？
 @UMISHO 早啊。还在家吗？
 @UMISHO 我可以去你那吗？？？
-@AIRI_GEZI_AIRI 哥哥的话还在家喔
-@AKIPOPOPOPOOON 多谢！！！ 现在就过去！！！
+@AKIPOPOPOPOOON 哥哥的话还在家喔
+@AIRI_GEZI_AIRI 多谢！！！ 现在就过去！！！
 绹姐被恐怖分子带走了！这30分钟左右有没有人见过她！！！？？？ [ruby-base]#JAXA女性职员目击情报[ruby-text-end]
 谁都好，请提供情报！ [ruby-base]#JAXA女性职员目击情报[ruby-text-end]
 犯人正带着绹姐开车逃亡中！ [ruby-base]#JAXA女性职员目击情报[ruby-text-end]
@@ -2494,7 +2494,7 @@ Homo
 @UMISHO 诶！？ 西之表应该没来，但以防万一我还是去祭典会场搜寻一下！ [ruby-base]#JAXA女性职员目击情报[ruby-text-end]
 @UMISHO 现在在中种子，今天没在一起。怎么办。。。明明上周经常一起回去的 [ruby-base]#JAXA女性职员目击情报[ruby-text-end]
 @UMISHO 已经联络父亲了。也联络了学校的老师们 [ruby-base]#JAXA女性职员目击情报[ruby-text-end]
-@UMISHO 绹大人的口袋电脑GPS没反应。咕奴奴。黑进岛上的监控摄像头来找人，绝对要找到！ [ruby-base]#JAXA女性職員目撃情報[ruby-text-end]
+@UMISHO 绹大人的口袋电脑GPS没反应。咕奴奴。把岛上的监控摄像头全黑掉也要找到，绝对要找到！ [ruby-base]#JAXA女性职员目击情报[ruby-text-end]
 @UMISHO 看到啦！！！ 刚刚从祭典回来的路上！！！ 车！！！ 我发邮件给你！！ 也去问问大家！ [ruby-base]#JAXA女性职员目击情报[ruby-text-end]
 @UMISHO 跟我老板说了，他说要动员警察和消防团去搜寻！ [ruby-base]#JAXA女性职员目击情报[ruby-text-end]
 @UMISHO 我来扩散情报 [ruby-base]#JAXA女性职员目击情报[ruby-text-end]
@@ -2533,7 +2533,7 @@ Homo
 虽然宣告是宣告了……做得到吗？
 不，只能做了！
 @SUBARU_M45 喂喂，Pleiades这样软弱怎么行
-@UMISHO Nonsense！！ 请别这样！！ 明明好不容易才换了新账号的！！
+@UMISHO 荒谬！！ 请别这样！！ 明明好不容易才换了新账号的！！
 今天真是被吓了一跳呢。不过那孩子能平安找到家人真是太好了
 啊、先说好，我可是对My Wife一心一意的（怎样
 今天也累坏了。。。
@@ -2594,7 +2594,7 @@ Homo
 真是的，明明没时间了还说得这么强硬
 话虽如此，那种时间段到底打算做什么呢？
 总而言之，为了明天必须得睡了
-糟糕。看@chan的内容看到这个点。离起床只剩2小时了！
+糟糕。看@channel的内容看到这个点。离起床只剩2小时了！
 今日的种子岛天气晴朗。风平浪静，正是绝佳的航海好日子
 @AIRI_GEZI_AIRI 把你吵醒了抱歉。继续好好睡吧
 叔父又在搞些看起来很麻烦的事情了啊

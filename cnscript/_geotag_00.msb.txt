@@ -149,7 +149,7 @@ You got me!
 鹿儿岛县熊毛郡中种子町野间XXXX番地1[linebreak]TEL:0997-XX-2401[linebreak]http://www.kagoshima.pi.jp/chuoh-tanegashima/
 校舍导览1
 【信息】
-学生用升降口（开放时间 AM7:00~PM6:00)
+学生用升降口（开放时间 AM7:00~PM6:00）
 校舍导览2
 【信息】
 外来接待处
@@ -183,7 +183,7 @@ CONDA・Super Cub[linebreak]登记人：萨摩快男儿 登记日：2019/3/14[li
 濑乃宫
 【信息】
 鹿儿岛县熊毛郡南种子町中之下1935-XXX
-毛绒小熊
+芙兰熊
 【物品】
 「超级臭的哦♪」[linebreak]基础芙兰熊 超LL尺寸
 种子岛机场酒店（歇业）

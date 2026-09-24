@@ -132,7 +132,7 @@
 通常来说，专业的黑客是不会做出留下自己足迹这种蠢事的。[%p]
 没错，如果对方是专业黑客的话……[%p]
 但是，如果。[%p]
-如果，做这件事的人不是[ruby-base][ruby-center-per-char]专业人士[ruby-text-start]••[ruby-text-end]的话……[%p]
+如果，做这件事的人不是[ruby-base][ruby-center-per-char]专业人士[ruby-text-start]••••[ruby-text-end]的话……[%p]
 不出所料，访问超算的请求来自世界各地，很难锁定具体位置。[%p]
 加拿大，伊努维克。[%p]
 巴西，圣保罗。[%p]

@@ -24,7 +24,7 @@
 [name]健一郎[line]「怎么了，秋穗！？」[%p]
 [name]秋穗[line]「……[color index="280AA0281400"]钢巴雷尔[color index="800000"]……」[%p]
 [name]海翔[line]「诶？」[%p]
-[name]秋穗[line]「……[color index="280AA0281400"]钢巴姆[color index="800000"]……[color index="280AA0291400"]伊迪恩[color index="800000"]……[color index="280AA02A1400"]超机动战舰[color index="800000"]、[color index="280AA02B1400"]勇气王[color index="800000"]、[color index="280AA02C1400"]福鹰战士[color index="800000"]……」[%p]
+[name]秋穗[line]「……[color index="280AA0281400"]钢巴姆[color index="800000"]……[color index="280AA0291400"]伊迪恩[color index="800000"]……[color index="280AA02A1400"]Macruss[color index="800000"]、[color index="280AA02B1400"]GyaoGanGar[color index="800000"]、[color index="280AA02C1400"]福鹰战士[color index="800000"]……」[%p]
 [name]海翔[line]「这是……」[%p]
 [name]爱理[line]「她在梦话里念叨机器人的名字……？」[%p]
 [name]海翔[line]「是啊。然后，把塞进壁橱里的机器人周边翻出来还给她之后，她马上就一脸幸福地熟睡过去了……」[%p]
