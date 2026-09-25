@@ -117,8 +117,8 @@ Dialogue: 0,0:01:11.94,0:01:17.07,translation,,0,0,0,fx,{\fad(300,250)\pos(63,10
 Dialogue: 0,0:01:11.94,0:01:17.07,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf59}仿{\kf22}佛{\kf44}挑{\kf38}衅{\kf23}般{\kf24} {\kf22}连{\kf39}天{\kf29}空{\kf22}之{\kf44}色{\kf22}也{\kf36}一{\kf25}并{\kf29}欺{\kf35}骗
 Dialogue: 0,0:01:17.13,0:01:20.16,translation,,0,0,0,fx,{\fad(300,250)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\an2\pos(427,1000)}{\fs39\fsp7}我正走向新世界秩序\N{\fs74.8\fsp0}I am to the New World Order
 Dialogue: 0,0:01:17.13,0:01:20.16,translation,,0,0,0,fx,{\fad(300,250)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\an2\pos(427,1000)}{\fs74.8\fsp0}{\2c&HAEA997&}{\kf84}I {\kf45}am {\kf54}to {\kf34}the {\kf20}New {\kf33}World Or{\kf33}der 
-Dialogue: 0,0:01:20.16,0:01:22.86,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}那此刻的天候呢？
-Dialogue: 0,0:01:20.16,0:01:22.86,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf164}那{\kf16}此{\kf8}刻{\kf19}的{\kf19}天{\kf12}候{\kf22}呢{\kf10}？
+Dialogue: 0,0:01:20.16,0:01:22.86,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}那此刻的天气呢？
+Dialogue: 0,0:01:20.16,0:01:22.86,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\2c&HAEA997&}{\kf164}那{\kf16}此{\kf8}刻{\kf19}的{\kf19}天{\kf12}气{\kf22}呢{\kf10}？
 Dialogue: 0,0:01:22.60,0:01:25.60,translation,,0,0,0,fx,{\fad(300,250)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\an2\pos(482.5,1000)}{\fs39\fsp7}神明将降临于世\N{\fs74.8\fsp0}God will come down to the world
 Dialogue: 0,0:01:22.60,0:01:25.60,translation,,0,0,0,fx,{\fad(300,250)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}{\an2\pos(482.5,1000)}{\fs74.8\fsp0}{\2c&HAEA997&}{\kf83}God {\kf47}will {\kf52}come {\kf37}down {\kf18}to {\kf10}the {\kf53}world 
 Dialogue: 0,0:01:25.60,0:01:28.11,translation,,0,0,0,fx,{\fad(300,250)\pos(63,1000)\blur3\c&HF9F2D8&\3c&H9D8428&\shad0}是猛烈的风暴气象
