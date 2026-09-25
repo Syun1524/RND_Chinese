@@ -1,8 +1,13 @@
 # Visual Studio / MSBuild 构建中间产物
 # 注意：不要忽略 dinput8-Release/ 整个目录，否则内部 dll 的例外规则不生效
 dinput8-Debug/
-Release/
-Debug/
+# ⚠️ 必须写成 /Release/ 与 /Debug/（限定在仓库根）—— 裸 `Release/` 在 Windows 上
+#    大小写不敏感，会连带命中 Rust 的 `sc3tools_*/target/release/`，
+#    而**父目录一旦被忽略，其内部所有的 `!` 例外全部失效**。
+#    实际后果：sc3tools_rndchs 的中文版 exe 长期无法入库
+#    （git 报 "exists on disk, but not in 'HEAD'"），而 README 却把它列为现成工具。
+/Release/
+/Debug/
 x64/
 x86/
 [Bb]in/
@@ -79,6 +84,11 @@ sc3tools_jp/target/release/deps/**/*.exe
 # 例外：发布必需的提取工具（用户不会自行编译 Rust）
 !sc3tools_rndchs/target/release/sc3tools.exe
 !sc3tools_jp/target/release/sc3tools.exe
+
+# cargo 运行时锁与手工备份：不属于发布内容。
+# （此前被 `Release/` 那条误伤的规则连带忽略了，修好规则后暴露出来，这里显式排除。）
+.cargo-lock
+*.bak_*
 
 # OS / 编辑器
 .DS_Store

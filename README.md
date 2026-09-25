@@ -139,14 +139,22 @@
 
 仓库里有两套 sc3tools，源码完全相同，唯一区别是编译时内嵌的 `resources/rnd/charset.utf8` 码表。
 **码表是 rust-embed 编译期打进 exe 的，改码表必须重新 `cargo build --release`，改完直接跑旧 exe 无效。**
+（`#[folder = "resources/"]` 是**整目录**打包 —— 所以增删该目录下的任何文件都要重编，
+即使那个文件根本没被代码读取。）
 
-- `sc3tools_rndchs/` — **中文版**。码表为汉化简体字码表（13K，4499 字，md5 `e62f5ca3...`），
+- `sc3tools_rndchs/` — **中文版**。码表为汉化简体字码表（13.4K，**4550 字**），
   用于配合 `cnscript/` 译稿做中文回写（replace-text）。
-- `sc3tools_jp/` — **日文版**。码表为日文原版码表（8.7K，3020 字，md5 `6040d18f...`，
-  即 `charset-.utf8` / `charset-备份.utf8`），用于提取日文原版脚本（extract-text）。
+- `sc3tools_jp/` — **日文版**。码表为日文原版码表（8.9K，3020 字，md5 `6040d18f...`），
+  用于提取日文原版脚本（extract-text）。
 
 **配对关系：日文包用日文版提取，中文回写用中文版。用错码表会得到大面积错码
 （例如 `種子島` → `丽仁亿`，`海翔` → `ΥΦ`）。**
+
+> 各目录的 `resources/rnd/` 下**只保留一份权威码表** `charset.utf8` 与
+> `compound_chars.map`。历史上曾混入 `charset-.utf8` / `charset-备份.utf8`
+> （与日文版 `charset.utf8` 逐字节相同，纯冗余），2026-09-26 已删除并重编 exe
+> —— 见提交说明。**别再把码表备份放进 resources/**：它会被打进 exe，
+> 且删掉后不重编就等于没删。
 
 现成的 exe：
 
