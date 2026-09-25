@@ -4,7 +4,16 @@
 `fileRedirection`（`mgsFileOpenHook` 对 movie 归档同样生效），**不改视频文件本身**、
 不需要重打 movie.cpk。
 
-## JP 版影片统一（14 部，含 dar020）
+## ★ 当前状态：只替换 dar020 一部（JP 版统一计划已取消）
+
+> **2026-09-14 用户拍板取消「JP 版影片统一」计划**（13 部 JP 原片会让补丁包
+> 从 142 MB 涨到 940 MB，体积不可接受）。
+> 现在**实际生效的只有 dar020 一部**：`fileRedirection.movie = {"35": 77}`，
+> `c0data.cls` 共 **79 行**（下标 77 = `movie_dar020.usm`）。
+> 下面「JP 版影片统一」一节保留为**历史记录与重建指南** —— 想恢复随时照表重建，
+> 但请注意它描述的不是当前发布状态。
+
+## JP 版影片统一（历史方案，14 部，含 dar020；当前未启用）
 
 英文版 movie.cpk 把 14 个 fileId 的内容换成了 `_en` 后缀的独立文件
 （OP/ED×3/title/8 部 dar 短片/dar020），fileId 不变、内容不同；
@@ -45,3 +54,15 @@ base.fileRedirection.movie` 的键值均为对应行号（例如 `"35": 78`）�
   一致、ffmpeg 全帧零错误解码、seek 表 20 条全部指向 `@SFV` 块魔数；
   deploy_patch 两处游戏安装 cls/c0data/fileRedirection 全部校验通过。
 - 待验证：游戏内实际播放。重定向不命中时游戏回落播放原片（EN 片），无副作用。
+
+## 目录内容（当前发布状态）
+
+| 文件 | 说明 |
+|---|---|
+| `movie_dar020.usm` | **实际进补丁包的那一部**（4.4 MB）。用户自制画面 + 原音轨重封，`fileRedirection.movie = {"35": 77}` |
+| `README.md` | 本文件 |
+
+> 13 部 JP 原片**不在本目录**（计划已取消，未随包发布）。
+> 若要恢复 JP 版统一，需从日文母版 `movie.cpk` 重新解出，照上面表格重建
+> `c0data.cls` 与 `fileRedirection.movie`，并按 AGENTS 记录的代价重新评估体积。
+

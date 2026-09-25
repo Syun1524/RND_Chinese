@@ -46,7 +46,8 @@
 | 启动器 | `LauncherC0.exe`（Qt5，需十余个 DLL） | `RNDZhLauncher.exe`（单文件，无 Qt 依赖） |
 | 换装 | `swimsuitPatch`（只切泳装） | `fileIdRemap` 保留LB重定向内部资源，同归档引用，含 cosplay 模式（和服 / 泳装 / 体操服 / 猫耳） |
 | 安装 / 卸载 | `nguninstall.exe` | 安装器 / 卸载器，**自动兼容含分号的目录名** |
-| 补丁体积 | 356 MB | **210.5 MB** |
+| 字体 | 运行时逐档烘焙（首次进各界面会卡） | **预置 12 档字形种子**（首次进界面不卡，且绕开写盘权限问题） |
+| 补丁体积 | 356 MB | **安装包 171.9 MB**（补丁包本体 424.7 MB，含 227 MB 字形种子） |
 
 相同之处：两者的运行时内核、`patchdef.json` 结构、图形 / 影片重定向机制是同源的
 （MIT 许可的 LanguageBarrier）。CoZ 原版的许可文件在补丁包里原样保留。
@@ -57,13 +58,14 @@
 
 ## 运行时（LanguageBarrier 源码）
 
-改动集中在 9 处，都在 `LanguageBarrier_rndchs/LanguageBarrier/`：
+改动集中在 10 处，都在 `LanguageBarrier_rndchs/LanguageBarrier/`：
 
 | 文件 | 改动 | 为什么 |
 |---|---|---|
 | `TextRendering.cpp` | 新增 `forceIncludeHan` 开关 | 原逻辑按语言过滤 CJK 字形；中文码表必须烤汉字 |
 | `TextRendering.cpp/.h` | 新增 `charsetHash`（FNV-1a 32 位）写入字体缓存 | 码表一变就判定旧缓存失效，自动重烤 |
 | `TextRendering.cpp` | 字体缓存自愈（缺 `.dds` 图集 / 哈希不符即清缓存） | 修「缓存说没问题、实际画不出字」 |
+| `TextRendering.cpp` | `loadCache` 的语言校验改为**跟随 `forceIncludeHan`** | 开启时 JP/EN 烘出的图集完全相同，该校验只会把好缓存整份丢掉；关掉时自动恢复原行为 |
 | `TextRendering.cpp/.h` | `getGlyphInfo` 缺字形返回 `missingGlyph`（宽 0） | 原本 `map::at` 会在游戏渲染线程抛 `out_of_range` |
 | `GameText.cpp/.h` | `RUBY_MARKERS_ENABLED`（默认关） | 修 `A`/`8`/`9` 被当成注音标记吃掉 |
 | `Game.cpp` | 新增 `fileIdRemap` 分支 | 同归档内改指到另一文件（换装），不随包分发原素材 |
@@ -115,15 +117,23 @@
 | `sc3tools_jp/`、`sc3tools_rndchs/` | 日文提取 / 中文回写工具链 |
 | `tools/` | 启动器 `RNDZhLauncher.cpp` + 换装核对工具 `RNDZhOutfitTool.cpp` 源码与构建脚本 |
 | `setup/` | 安装器 / 卸载器源码（`src/`）与构建脚本（`build/`） |
-| `图片汉化/` | **成品中文图集**（`bg/` `system/` `manual/`，与补丁包 `c0data/` 逐字节一致） |
+| `图片汉化/` | **成品中文图集**（`bg/` `system/` `manual/`，与补丁包 `c0data/` 逐字节一致）。其下 `system/data/_archive/` 存**非汉化的原件**（见该目录 README） |
 | `废弃图片/` | 已从补丁重定向中撤下的汉化图（仅留存备查，不随补丁分发） |
 | `视频汉化/` | 替换用影片（USM 重封说明 + `movie_dar020.usm`） |
+| `代理DLL/` | 补丁运行所需的代理 DLL（DXVK 的 `d3d9`/`d3d10`/`d3d10_1`/`d3d10core`/`d3d11`/`dxgi` + `VSFilter.dll`），来自 CoZ 补丁包，**非本项目产出**（见该目录 README） |
 | `scripts/` | 构建与部署脚本（`deploy_patch.py`、`sync_images.py`、`gen_pkg_manifest.py` 等） |
 | `docs/` | 交接文档、打包清单、设计说明 |
 
 > `图片汉化/` 里的文件名带 `_zh` 后缀（便于与解包原图区分）；进补丁包时按
 > `c0data.cls` 的原始资源名（去掉 `_zh`）落位，`scripts/sync_images.py` 负责这件事。
 > 撤下已废弃的图用 `scripts/drop_deprecated.py`（会重排 `c0data.cls` 索引）。
+
+> ⚠️ **本仓库不含「可直接打包」的完整补丁包**。安装包由工作区的 `成品ing/补丁包/`
+> 组装（`build_installer.py` 从那里取件）。从本仓库重建安装包时，以下内容需要另行生成：
+> 编译产物 `enscript/*.msb`（由 `sc3tools_rndchs` + `cnscript` 编出）、
+> 字体缓存 `fonts/*.dds`（需实机跑游戏烘焙，见 `docs/字体种子.md`）、
+> `c0data` 注入图（由 `scripts/sync_images.py` 从 `图片汉化/` 生成）。
+> 代理 DLL、影片、归档原件已在本仓库中，无需外部来源。
 
 ## sc3tools 版本说明 (IMPORTANT)
 

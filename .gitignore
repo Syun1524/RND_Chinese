@@ -36,6 +36,9 @@ x86/
 !dinput8-Release/VSFilter.dll
 !dinput8-Release/languagebarrier/LICENSE
 !dinput8-Release/languagebarrier/THIRDPARTY.LB.txt
+# 代理 DLL：补丁运行必需，来自 CoZ 补丁包（非本项目编译产物），
+# 是「从本仓库重建安装包」不可缺的原件。见 代理DLL/README.md
+!代理DLL/VSFilter.dll
 
 # Python
 __pycache__/
