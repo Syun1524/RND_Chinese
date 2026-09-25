@@ -20,11 +20,34 @@ slashes land on JP's second number), which is the reason two atlases exist.
 """
 import numpy as np
 from PIL import Image
+import os
 
 BASE = r'D:\DATA\tran\agent tran\9.6文本外工作'
 EN_ATLAS = BASE + r'\临时\cn\汉化好的\system\extra_chip_en_zh.png'
 JP_ATLAS = BASE + r'\成品ing\补丁包\languagebarrier\c0data\extra_chip.png'
-EN_ORIG = BASE + r'\tmp_extra\en_atlas\cpk_29_3120x3024.png'
+
+# The English original atlas, extracted from `-原版英文 副本\system.cpk`. It gets
+# archived next to the produced atlas (repo + mirror), because the scratch dir it
+# was first extracted into does not survive cleanup. Both archived copies are
+# byte-identical; whichever exists is used. Keep this list ordered by preference.
+EN_ORIG_CANDIDATES = [
+    BASE + r'\临时\cn\汉化好的\system\data\_archive'
+           r'\_source_backup_extra_chip_EN_original.png',
+    BASE + r'\GitHub\RND_Chinese\图片汉化\system\data\_archive'
+           r'\_source_backup_extra_chip_EN_original.png',
+    BASE + r'\en_atlas_evidence\en_atlas\cpk_29_3120x3024.png',
+]
+
+
+def resolve_en_orig():
+    for p in EN_ORIG_CANDIDATES:
+        if os.path.exists(p):
+            return p
+    raise SystemExit('EN original atlas not found. Looked in:\n  ' +
+                     '\n  '.join(EN_ORIG_CANDIDATES))
+
+
+EN_ORIG = resolve_en_orig()
 
 S, OX = 0.66643, 157.34
 ROW1 = (1846, 1882)

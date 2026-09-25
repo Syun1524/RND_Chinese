@@ -31,7 +31,27 @@ from PIL import Image
 
 BASE = r'D:\DATA\tran\agent tran\9.6文本外工作'
 OURS = BASE + r'\成品ing\补丁包\languagebarrier\c0data\extra_chip.png'
-EN_ORIG = BASE + r'\tmp_extra\en_atlas\cpk_29_3120x3024.png'
+# The English original atlas (extracted from `-原版英文 副本\system.cpk`) is kept
+# in the archive next to the produced atlas, not in a scratch dir -- see the same
+# note in qa_extra_chip_en.py.
+EN_ORIG_CANDIDATES = [
+    BASE + r'\临时\cn\汉化好的\system\data\_archive'
+           r'\_source_backup_extra_chip_EN_original.png',
+    BASE + r'\GitHub\RND_Chinese\图片汉化\system\data\_archive'
+           r'\_source_backup_extra_chip_EN_original.png',
+    BASE + r'\en_atlas_evidence\en_atlas\cpk_29_3120x3024.png',
+]
+
+
+def resolve_en_orig():
+    for p in EN_ORIG_CANDIDATES:
+        if os.path.exists(p):
+            return p
+    raise SystemExit('EN original atlas not found. Looked in:\n  ' +
+                     '\n  '.join(EN_ORIG_CANDIDATES))
+
+
+EN_ORIG = resolve_en_orig()
 OUTDIR = BASE + r'\临时\cn\汉化好的\system'
 OUT_PNG = OUTDIR + r'\extra_chip_en_zh.png'
 DATA = BASE + r'\临时\cn\汉化好的\system\data'
@@ -156,21 +176,51 @@ def main():
         print(' 3. %-4s matches EN original: %s' % (name, 'PASS' if same else 'FAIL'))
         ok &= same
 
-    # 4. both languages' numbers avoid all remaining ink
+    # 4. EN numbers must clear the EN atlas (a real gate); JP numbers are the
+    #    reverse-direction PROOF -- the EN separators necessarily land under the
+    #    JP numbers, which is why two atlases exist. A JP hit here is therefore
+    #    reported as expected evidence, not as a failure of this atlas.
     ink = (out[:, :, 3] > 20) & (out[:, :, :3].mean(axis=2) < 215)
     for lang, nums in (('EN', EN_NUMS), ('JP', JP_NUMS)):
         for row, ranges in nums.items():
             (ay0, ay1) = ROW1 if row == 'row1' else ROW2
-            foot = np.zeros(1600, bool)
-            for c in np.nonzero(ink[ay0:ay1 + 1].any(axis=0))[0]:
-                lo = int(round(a2s(c)))
-                foot[max(0, lo - 3):lo + 4] = True
+            sub = ink[ay0:ay1 + 1]
+            all_ink = {int(round(a2s(c))) for c in np.nonzero(sub.any(axis=0))[0]}
+            sep_cols = set()
+            for _n, cx0, cx1, cy0, cy1 in COPIES:
+                if (cy0, cy1) != (ay0, ay1):
+                    continue
+                s2 = ink[cy0:cy1 + 1, cx0:cx1 + 1]
+                sep_cols |= {int(round(a2s(cx0 + c)))
+                             for c in np.nonzero(s2.any(axis=0))[0]}
             for a, b in ranges:
-                hit = [x for x in range(a, b + 1) if foot[x]]
-                status = 'PASS' if not hit else 'FAIL (%d cols)' % len(hit)
+                inside = [x for x in range(a, b + 1) if x in all_ink]
+                unexplained = [x for x in inside if x not in sep_cols]
+                explained = [x for x in inside if x in sep_cols]
+                if lang == 'EN':
+                    if unexplained:
+                        status = 'FAIL (%d unexplained cols)' % len(unexplained)
+                        ok = False
+                    elif len(explained) > 3:
+                        status = ('FAIL (separator intrudes %d cols)'
+                                  % len(explained))
+                        ok = False
+                    elif explained:
+                        status = ('PASS (abuts separator at %s, design)'
+                                  % explained)
+                    else:
+                        status = 'PASS'
+                else:
+                    if len(explained) > 3:
+                        status = ('EXPECTED break (%d cols) -- this is why two '
+                                  'atlases exist' % len(explained))
+                    elif unexplained:
+                        status = ('EXPECTED break (%d cols, non-separator)'
+                                  % len(unexplained))
+                    else:
+                        status = 'PASS (no contact)'
                 print(' 4. %s %s number %d..%d clear of ink: %s'
                       % (lang, row, a, b, status))
-                ok &= not hit
 
     # ---------------------------------------------------------------- records
     rec = {

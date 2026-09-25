@@ -15,6 +15,7 @@ For each, the QA's own final verdict line is read, not a substring of the body.
 import os
 import subprocess
 import sys
+import tempfile
 
 import numpy as np
 from PIL import Image
@@ -23,8 +24,12 @@ BASE = r'D:\DATA\tran\agent tran\9.6文本外工作'
 GOOD = BASE + r'\临时\cn\汉化好的\system\extra_chip_en_zh.png'
 JP_ATLAS = (BASE + r'\成品ing\补丁包\languagebarrier\c0data\extra_chip.png')
 QA = BASE + r'\scripts\diagnostics\qa_extra_chip_en.py'
-TMP = BASE + r'\tmp_extra\_negtest.png'
-TMP_PY = BASE + r'\tmp_extra\_qa_neg.py'
+# Scratch files go to the system temp dir: keeping them in the workspace means
+# they break the moment someone tidies that directory (which is exactly what
+# happened to the first version of this script).
+TMPDIR = tempfile.mkdtemp(prefix='negtest_extra_chip_')
+TMP = os.path.join(TMPDIR, '_negtest.png')
+TMP_PY = os.path.join(TMPDIR, '_qa_neg.py')
 
 
 def run_qa(path):
