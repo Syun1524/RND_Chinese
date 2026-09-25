@@ -7,6 +7,33 @@
 - 技术基础：Committee of Zero 的英文优化补丁（LanguageBarrier 运行时），在其框架上替换为中文码表、字体、译文与图集
 - 适用：Steam 正版与免 DVD 版通用，装完保持游戏原有语言设定
 
+> ## ⚠️ 本项目包含对 Committee of Zero 组件的**修改版**
+>
+> 不是原样转发的补丁包，而是在 CoZ 运行时上做了实质性改动。两个组件：
+>
+> | 组件 | 改动规模 | 性质 |
+> |---|---|---|
+> | **`LanguageBarrier_rndchs/`** | **+1667 / −1064 行，13 个文件** | 实质性 fork：中文码表/字体渲染、ruby 注音定位、backlog 名字对齐、引号收窄、SigScan 多版本兼容等 |
+> | **`sc3tools/`** | 3 个源文件 + 新增 `rndzh/` 码表 | 中文码表管线：新增中文 game 条目与三处调整 |
+>
+> **独立 fork 仓库**（便于与上游对照、也方便后人取用）：
+>
+> | 组件 | fork 地址 | 基准上游提交 |
+> |---|---|---|
+> | LanguageBarrier | [Kurashift/LanguageBarrier `rnd-chinese`](https://github.com/Kurashift/LanguageBarrier/tree/rnd-chinese) | `cc982fd9`（2025-04-27） |
+> | sc3tools | [Kurashift/sc3tools `rnd-chinese`](https://github.com/Kurashift/sc3tools/tree/rnd-chinese) | `6ba9278a`（2025-05-22） |
+>
+> 两个 fork 的分支都**从各自的上游基准提交拉出**，改动作为独立 commit 叠加，
+> 所以 `git diff <基准>` 就是本项目的完整改动集；各仓库根部的 `FORK-NOTES.md`
+> 写明改动方向与构建方法。
+>
+> 本仓库内仍保留源码副本（`LanguageBarrier_rndchs/`、`sc3tools/`），
+> 因为补丁发布依赖它们的编译产物；fork 仓库则是为了对外可追溯。
+> 改动清单与原因见 **[第三部分](#第三部分相对-coz-的技术差异)**（运行时）与
+> **[sc3tools 一节](#sc3tools文本提取--回写工具)**（工具）。
+> CoZ 的 MIT 许可与版权声明在 `LanguageBarrier_rndchs/LanguageBarrier/LICENSE`
+> 与补丁包内原样保留。
+
 ---
 
 # 第一部分：给玩家
@@ -55,6 +82,11 @@
 ---
 
 # 第三部分：相对 CoZ 的技术差异
+
+> 完整改动集见独立 fork 分支
+> [Kurashift/LanguageBarrier `rnd-chinese`](https://github.com/Kurashift/LanguageBarrier/tree/rnd-chinese)
+> （基准上游 `cc982fd9`）：`git diff cc982fd9` 即 **13 个文件、+1667 / −1064 行**。
+> 下面只列要点。
 
 ## 运行时（LanguageBarrier 源码）
 
