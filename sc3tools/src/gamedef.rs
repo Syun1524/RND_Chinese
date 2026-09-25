@@ -93,6 +93,20 @@ lazy_static! {
             None,
             vec!['\'']
         ),
+        // 本汉化项目新增：同一游戏的中文码表。
+        // CoZ 上游一个游戏只有一套码表（英化补丁不改码表），而本项目的简体中文
+        // 码表从 3020 扩到 4550 字符，无法与日文原版码表共存于同一资源目录，
+        // 故拆成两个「游戏」条目 —— 资源目录名即 charset 的所在目录。
+        // 提取/回写中文文本用 `rndzh`，日文原版用 `rnd`。
+        GameDef::new(
+            Game::RoboticsNotesDash,
+            "Robotics;Notes DaSH (简体中文)",
+            "rndzh",
+            &["rndzh", "roboticsnotesdashzh"],
+            None,
+            vec!['\''],
+        )
+        .chinese_pipeline(),
     ];
 }
 
@@ -107,6 +121,9 @@ pub struct GameDef {
     pub compound_chars: HashMap<char, String>,
     pub encoding_maps: EncodingMaps,
     pub fullwidth_blocklist: Vec<char>,
+    /// 是否走简体中文管线的三处调整（见 `chinese_pipeline()` 的说明）。
+    /// CoZ 上游没有这个概念 —— 它是本汉化项目为中文码表加的。
+    pub chinese_pipeline: bool,
 }
 
 impl GameDef {
@@ -155,7 +172,26 @@ impl GameDef {
             compound_chars,
             encoding_maps: encoding_maps.unwrap(),
             fullwidth_blocklist,
+            chinese_pipeline: false,
         }
+    }
+
+    /// 启用简体中文管线的三处调整（本汉化项目对 CoZ 上游的改动）。
+    ///
+    /// 这三处都不是「读中文还是读日文」的问题，而是**中文码表的特性**导致的：
+    ///
+    /// 1. 半角空格不再自动转全角 U+3000。中文码表里 U+3000 走汉字字形步进，
+    ///    会让 `Mr. Pleiades` 这类英文两侧出现一个汉字宽的间隔。
+    /// 2. 禁用「底稿含全角字母数字 → 新文本整行转全角」。英文底稿会命中 755 行
+    ///    （twipo 推文里的全角ｗ），把 `@B_TITOR` 等句柄转成全角 `＠Ｂ＿ＴＩＴＯＲ`。
+    /// 3. 全半角按**字面精确**比较（上游先 to_halfwidth 归一化再比）。
+    ///    否则底稿的 U+3000 与译文的半角空格被判「相同」而跳过重写，
+    ///    旧的全角空格字节原样留下 —— 这正是 `Mr.　Pleiades` 大间隔 bug 的来源。
+    ///
+    /// 日文原版码表（`rnd`）保持 CoZ 上游行为，一处不改。
+    pub fn chinese_pipeline(mut self) -> Self {
+        self.chinese_pipeline = true;
+        self
     }
 
     pub fn charset(&self) -> &[char] {

@@ -146,9 +146,14 @@ pub fn encode_str(
         if let Char::Regular(c) = &ch {
             if convert_to_fullwidth && !gamedef.fullwidth_blocklist.contains(&*c) {
                 ch = Char::Regular(replace_halfwidth(*c));
-            } else if *c == '\u{20}' {
+            } else if !gamedef.chinese_pipeline && *c == '\u{20}' {
+                // CoZ 上游行为：半角空格转全角 U+3000。日文原版码表（rnd）保持不动。
                 ch = Char::Regular(FULLWIDTH_SPACE);
             }
+            // 中文管线（rndzh）：半角空格保持原样（经 charset[0] 编码，渲染端
+            // widthData[0] = patchdef spaceWidthPixels 强制为窄空格）。
+            // 上游那条「半角空格 → U+3000」在中文码表里会让 U+3000 走汉字字形步进，
+            // 于是 "Mr. Pleiades" 之类英文两侧出现一个汉字宽的间隔。
         }
         buf.push(encode_char(&ch, &gamedef)?);
     }

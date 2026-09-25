@@ -29,12 +29,17 @@
 │   ├── GameText.cpp / GameText.h                ← ruby 撞码修复
 │   ├── TextRendering.cpp / TextRendering.h      ← 缓存指纹校验
 │   └── dinput8-Release\dinput8.dll              ← 编译产物（发布必需）
-├── sc3tools_rndchs\                             ← CN 字符集提取/回写工具
-│   ├── resources\rnd\charset.utf8               ← CN 字符表（必须与运行时一致）
-│   └── target\release\sc3tools.exe              ← 发布必需
-├── sc3tools_jp\                                 ← JP 字符集工具（合作者 Kurashift 添加）
+├── sc3tools\                                    ← 文本提取/回写工具（★ 2026-09-26 起合并为一个）
+│   ├── resources\rnd\charset.utf8               ← 日文原版码表（3020 字符）
+│   ├── resources\rndzh\charset.utf8             ← 中文码表（4550，必须与运行时 patchdef 一致）
+│   └── target\release\sc3tools.exe              ← 发布必需；`rnd` 处理日文、`rndzh` 处理中文
 ├── docs\                                        ← 本目录（修复记录 + 本文档）
 └── .gitignore                                   ← 排除构建产物
+
+> ⚠️ **本文档写于 sc3tools 合并之前**（当时是 `sc3tools_rndchs` + `sc3tools_jp` 两套，
+> 且中文码表挂在 `rnd` 名下）。2026-09-26 已合并为单一 `sc3tools/`、中文码表移到
+> `rndzh`。下面正文里出现的**旧路径与旧用法保留为历史记录**，
+> 现行用法见仓库根 `README.md` 的「sc3tools」一节。
 
 游戏目录 D:\Ruanjian\Steam\steamapps\common\ROBOTICS;NOTES DaSH\
 ├── NOTES DaSH\dinput8.dll                       ← 实际生效的补丁 DLL（注意在子目录！）

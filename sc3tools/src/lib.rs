@@ -283,32 +283,44 @@ fn replace_text(
     }
 
     let process_change = |i, s| {
-        let index = &script.string_index();
-        let orig = script.read_string(index.get(i).unwrap())?;
-        let mut fullwidth = false;
-        for tk in orig.iter() {
-            let tk = tk.map_err(|err| scr_err(Box::new(err), i))?;
-            if let sc3::StringToken::Text(text) = tk {
-                let decoded = text::decode_str(&text, gamedef, true)
-                    .map_err(|err| txt_err(Box::new(err), i))?;
+        // CoZ 上游逻辑：底稿该行若含全角字母数字，则把新文本的半角整行转全角
+        // （日文原版码表的排版需要）。
+        //
+        // 中文管线（rndzh）禁用该转换：英文底稿会命中 755 行（twipo 推文里的
+        // 全角ｗ / 全角空格），把 Twitter 句柄等一并转成全角
+        // （现役包实测显示 ＠Ｂ＿ＴＩＴＯＲ）。中文译文以校对稿的半角写法为准。
+        let fullwidth = if gamedef.chinese_pipeline {
+            false
+        } else {
+            let index = &script.string_index();
+            let orig = script.read_string(index.get(i).unwrap())?;
+            let mut fw = false;
+            for tk in orig.iter() {
+                let tk = tk.map_err(|err| scr_err(Box::new(err), i))?;
+                if let sc3::StringToken::Text(text) = tk {
+                    let decoded = text::decode_str(&text, gamedef, true)
+                        .map_err(|err| txt_err(Box::new(err), i))?;
 
-                fullwidth = decoded.iter(&gamedef.encoding_maps).any(|ch| {
-                    if let text::Char::Regular(c) = ch {
-                        c != text::FULLWIDTH_SPACE
-                            && text::is_fullwidth_ch(c)
-                            && text::replace_fullwidth(c).is_ascii_alphanumeric()
-                    } else {
-                        false
+                    fw = decoded.iter(&gamedef.encoding_maps).any(|ch| {
+                        if let text::Char::Regular(c) = ch {
+                            c != text::FULLWIDTH_SPACE
+                                && text::is_fullwidth_ch(c)
+                                && text::replace_fullwidth(c).is_ascii_alphanumeric()
+                        } else {
+                            false
+                        }
+                    });
+
+                    if fw {
+                        break;
                     }
-                });
-
-                if fullwidth {
-                    break;
                 }
             }
-        }
+            fw
+        };
 
-        Sc3String::deserialize(s, &gamedef, fullwidth).map_err(|err| txt_err(Box::new(err), i))
+        Sc3String::deserialize(s, &gamedef, fullwidth)
+            .map_err(|err| txt_err(Box::new(err), i))
     };
 
     let changes = changes
@@ -337,6 +349,16 @@ fn equivalent(
 ) -> Result<bool, text::EncodingError> {
     if let coz::StringSegment::Text(txt_str) = txt_seg {
         if let sc3::StringToken::Text(scr_str) = scr_tk {
+            if gamedef.chinese_pipeline {
+                // 中文管线：全半角按**字面精确**比较。
+                // 上游先 to_halfwidth 归一化再比，于是底稿里的 U+3000 与译文的半角空格
+                // 被判「相同」而跳过重写，旧的全角空格字节原样留下 ——
+                // 这正是 'Mr.\u{3000}Pleiades' 大间隔 bug 的来源
+                // （曾靠 patch_enscript_spaces.py 对成品做 80 3F→80 00 原位修补）。
+                let scr_str = text::decode_str(&scr_str, &gamedef, true)?;
+                return Ok(txt_str.as_str() == scr_str.as_str());
+            }
+            // 日文原版码表：保持 CoZ 上游的归一化比较。
             let txt_str = text::to_halfwidth(&txt_str, &gamedef.encoding_maps);
             let scr_str = text::decode_str(&scr_str, &gamedef, false)?;
             return Ok(txt_str == scr_str);

@@ -57,6 +57,6 @@ Steam 版和免 DVD 版都可以用。
 
 ## 汉化制作
 
-**仓式同学◆ × Eight_tide**
+**Eight_tide × 仓式同学◆**
 
 翻译流程：AI 初翻（Gemini 3.0 Flash）→ 人工逐句精校。

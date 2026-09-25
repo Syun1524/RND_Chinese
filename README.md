@@ -75,8 +75,9 @@
 
 ## 工具链
 
-- `sc3tools_rndchs/src/text.rs`：删掉「半角空格无条件转全角空格 U+3000」的分支——
+- `sc3tools/src/text.rs`：半角空格不再转全角 U+3000（仅 `rndzh`）——
   中文码表里 U+3000 走汉字字形步进，会让英文术语两侧多出一个汉字宽的间隔。
+  详见上面「sc3tools」一节的三处改动表。
 - `SigScan` 的数组回退（上表最后第二行）配合 `gamedef.json` 里追加的两条备选特征码，
   让补丁不因游戏小版本更新而失效。
 
@@ -114,7 +115,7 @@
 | `jpscript/` | 日文原版脚本（提取用基线） |
 | `subs/` | 影片字幕 `.ass` 与歌词字体 |
 | `LanguageBarrier_rndchs/` | LanguageBarrier 运行时源码 + 发布用 `dinput8.dll` / `VSFilter.dll`（编译中间产物不入库） |
-| `sc3tools_jp/`、`sc3tools_rndchs/` | 日文提取 / 中文回写工具链 |
+| `sc3tools/` | 文本提取 / 回写工具（Rust）。**一个 exe 双码表**：`rnd` 日文原版、`rndzh` 简体中文 |
 | `tools/` | 启动器 `RNDZhLauncher.cpp` + 换装核对工具 `RNDZhOutfitTool.cpp` 源码与构建脚本 |
 | `setup/` | 安装器 / 卸载器源码（`src/`）与构建脚本（`build/`） |
 | `图片汉化/` | **成品中文图集**（`bg/` `system/` `manual/`，与补丁包 `c0data/` 逐字节一致）。其下 `system/data/_archive/` 存**非汉化的原件**（见该目录 README） |
@@ -130,44 +131,74 @@
 
 > ⚠️ **本仓库不含「可直接打包」的完整补丁包**。安装包由工作区的 `成品ing/补丁包/`
 > 组装（`build_installer.py` 从那里取件）。从本仓库重建安装包时，以下内容需要另行生成：
-> 编译产物 `enscript/*.msb`（由 `sc3tools_rndchs` + `cnscript` 编出）、
+> 编译产物 `enscript/*.msb`（由 `sc3tools` + `cnscript` 编出）、
 > 字体缓存 `fonts/*.dds`（需实机跑游戏烘焙，见 `docs/字体种子.md`）、
 > `c0data` 注入图（由 `scripts/sync_images.py` 从 `图片汉化/` 生成）。
 > 代理 DLL、运行时配置、影片、归档原件已在本仓库中，无需外部来源。
 
-## sc3tools 版本说明 (IMPORTANT)
+## sc3tools（文本提取 / 回写工具）
 
-仓库里有两套 sc3tools，源码完全相同，唯一区别是编译时内嵌的 `resources/rnd/charset.utf8` 码表。
-**码表是 rust-embed 编译期打进 exe 的，改码表必须重新 `cargo build --release`，改完直接跑旧 exe 无效。**
-（`#[folder = "resources/"]` 是**整目录**打包 —— 所以增删该目录下的任何文件都要重编，
-即使那个文件根本没被代码读取。）
-
-- `sc3tools_rndchs/` — **中文版**。码表为汉化简体字码表（13.4K，**4550 字**），
-  用于配合 `cnscript/` 译稿做中文回写（replace-text）。
-- `sc3tools_jp/` — **日文版**。码表为日文原版码表（8.9K，3020 字，md5 `6040d18f...`），
-  用于提取日文原版脚本（extract-text）。
-
-**配对关系：日文包用日文版提取，中文回写用中文版。用错码表会得到大面积错码
-（例如 `種子島` → `丽仁亿`，`海翔` → `ΥΦ`）。**
-
-> 各目录的 `resources/rnd/` 下**只保留一份权威码表** `charset.utf8` 与
-> `compound_chars.map`。历史上曾混入 `charset-.utf8` / `charset-备份.utf8`
-> （与日文版 `charset.utf8` 逐字节相同，纯冗余），2026-09-26 已删除并重编 exe
-> —— 见提交说明。**别再把码表备份放进 resources/**：它会被打进 exe，
-> 且删掉后不重编就等于没删。
-
-现成的 exe：
-
-- `sc3tools_rndchs/target/release/sc3tools.exe` — 中文版
-- `sc3tools_jp/target/release/sc3tools.exe` — 日文版
-
-用法示例（提取日文）：
+**一个 exe，两套码表。** 用 `rnd` 处理日文原版脚本，用 `rndzh` 处理中文：
 
 ```
-sc3tools_jp/target/release/sc3tools.exe extract-text "mes00.cpk/*.msb" rnd
+sc3tools/target/release/sc3tools.exe extract-text "mes00.cpk/*.msb" rnd     # 提日文
+sc3tools/target/release/sc3tools.exe extract-text "enscript/*.msb" rndzh    # 提中文
+sc3tools/target/release/sc3tools.exe replace-text "cnscript/*.msb.txt" rndzh  # 回写中文
 ```
 
-输出会放在输入文件同级的 `txt/` 子目录。
+输出放在输入文件同级的 `txt/` 子目录。回写是**就地改写**脚本文件
+（`replace-text <脚本> <文本> <game>`；文本与脚本按文件名 stem 配对，
+`<name>.msb` 要配 `<name>.msb.txt`）。
+
+### 为什么有 `rndzh` 这个额外的 game 名
+
+上游 Committee of Zero 的 sc3tools 一个游戏只有一套码表 —— 他们的英化补丁
+**不改码表**，日文版和英文版共用同一份 `resources/rnd/charset.utf8`，
+所以一个 exe 内嵌 8 个游戏的码表就够了（`sghd`/`cc`/`rn`/`rnd`…）。
+
+本汉化项目把简体中文码表从 3020 扩到 **4550 字符**，无法与日文原版码表
+共存于同一资源目录，因此拆成两个「游戏」条目 —— **资源目录名即码表所在目录**：
+
+| game | 资源目录 | 码表 | 用途 |
+|---|---|---|---|
+| `rnd` | `resources/rnd/` | 3020 字符（日文原版，md5 `6040d18f`） | 提取日文原版脚本 |
+| `rndzh` | `resources/rndzh/` | **4550 字符**（简体中文，md5 `999b4b23`） | 提取 / 回写中文译文 |
+
+用错码表会得到大面积错码（`種子島` → `丽仁亿`），或直接报
+`illegal character code`。**提取日文用 `rnd`、中文用 `rndzh`。**
+
+### 相对上游的三处代码改动（`chinese_pipeline`）
+
+上游逻辑对英文补丁是对的，但用在中文码表上会产生可见 bug。三处改动都
+**只对 `rndzh` 生效**（`GameDef::chinese_pipeline` 开关），`rnd` 保持上游行为：
+
+| 文件 | 改动 | 原因 |
+|---|---|---|
+| `text.rs` | 半角空格不转全角 U+3000 | 中文码表里 U+3000 走汉字字形步进，会让 `Mr. Pleiades` 两侧出现一个汉字宽的间隔 |
+| `lib.rs` | 禁用「底稿含全角字母数字 → 新文本整行转全角」 | 英文底稿会命中 755 行 twipo 推文，把 `@B_TITOR` 变成全角 `＠Ｂ＿ＴＩＴＯＲ` |
+| `lib.rs` | 全半角按**字面**比较（上游先归一化再比） | 否则底稿 U+3000 与译文半角空格被判「相同」而跳过重写，旧的全角空格字节残留 |
+
+### 改码表必须重编
+
+**码表是 `rust-embed` 编译期打进 exe 的**（`#[folder = "resources/"]`，
+**整目录**打包）。所以：
+
+- 改 `charset.utf8` → 必须 `cargo build --release`，直接跑旧 exe 无效
+- 增删 `resources/` 下的**任何**文件也要重编，即使代码根本没读它
+- 改完建议跑工作区的两道验证（见下）
+
+### 验证（改完工具务必跑）
+
+```bash
+python scripts/diagnostics/verify_sc3tools_merged.py   # A/B 对照：与改前的旧工具逐字节等价
+python scripts/diagnostics/negtest_sc3tools_merged.py  # 反向验证：三处开关确实是活的
+```
+
+> ⚠️ 这两道门禁的由来值得记：第一版验证写的是「提取 → 回写 → 与原文件逐字节比对」，
+> 结果**满屏假绿** —— 因为 (a) `replace-text` 按文件名 stem 配对，脚本叫 `f.msb`
+> 而文本叫 `f.msb.txt` 时配不上，**静默跳过、退出码 0**；(b) 提取文本经归一化，
+> 回写时本就会重写若干行，**「逐字节往返」根本不是正确判据**（旧工具同样如此）。
+> 现在改用 A/B 对照（966 个文件全部与旧工具等价）+ 反向验证（证明开关有效）。
 
 ---
 

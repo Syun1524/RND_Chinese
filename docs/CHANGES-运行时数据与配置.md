@@ -3,6 +3,11 @@
 记录 2026-09-08 对**游戏目录内运行时数据 / 配置**所做的改动。
 这些不是代码，但会影响实际运行效果，变更时容易被忽略，故单独归档。
 
+> ⚠️ **2026-09-26 起路径有变**：本文档提到的 `sc3tools_rndchs/resources/rnd/charset.utf8`
+> 现为 **`sc3tools/resources/rndzh/charset.utf8`**（工具已合并为单一 `sc3tools/`，
+> 中文码表移到 `rndzh`；`rnd` 恢复为日文原版码表）。
+> 正文保留当时的路径作为历史记录。
+
 游戏目录：`D:\Ruanjian\Steam\steamapps\common\ROBOTICS;NOTES DaSH`
 配置目录：`languagebarrier/`
 
