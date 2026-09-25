@@ -1,7 +1,7 @@
-# （测试中）ROBOTICS;NOTES DaSH 简体中文 AI 人工精翻
+# （测试中）ROBOTICS;NOTES DaSH 简体中文 AI 人工精校
 
 **ROBOTICS;NOTES DaSH**（MAGES/5pb，Steam 版）的简体中文汉化补丁。
-译文以**日语原文**为准，gemini3.0flash + 人工精翻。
+译文以**日语原文**为准，gemini3.0flash + 人工精校。
 
 - 当前版本：**v1.3**
 - 技术基础：Committee of Zero 的英文优化补丁（LanguageBarrier 运行时），在其框架上替换为中文码表、字体、译文与图集
@@ -204,7 +204,7 @@ python scripts/diagnostics/negtest_sc3tools_merged.py  # 反向验证：三处�
 
 ## 致谢与许可
 
-- **汉化：Eight_tide × 仓式同学◆**（AI 翻译 Gemini 3.0 Flash · 人工精翻 · CG / 系统图手工嵌入）
+- **汉化：Eight_tide × 仓式同学◆**（AI 翻译 Gemini 3.0 Flash · 人工精校 · CG / 系统图手工嵌入）
 - 运行时框架 [LanguageBarrier](https://github.com/CommitteeOfZero/LanguageBarrier)
   与英文优化补丁由 **Committee of Zero** 开发（MIT；因含 xy-VSFilter，二进制按 GPLv2 分发）。
 - 本补丁基于 CoZ 的工作，译文 / 图集 / 工具为本项目完成。
