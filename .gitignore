@@ -37,8 +37,10 @@ x86/
 !dinput8-Release/languagebarrier/LICENSE
 !dinput8-Release/languagebarrier/THIRDPARTY.LB.txt
 # 代理 DLL：补丁运行必需，来自 CoZ 补丁包（非本项目编译产物），
-# 是「从本仓库重建安装包」不可缺的原件。见 代理DLL/README.md
-!代理DLL/VSFilter.dll
+# 是「从本仓库重建安装包」不可缺的原件。见 补丁数据/README.md
+# ⚠️ 路径必须与目录实际位置一致 —— 移动目录后这里要同步改，否则例外失效、
+#    VSFilter.dll 会被 *.dll 静默忽略（其余 6 个无扩展名不受影响，所以很容易漏）。
+!补丁数据/代理DLL/VSFilter.dll
 
 # Python
 __pycache__/

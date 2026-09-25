@@ -1,0 +1,9 @@
+{
+  "__schema_version": 5,
+  "karaokeSubs": "all",
+  "showAllSettings": true,
+  "mouseControls": true,
+  "scrollDownToAdvanceText": false,
+  "disableScrollDownToCloseBacklog": false,
+  "swimsuitPatch": false
+}

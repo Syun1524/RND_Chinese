@@ -120,9 +120,9 @@
 | `图片汉化/` | **成品中文图集**（`bg/` `system/` `manual/`，与补丁包 `c0data/` 逐字节一致）。其下 `system/data/_archive/` 存**非汉化的原件**（见该目录 README） |
 | `废弃图片/` | 已从补丁重定向中撤下的汉化图（仅留存备查，不随补丁分发） |
 | `视频汉化/` | 替换用影片（USM 重封说明 + `movie_dar020.usm`） |
-| `代理DLL/` | 补丁运行所需的代理 DLL（DXVK 的 `d3d9`/`d3d10`/`d3d10_1`/`d3d10core`/`d3d11`/`dxgi` + `VSFilter.dll`），来自 CoZ 补丁包，**非本项目产出**（见该目录 README） |
+| `补丁数据/` | **补丁包里那些"非本项目产出"的原件**：`运行时配置/`（`patchdef.json`、`gamedef.json`、各 `.cls` 等）与 `代理DLL/`（DXVK 六件 + `VSFilter.dll`）。见该目录 README |
 | `scripts/` | 构建与部署脚本（`deploy_patch.py`、`sync_images.py`、`gen_pkg_manifest.py` 等） |
-| `docs/` | 交接文档、打包清单、设计说明 |
+| `docs/` | 交接文档、打包清单、设计说明、`字体种子.md` |
 
 > `图片汉化/` 里的文件名带 `_zh` 后缀（便于与解包原图区分）；进补丁包时按
 > `c0data.cls` 的原始资源名（去掉 `_zh`）落位，`scripts/sync_images.py` 负责这件事。
@@ -133,7 +133,7 @@
 > 编译产物 `enscript/*.msb`（由 `sc3tools_rndchs` + `cnscript` 编出）、
 > 字体缓存 `fonts/*.dds`（需实机跑游戏烘焙，见 `docs/字体种子.md`）、
 > `c0data` 注入图（由 `scripts/sync_images.py` 从 `图片汉化/` 生成）。
-> 代理 DLL、影片、归档原件已在本仓库中，无需外部来源。
+> 代理 DLL、运行时配置、影片、归档原件已在本仓库中，无需外部来源。
 
 ## sc3tools 版本说明 (IMPORTANT)
 
