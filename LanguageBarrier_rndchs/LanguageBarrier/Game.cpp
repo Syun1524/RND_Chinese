@@ -815,6 +815,15 @@ int __fastcall mgsFileOpenHook(mgsFileLoader* pThis, void* dummy, int unused) {
       }
       if (config["patch"]["fileRedirection"][archiveName].count(key) == 1) {
         auto red = config["patch"]["fileRedirection"][archiveName][key];
+        // A language-conditional entry is an object {"jp": id, "en": id}, for
+        // assets the two languages lay out differently. The EXTRA screen is one:
+        // it draws its stat numbers at language-specific x, each aligned to its
+        // own original atlas's separators, so one atlas cannot serve both.
+        if (red.is_object()) {
+          const char* langKey =
+              (gameExeLanguage && *gameExeLanguage != 0) ? "en" : "jp";
+          if (red.count(langKey) == 1) red = red[langKey];
+        }
         if (red.type() == json::value_t::number_integer ||
             red.type() == json::value_t::number_unsigned) {
           int newFileId = red.get<int>();

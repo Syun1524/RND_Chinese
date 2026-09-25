@@ -165,6 +165,18 @@ void loadJsonConstants() {
   if (config["patch"].count("backlogNameDebug") == 1)
     BACKLOG_NAME_DEBUG = config["patch"]["backlogNameDebug"].get<bool>();
   TWIPO_CONTENT_DEBUG = false;
+  RN_DRAW_TEXT_DEBUG = false;
+  if (config["patch"].count("rnDrawTextDebug") == 1)
+    RN_DRAW_TEXT_DEBUG = config["patch"]["rnDrawTextDebug"].get<bool>();
+  SINGLE_LINE_DEBUG = false;
+  if (config["patch"].count("singleLineDebug") == 1)
+    SINGLE_LINE_DEBUG = config["patch"]["singleLineDebug"].get<bool>();
+  SPRITE_DEBUG = false;
+  if (config["patch"].count("spriteDebug") == 1)
+    SPRITE_DEBUG = config["patch"]["spriteDebug"].get<bool>();
+  GLYPH_DEBUG = false;
+  if (config["patch"].count("glyphDebug") == 1)
+    GLYPH_DEBUG = config["patch"]["glyphDebug"].get<bool>();
   if (config["patch"].count("twipoContentDebug") == 1)
     TWIPO_CONTENT_DEBUG = config["patch"]["twipoContentDebug"].get<bool>();
   // Speaker-name column defaults on; backlogNameAlign=false restores the game's

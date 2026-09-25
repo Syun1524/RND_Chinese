@@ -113,6 +113,27 @@ LB_GLOBAL bool BACKLOG_NAME_ALIGN;
 LB_GLOBAL int BACKLOG_BODY_GAP;
 LB_GLOBAL bool BACKLOG_NAME_DEBUG;
 
+// Dump every rnDrawText call (args + decoded text) to log.txt.
+LB_GLOBAL bool RN_DRAW_TEXT_DEBUG;
+
+// Dump every drawSingleTextLine call (args + decoded text) to log.txt. Used to
+// find which call site draws a given screen's numbers, since the fixes in
+// singleTextLineFixes are keyed by the caller's return address.
+LB_GLOBAL bool SINGLE_LINE_DEBUG;
+
+// Dump every drawSprite call (args) to log.txt. Used to find which call site
+// blits a given atlas region, since spriteFixes is keyed by return address.
+LB_GLOBAL bool SPRITE_DEBUG;
+
+// Dump every sg0DrawGlyph2 call that lands in a given screen region (args) to
+// log.txt. Used to find which call site renders a screen's digits.
+LB_GLOBAL bool GLYPH_DEBUG;
+
+// The game's language flag (0 = Japanese, 1 = English), read from the exe's own
+// global. NULL until gameTextInit runs, so always null-check before dereferencing.
+// Exposed because a few assets differ per language (see fileRedirection).
+LB_GLOBAL int* gameExeLanguage;
+
 // Per-call-site horizontal shifts for drawTwipoContent, keyed by the return
 // address of the caller (see twipoContentFixes in patchdef.json).
 //

@@ -2,6 +2,7 @@
 #include <fstream>
 #include <list>
 #include <map>
+#include <set>
 #include <sstream>
 #include <vector>
 #include <intrin.h>
@@ -193,7 +194,6 @@ int __cdecl gslFillHook(int id, int a1, int a2, int a3, int a4, int r, int g,
 static uintptr_t gameExeRenderMode = NULL;
 static uintptr_t gameExeShaderPtr = NULL;
 static uintptr_t gameExeBlendMode = NULL;
-static int* gameExeLanguage = NULL;
 
 std::string gameId;
 
@@ -1146,7 +1146,7 @@ void gameTextInit() {
         "game", "drawTipContent", (uintptr_t*)&gameExeDrawTipContent,
         (LPVOID)drawTipContentHook, (LPVOID*)&gameExeDrawTipContentReal);
   }
-  if (CC_BACKLOG_HIGHLIGHT || !retAddrToSpriteFixes.empty()) {
+  if (CC_BACKLOG_HIGHLIGHT || !retAddrToSpriteFixes.empty() || SPRITE_DEBUG) {
     scanCreateEnableHook("game", "drawSprite", (uintptr_t*)&gameExeDrawSprite,
                          (LPVOID)drawSpriteHook,
                          (LPVOID*)&gameExeDrawSpriteReal);
@@ -3222,6 +3222,26 @@ signed int drawSingleTextLineHook(int textureId, int startX, signed int startY,
     startY += fixIter->second.dy;
     if (fixIter->second.fontSize) glyphSize = fixIter->second.fontSize;
   }
+  if (SINGLE_LINE_DEBUG) {
+    std::stringstream dbg;
+    dbg << "drawSingleTextLine: ret=" << std::hex << retaddr << std::dec
+        << " tex=" << textureId << " startX=" << startX << " startY=" << startY
+        << " a4=" << a4 << " maxLen=" << maxLength << " color=" << color
+        << " glyphSize=" << glyphSize << " opacity=" << opacity << " text=";
+    const unsigned char* p = (const unsigned char*)string;
+    for (int n = 0; n < 60 && *p != 0xFF; n++) {
+      if (*p >= 0x80) {
+        const int gid = ((*p & 0x7F) << 8) | p[1];
+        if (gid < (int)TextRendering::Get().fullCharMap.size())
+          dbg << (char)TextRendering::Get().fullCharMap[gid];
+        p += 2;
+      } else {
+        dbg << '<' << (int)*p << '>';
+        p += 1;
+      }
+    }
+    LanguageBarrierLog(dbg.str());
+  }
   return gameExeDrawSingleTextLineReal(textureId, startX, startY, a4, string,
                                        maxLength, color, glyphSize, opacity);
 }
@@ -3468,6 +3488,17 @@ int sg0DrawGlyphHook(int textureId, float glyphInTextureStartX,
                      float glyphInTextureHeight, float displayStartX,
                      float displayStartY, float displayEndX, float displayEndY,
                      int color, uint32_t opacity) {
+  // Same region filter as sg0DrawGlyph2Hook: see GLYPH_DEBUG in GameText.h.
+  if (GLYPH_DEBUG && displayStartY >= 450.0f && displayStartY <= 800.0f) {
+    std::stringstream dbg;
+    dbg << "sg0DrawGlyph: ret=" << std::hex << (uintptr_t)_ReturnAddress()
+        << std::dec << " tex=" << textureId << " src=("
+        << glyphInTextureStartX << "," << glyphInTextureStartY << ") "
+        << glyphInTextureWidth << "x" << glyphInTextureHeight << " dispStart=("
+        << displayStartX << "," << displayStartY << ") dispEnd=(" << displayEndX
+        << "," << displayEndY << ")";
+    LanguageBarrierLog(dbg.str());
+  }
   if (!HAS_SPLIT_FONT) {
     if (glyphInTextureStartY > 4080.0) {
       glyphInTextureStartY += 4080.0;
@@ -3497,6 +3528,17 @@ int rnDrawGlyphHook(int textureId, float glyphInTextureStartX,
                     float glyphInTextureHeight, float displayStartX,
                     float displayStartY, float displayEndX, float displayEndY,
                     int color, uint32_t opacity) {
+  // Same region filter as sg0DrawGlyph2Hook: see GLYPH_DEBUG in GameText.h.
+  if (GLYPH_DEBUG && displayStartY >= 450.0f && displayStartY <= 800.0f) {
+    std::stringstream dbg;
+    dbg << "rnDrawGlyph: ret=" << std::hex << (uintptr_t)_ReturnAddress()
+        << std::dec << " tex=" << textureId << " src=("
+        << glyphInTextureStartX << "," << glyphInTextureStartY << ") "
+        << glyphInTextureWidth << "x" << glyphInTextureHeight << " dispStart=("
+        << displayStartX << "," << displayStartY << ") dispEnd=(" << displayEndX
+        << "," << displayEndY << ")";
+    LanguageBarrierLog(dbg.str());
+  }
   if (TextRendering::Get().enabled) {
     //	if (textureId == FIRST_FONT_ID)
     //		textureId = TextRendering::Get().FONT_TEXTURE_ID;
@@ -3520,6 +3562,27 @@ int __cdecl rnDrawTextHook(signed int textureId, int a2, signed int startY,
   int sc3Index = 0;
   std::vector<uint16_t> v;
   std::vector<wchar_t> v2;
+
+  if (RN_DRAW_TEXT_DEBUG) {
+    std::stringstream dbg;
+    dbg << "rnDrawText: ret=" << std::hex << (uintptr_t)_ReturnAddress()
+        << std::dec << " startX=" << startX << " startY=" << startY
+        << " a2=" << a2 << " a4=" << a4 << " height=" << height
+        << " color=" << color << " opacity=" << opacity << " text=";
+    const unsigned char* p = (const unsigned char*)sc3;
+    for (int n = 0; n < 60 && *p != 0xFF; n++) {
+      if (*p >= 0x80) {
+        const int gid = ((*p & 0x7F) << 8) | p[1];
+        if (gid < (int)TextRendering::Get().fullCharMap.size())
+          dbg << (char)TextRendering::Get().fullCharMap[gid];
+        p += 2;
+      } else {
+        dbg << '<' << (int)*p << '>';
+        p += 1;
+      }
+    }
+    LanguageBarrierLog(dbg.str());
+  }
 
   if (TextRendering::Get().enabled) {
     if (a4 == 0x104 && height == 0x18) {
@@ -3629,6 +3692,20 @@ unsigned int sg0DrawGlyph2Hook(int textureId, int a2,
                                float a9, float a10, float a11, float a12,
                                signed int inColor, signed int opacity, int* a15,
                                int* a16) {
+  // Log glyphs drawn into the EXTRA screen's stat rows, so the call site that
+  // places those numbers can be identified (a9/a10 are the display position).
+  // The filter is deliberately loose: the exact coordinate space is not known
+  // up front, so it only excludes the far edges of the frame.
+  if (GLYPH_DEBUG && a10 >= 450.0f && a10 <= 800.0f) {
+    std::stringstream dbg;
+    dbg << "sg0DrawGlyph2: ret=" << std::hex << (uintptr_t)_ReturnAddress()
+        << std::dec << " tex=" << textureId << " src=("
+        << glyphInTextureStartX << "," << glyphInTextureStartY << ") "
+        << glyphInTextureWidth << "x" << glyphInTextureHeight << " disp=("
+        << a9 << "," << a10 << ") a7=" << a7 << " a8=" << a8
+        << " a11=" << a11 << " a12=" << a12;
+    LanguageBarrierLog(dbg.str());
+  }
   if (!HAS_SPLIT_FONT) {
     if (glyphInTextureStartY > 4080.0) {
       glyphInTextureStartY += 4080.0;
@@ -3922,6 +3999,27 @@ void drawTipContentHook(int textureId, int maskId, int startX, int startY,
 int drawSpriteHook(int textureId, float spriteX, float spriteY,
                    float spriteWidth, float spriteHeight, float displayX,
                    float displayY, int color, int opacity, int shaderId) {
+  // Log every distinct sprite blit once (deduplicated), so a short visit to a
+  // screen yields a complete, small inventory of what it draws. Used to find
+  // the call site that blits the EXTRA screen's stat rows.
+  if (SPRITE_DEBUG) {
+    static std::set<std::string> spriteDebugSeen;
+    if (spriteDebugSeen.size() < 5000) {
+      std::stringstream key;
+      key << std::hex << (uintptr_t)_ReturnAddress() << std::dec << '|'
+          << textureId << '|' << spriteX << ',' << spriteY << ',' << spriteWidth
+          << ',' << spriteHeight << '|' << displayX << ',' << displayY;
+      if (spriteDebugSeen.insert(key.str()).second) {
+        std::stringstream dbg;
+        dbg << "drawSprite: ret=" << std::hex << (uintptr_t)_ReturnAddress()
+            << std::dec << " tex=" << textureId << " src=(" << spriteX << ","
+            << spriteY << ") " << spriteWidth << "x" << spriteHeight << " disp=("
+            << displayX << "," << displayY << ") color=" << color
+            << " opacity=" << opacity << " shader=" << shaderId;
+        LanguageBarrierLog(dbg.str());
+      }
+    }
+  }
   if (CC_BACKLOG_HIGHLIGHT &&
       _ReturnAddress() == gameExeCcBacklogHighlightDrawRet) {
     spriteHeight =
