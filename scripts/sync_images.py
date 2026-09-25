@@ -88,6 +88,14 @@ def main():
             src = os.path.join(d, f)
             if not os.path.isfile(src):
                 continue
+            # Mirror name = the source's own name normalised to `*_zh.png`. Note
+            # `stem` below is the *c0data* name (suffix stripped, aliases applied
+            # -- guid_pc -> guid_pc_jp), so it must NOT be reused for the mirror:
+            # the mirror keeps the source stem, only re-suffixed.
+            src_stem = os.path.splitext(f)[0]
+            for suf in ("重做", "_zh"):
+                if src_stem.endswith(suf):
+                    src_stem = src_stem[: -len(suf)]
             stem = archive_name(os.path.splitext(f)[0])
             # movie 帧在 c0data 里带 _last
             arc = None
@@ -98,15 +106,29 @@ def main():
             if arc is None:
                 print("  跳过（c0data 无对应项）: %s/%s" % (cat, f))
                 continue
-            if md5(src) == md5(live[arc]):
+            # A file needs syncing if EITHER destination is out of date. Checking
+            # only c0data hides a stale mirror: if c0data is updated by hand (or
+            # by a tool), source == c0data and the mirror is silently left behind
+            # -- the run reports "nothing to do" while the two published copies
+            # disagree. That happened on 2026-09-25 (extra_chip + extra_chip_en).
+            mirror_path = os.path.join(MIRROR, cat, src_stem + "_zh.png")
+            s_md5 = md5(src)
+            live_stale = s_md5 != md5(live[arc])
+            mirror_stale = (not os.path.exists(mirror_path)
+                            or s_md5 != md5(mirror_path))
+            if not live_stale and not mirror_stale:
                 continue
+            why = ("两处都旧" if live_stale and mirror_stale
+                   else "c0data 旧" if live_stale else "镜像旧")
             plan.append({"cat": cat, "arc": arc, "src": src,
-                         "mirror": os.path.join(MIRROR, cat, stem + "_zh.png"),
-                         "live": live[arc]})
+                         "mirror": mirror_path,
+                         "live": live[arc], "why": why})
 
     print("待同步 %d 个文件：" % len(plan))
     for x in plan:
-        print("  %-8s %-26s -> %s" % (x["cat"], x["arc"], os.path.relpath(x["mirror"], ROOT)))
+        print("  %-8s %-26s [%s] -> %s"
+              % (x["cat"], x["arc"], x.get("why", "?"),
+                 os.path.relpath(x["mirror"], ROOT)))
 
     if not plan:
         print("已全部一致，无需改动")

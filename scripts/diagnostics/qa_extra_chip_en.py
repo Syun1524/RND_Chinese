@@ -56,7 +56,10 @@ ROW2 = (1888, 1926)
 # elements that must be carried over from the Japanese atlas unchanged
 KEEP = [
     ('总游戏时间', 28, 197, ROW1),
-    ('CG LIBRARY完成率', 717, 1099, ROW1),
+    # The label sits at 869..1251 since the 2026-09-25 spacing fix: it was moved
+    # right by 152 px so its right edge matches the originals' 1251/1249, which
+    # restores the 84 px gap to the game-drawn percentage (was 236).
+    ('CG LIBRARY完成率', 869, 1251, ROW1),
     ('%', 1422, 1452, ROW1),
     ('TIPS数', 27, 164, ROW2),
     ('digit strip', 1478, 1773, ROW1),

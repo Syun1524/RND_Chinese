@@ -1,0 +1,986 @@
+{
+ "version": 2,
+ "source_image": "临时/cn/汉化好的/data/_source_backup_extra_chip.png",
+ "output_image": "临时/cn/汉化好的/system/extra_chip_zh.png",
+ "image_size": [
+  3120,
+  3024
+ ],
+ "note": "EXTRA界面数据条图集(透明底, 3120x3024)。本次只汉化最下方两行统计标签(x28-1780, y1846-1924): 总游戏时间/小时/分/秒/CG LIBRARY完成率/%/数字样本/TIPS数/斜杠占位。颜色实测强像素均值(120,120,120)。汉字墨高实测33px→label字号35(simhei 35号汉字墨高33)。%与0123456789原墨高28-29px→列级字号39(simhei 39号数字墨高28), 0123456789用distribute铺满原span[1478,1779]保持原数字pitch~30px。CG LIBRARY/TIPS按既定决定保留英文、同字体重画。上方y<=1844的条状要素(x1649-1878淡线等)不属于本行, 不得触碰。其余区域(歌名条/立绘/三角形装饰)不动。术语沿用: TIPS保留英文。 [第二批2026-09-09] 红框7处表头/状态标签汉化(用户确认: 曲目/歌曲名/艺术家/未解锁×3/无数据×2, simhei 表头19px·chip与框内16px)。表头白板蓝字(0,180,255)左缘对齐下方列, 行带y180-198(分隔线y204-205带外); LOCKED=灰描边梯形chip(描边120/内填229)白字居中, 字与chip双中心重合(center_x=2124/2716/1766), 清字填229避开描边; NO DATA=白底灰(120)字居中于描边梯形框(框线保留), center_x=2124.5/2716.5, 清字填白避开框线。全图已扫描无漏网同类元素(y1125灰线为MV缩略图帧内容不属UI)。锁区结构: chip顶边线y210/281/1826(99px), NO DATA框顶线y437(x2076-2172)/y581(x2668-2764)+左右斜腰, 均在clear界外零改动。 [qa_gap=false] 本图混合不透明容器(白板/灰面板/chip), 行间隙天然含图素, QA2不适用(同data01/button先例); 由regions必改门禁+矩形外零改动保障。 [目检修复2026-09-09] 表头3行白板为不透明底改填白清字; LOCKED chip经像素采样确认为实心灰120(白字空隙处=120), clear_fill 229→120。 [对齐修复2026-09-11] 用户实机反馈\"字符没对着日语原图位置, 游戏内读坐标的图标全部错位\"。根因: 旧版把**游戏按固定坐标读取的字形**也重绘了——① 灰字 0123456789 数字条原图是精确30px步进(字形w23~26), 旧版 distribute 铺字得到29~32.5px漂移, 实机按格读取必然错位; ② 斜杠原为32x32大斜杠, 旧版用全角／在35px渲染成14x29细斜杠且中心漂移+9px; ③ %/分/秒/TIPS数 与日语同字符却重绘, 字体不符; ④ CG LIBRARY 拉丁字距与游戏字体不符。修法: build_atlas 新增**列级 keep_original**(该列原图像素零改动)与 **col.ink 墨迹对齐**(按渲染墨迹bbox落字, 消除字面bearing漂移), 并新增 QA must_same 保留区零改动门禁; 上述语言中立列改为保留原像素, 仅翻译列(总游戏时间/小时/CG LIBRARY后的完成率/曲目/歌曲名/艺术家/未解锁/无数据)用 ink 对齐到实测墨迹: 表头左缘x150/241/984·基墨中心y188.5, chip 未解锁墨迹中心cx2123.5/2715.5/1765.5·cy218.5/289.5/1834.5, NO DATA 中心cx2124/2716·cy446.5/590.5, 底行标签左缘x28/x343/x998·中心y1864。 当版 MD5 eb79163de8d6c295d179784a601c0526(对齐修复2026-09-11; 旧版 23174967098becfc49118b19085ce7db 已废弃)。 [玩家面板2026-09-11] 用户拍板\"第一组听你的\"→播放器面板5处汉化: NOW PLAYING->正在播放(白255 simhei20), ALL->顺序播放 / REPEAT->单曲循环 / REPEAT ALL->列表循环 / SHUFFLE->随机播放 (蓝0,128,255 simhei22, 四行共用同列左缘基准 x1971, 原实测1971/1972/1972/1971 差≤1px); 垂直用 ink cy 对齐原墨迹中心 761.5/793.5/823.5/853.5/883.5 (行距恒定30px)。译文取四字等宽那套: 四模式互斥, 且 ALL 不译\"全部\"以免与\"列表循环\"语义打架。全部纯透明底(alpha 清0)。原图无对应脚本字符串(已核 jpscript/_system_00.msb.txt 无 NOW PLAYING/REPEAT/SHUFFLE), 确认为图集烤字, 无游戏坐标读取风险。清字界避开: 模式图标列 x1930-1957、音量条/喇叭 x2164-2213、右侧蓝框 x2459、上方数字条 y699-739。 [负向自测2026-09-11] 三个用例: ①行漏执行(keep_original)→必改门禁抓住; ②清字界右扩压音量条→保留区np_volume抓住; ③清字界上扩压面板数字条→**未被抓住**(当时无该保留区登记), 已补 must_same: panel_digits_strip(y699-739) 与 panel_frame_right(x2459竖边), 补后复测用例③→抓住。 [改版2026-09-11 居中] 用户反馈\"正在播放可以在 NOW PLAYING 的居中位置比较好\"→ row11 由左缘对齐(x1928)改为**整词单元居中**(ink cx=2022.5, 原词墨迹中心)。 [间距修复2026-09-25] 用户反馈「CG LIBRARY完成率 离右侧 100% 太远」。实测: 原版コンプリート率 止于 x1251、英文原版 Complete Rate 止于 x1249, 而游戏画的百分比数字最左在 x1335 → 原版间距 84/86px; 我们的「完成率」比「コンプリート率」窄 152px, 标签按原图左缘烤入, 于是右缘只到 1099、间距 236px(实机 157 屏幕px, 同行其它标签仅 36~84)。修法: 整块右移 152px, 右缘回到 1251, 间距 84px 与原版一致。搬移用 icon(原像素搬运, 不重绘), 故两版中文字形零变化。安全性: 新标签区间 865..1251 是原版标签区间 717..1251 的子集 —— 原版从不与任何元素碰撞, 故新位置亦然。日文/英文两张图集同步。",
+ "font": "C:/Windows/Fonts/simhei.ttf",
+ "font_height_px": 35,
+ "bg": "alpha",
+ "align": "left",
+ "rows": [
+  {
+   "index": 1,
+   "band": [
+    1846,
+    1881
+   ],
+   "columns": [
+    {
+     "key": "label1",
+     "x": 28,
+     "clear_x0": 24,
+     "clear_x1": 250,
+     "text": "总游戏时间",
+     "color": [
+      120,
+      120,
+      120,
+      255
+     ],
+     "source": "総プレイ時間",
+     "ink": {
+      "x0": 28,
+      "cy": 1864,
+      "thr": 128
+     },
+     "note": "総プレイ時間→总游戏时间; ink对齐原图墨迹左缘x28/中心y1864"
+    },
+    {
+     "key": "label2",
+     "x": 343,
+     "clear_x0": 339,
+     "clear_x1": 416,
+     "text": "小时",
+     "color": [
+      120,
+      120,
+      120,
+      255
+     ],
+     "source": "時間",
+     "ink": {
+      "x0": 343,
+      "cy": 1864,
+      "thr": 128
+     },
+     "note": "時間→小时; ink对齐原图墨迹左缘x343/中心y1864"
+    },
+    {
+     "key": "min",
+     "align": "center",
+     "x": 507,
+     "clear_x0": 488,
+     "clear_x1": 528,
+     "text": "分",
+     "color": [
+      120,
+      120,
+      120,
+      255
+     ],
+     "source": "分",
+     "keep_original": true,
+     "note": "列级 keep_original: 与日语原图同字符/游戏按固定坐标读取的字形, 原图像素零改动 (分/秒中日同字, 且与数字槽衔接)"
+    },
+    {
+     "key": "sec",
+     "align": "center",
+     "x": 620,
+     "clear_x0": 600,
+     "clear_x1": 641,
+     "text": "秒",
+     "color": [
+      120,
+      120,
+      120,
+      255
+     ],
+     "source": "秒",
+     "keep_original": true,
+     "note": "列级 keep_original: 与日语原图同字符/游戏按固定坐标读取的字形, 原图像素零改动 (分/秒中日同字, 且与数字槽衔接)"
+    },
+    {
+     "key": "label3_en",
+     "x": 717,
+     "clear_x0": 713,
+     "clear_x1": 1254,
+     "text": "",
+     "color": [
+      120,
+      120,
+      120,
+      255
+     ],
+     "source": "CG LIBRARYコンプリート率",
+     "note": "原版拉丁像素整块右移 152px(713→865): 用 icon 搬移原图像素, 绝不重绘(重绘会破坏与游戏字体的字距一致性)。clear 覆盖新旧两处。",
+     "icon": {
+      "src": [
+       713,
+       993
+      ],
+      "dst": 865
+     }
+    },
+    {
+     "key": "label3_rate",
+     "x": 1150,
+     "clear_x0": 993,
+     "clear_x1": 1260,
+     "text": "完成率",
+     "color": [
+      120,
+      120,
+      120,
+      255
+     ],
+     "source": "コンプリート率",
+     "ink": {
+      "x0": 1150,
+      "cy": 1864,
+      "thr": 128
+     },
+     "note": "コンプリート率→完成率; ink 左缘 1150(原 998 + 152)。右移后右缘 1251 = 原版コンプリート率右缘, 与百分比数字的间距复原为原版 84px。"
+    },
+    {
+     "key": "pct",
+     "align": "center",
+     "x": 1437,
+     "clear_x0": 1414,
+     "clear_x1": 1460,
+     "font_height_px": 39,
+     "text": "％",
+     "color": [
+      120,
+      120,
+      120,
+      255
+     ],
+     "source": "%",
+     "keep_original": true,
+     "note": "列级 keep_original: 与日语原图同字符/游戏按固定坐标读取的字形, 原图像素零改动 (% 坐标槽字形)"
+    },
+    {
+     "key": "digits",
+     "align": "distribute",
+     "span": [
+      1478,
+      1779
+     ],
+     "x": 1478,
+     "clear_x0": 1474,
+     "clear_x1": 1790,
+     "font_height_px": 39,
+     "text": "0123456789",
+     "color": [
+      120,
+      120,
+      120,
+      255
+     ],
+     "source": "0123456789",
+     "keep_original": true,
+     "note": "列级 keep_original: 与日语原图同字符/游戏按固定坐标读取的字形, 原图像素零改动 (★核心: 0123456789 是游戏按固定30px步进读取的数字字形条; 旧版用distribute重绘导致步进29~32.5px漂移→实机数字错位)"
+    }
+   ]
+  },
+  {
+   "index": 2,
+   "band": [
+    1888,
+    1924
+   ],
+   "columns": [
+    {
+     "key": "tips",
+     "x": 27,
+     "clear_x0": 23,
+     "clear_x1": 170,
+     "text": "TIPS数",
+     "color": [
+      120,
+      120,
+      120,
+      255
+     ],
+     "source": "TIPS数",
+     "keep_original": true,
+     "note": "列级 keep_original: 与日语原图同字符/游戏按固定坐标读取的字形, 原图像素零改动 (TIPS数 中英混排与日语原图同串)"
+    },
+    {
+     "key": "slash1",
+     "align": "center",
+     "x": 276,
+     "clear_x0": 255,
+     "clear_x1": 298,
+     "text": "／",
+     "color": [
+      120,
+      120,
+      120,
+      255
+     ],
+     "source": "/",
+     "keep_original": true,
+     "note": "列级 keep_original: 与日语原图同字符/游戏按固定坐标读取的字形, 原图像素零改动 (/ 坐标槽字形; 原32x32大斜杠, 旧版重绘成14x29细斜杠→错位)"
+    },
+    {
+     "key": "slash2",
+     "align": "center",
+     "x": 388,
+     "clear_x0": 367,
+     "clear_x1": 410,
+     "text": "／",
+     "color": [
+      120,
+      120,
+      120,
+      255
+     ],
+     "source": "/",
+     "keep_original": true,
+     "note": "列级 keep_original: 与日语原图同字符/游戏按固定坐标读取的字形, 原图像素零改动 (/ 坐标槽字形; 原32x32大斜杠, 旧版重绘成14x29细斜杠→错位)"
+    }
+   ]
+  },
+  {
+   "index": 3,
+   "note": "TRACK->曲目 (白板蓝字表头, 左缘对齐下方曲目号列; 原字x150-214 y182-196; 分隔线y204-205在带外) [修复] 白板不透明底必须填白清字(顶层bg=alpha的alpha清0会烧洞)",
+   "band": [
+    180,
+    198
+   ],
+   "align": "left",
+   "font_height_px": 19,
+   "columns": [
+    {
+     "x": 150,
+     "clear_x0": 146,
+     "clear_x1": 220,
+     "text": "曲目",
+     "color": [
+      0,
+      180,
+      255,
+      255
+     ],
+     "source": "TRACK",
+     "ink": {
+      "x0": 150,
+      "cy": 188.5,
+      "thr": 86
+     },
+     "note": "[ink对齐: 按渲染墨迹左缘/中心落字, 消除字面bearing漂移]"
+    }
+   ],
+   "clear_fill": [
+    255,
+    255,
+    255,
+    255
+   ]
+  },
+  {
+   "index": 4,
+   "note": "SONG NAME->歌曲名 (同带左对齐歌名列; 原字x241-355) [修复] 白板不透明底必须填白清字(顶层bg=alpha的alpha清0会烧洞)",
+   "band": [
+    180,
+    198
+   ],
+   "align": "left",
+   "font_height_px": 19,
+   "columns": [
+    {
+     "x": 241,
+     "clear_x0": 237,
+     "clear_x1": 361,
+     "text": "歌曲名",
+     "color": [
+      0,
+      180,
+      255,
+      255
+     ],
+     "source": "SONG NAME",
+     "ink": {
+      "x0": 241,
+      "cy": 188.5,
+      "thr": 86
+     },
+     "note": "[ink对齐: 按渲染墨迹左缘/中心落字, 消除字面bearing漂移]"
+    }
+   ],
+   "clear_fill": [
+    255,
+    255,
+    255,
+    255
+   ]
+  },
+  {
+   "index": 5,
+   "note": "ARTIST->艺术家 (同带左对齐艺术家列; 原字x984-1053) [修复] 白板不透明底必须填白清字(顶层bg=alpha的alpha清0会烧洞)",
+   "band": [
+    180,
+    198
+   ],
+   "align": "left",
+   "font_height_px": 19,
+   "columns": [
+    {
+     "x": 984,
+     "clear_x0": 980,
+     "clear_x1": 1059,
+     "text": "艺术家",
+     "color": [
+      0,
+      180,
+      255,
+      255
+     ],
+     "source": "ARTIST",
+     "ink": {
+      "x0": 984,
+      "cy": 188.5,
+      "thr": 86
+     },
+     "note": "[ink对齐: 按渲染墨迹左缘/中心落字, 消除字面bearing漂移]"
+    }
+   ],
+   "clear_fill": [
+    255,
+    255,
+    255,
+    255
+   ]
+  },
+  {
+   "index": 6,
+   "note": "LOCKED->未解锁 (灰描边梯形chip白字, chip顶边x2075-2173 center2124, 字x2086-2162 y212-226; 清字填229避开描边) [修复] chip为实心深灰120(非描边结构), clear_fill改120",
+   "band": [
+    212,
+    227
+   ],
+   "align": "center",
+   "font_height_px": 16,
+   "columns": [
+    {
+     "center_x": 2123.5,
+     "x": 2124,
+     "clear_x0": 2082,
+     "clear_x1": 2166,
+     "text": "未解锁",
+     "color": [
+      255,
+      255,
+      255,
+      255
+     ],
+     "source": "LOCKED",
+     "ink": {
+      "cx": 2123.5,
+      "cy": 218.5,
+      "thr": 152
+     },
+     "note": "[ink对齐: 未解锁墨迹中心=原LOCKED墨迹中心]"
+    }
+   ],
+   "clear_fill": [
+    120,
+    120,
+    120,
+    255
+   ]
+  },
+  {
+   "index": 7,
+   "note": "LOCKED->未解锁 (同款chip center2716, 字x2678-2754 y283-297) [修复] chip为实心深灰120(非描边结构), clear_fill改120",
+   "band": [
+    283,
+    298
+   ],
+   "align": "center",
+   "font_height_px": 16,
+   "columns": [
+    {
+     "center_x": 2715.5,
+     "x": 2716,
+     "clear_x0": 2674,
+     "clear_x1": 2758,
+     "text": "未解锁",
+     "color": [
+      255,
+      255,
+      255,
+      255
+     ],
+     "source": "LOCKED",
+     "ink": {
+      "cx": 2715.5,
+      "cy": 289.5,
+      "thr": 152
+     },
+     "note": "[ink对齐: 未解锁墨迹中心=原LOCKED墨迹中心]"
+    }
+   ],
+   "clear_fill": [
+    120,
+    120,
+    120,
+    255
+   ]
+  },
+  {
+   "index": 8,
+   "note": "LOCKED->未解锁 (同款chip center1766, 字x1728-1804 y1828-1842) [修复] chip为实心深灰120(非描边结构), clear_fill改120",
+   "band": [
+    1828,
+    1843
+   ],
+   "align": "center",
+   "font_height_px": 16,
+   "columns": [
+    {
+     "center_x": 1765.5,
+     "x": 1766,
+     "clear_x0": 1724,
+     "clear_x1": 1808,
+     "text": "未解锁",
+     "color": [
+      255,
+      255,
+      255,
+      255
+     ],
+     "source": "LOCKED",
+     "ink": {
+      "cx": 1765.5,
+      "cy": 1834.5,
+      "thr": 152
+     },
+     "note": "[ink对齐: 未解锁墨迹中心=原LOCKED墨迹中心]"
+    }
+   ],
+   "clear_fill": [
+    120,
+    120,
+    120,
+    255
+   ]
+  },
+  {
+   "index": 9,
+   "note": "NO DATA->无数据 (白底灰字, 梯形框线保留: 顶线y437 x2076-2172, 左斜腰2075->2065, 右斜腰2283->2315; 字x2083-2166 y441-452; 清字带y439-454 x2079-2170避开框线)",
+   "band": [
+    439,
+    454
+   ],
+   "align": "center",
+   "font_height_px": 16,
+   "columns": [
+    {
+     "center_x": 2124.0,
+     "x": 2124,
+     "clear_x0": 2079,
+     "clear_x1": 2171,
+     "text": "无数据",
+     "color": [
+      120,
+      120,
+      120,
+      255
+     ],
+     "source": "NO DATA",
+     "ink": {
+      "cx": 2124.0,
+      "cy": 446.5,
+      "thr": 104
+     },
+     "note": "[ink对齐: 无数据墨迹中心=原NO DATA墨迹中心]"
+    }
+   ],
+   "clear_fill": [
+    255,
+    255,
+    255,
+    255
+   ]
+  },
+  {
+   "index": 10,
+   "note": "NO DATA->无数据 (框顶线y581 x2668-2764, 字x2675-2758 y585-596; 清字带y583-598 x2671-2763避开框线)",
+   "band": [
+    583,
+    598
+   ],
+   "align": "center",
+   "font_height_px": 16,
+   "columns": [
+    {
+     "center_x": 2716.0,
+     "x": 2716,
+     "clear_x0": 2671,
+     "clear_x1": 2763,
+     "text": "无数据",
+     "color": [
+      120,
+      120,
+      120,
+      255
+     ],
+     "source": "NO DATA",
+     "ink": {
+      "cx": 2716.0,
+      "cy": 590.5,
+      "thr": 104
+     },
+     "note": "[ink对齐: 无数据墨迹中心=原NO DATA墨迹中心]"
+    }
+   ],
+   "clear_fill": [
+    255,
+    255,
+    255,
+    255
+   ]
+  },
+  {
+   "index": 11,
+   "note": "NOW PLAYING->正在播放 (播放器面板标题, 白字纯透明底)。**整词单元居中**: 原词墨迹 x1928-2117 (w190) 中心 cx=2022.5, cy=761.5 (h18); 中文 simhei 20px 墨高18。行内无图标(x1928-1967 那段 y753-771 内容即 \"NOW\" 文字本身, 非图标; 模式图标在 y790 以下)。[改版2026-09-11] 原为左缘对齐 x1928, 用户反馈\"可以在 NOW PLAYING 的居中位置比较好\"→改 ink cx 居中。",
+   "band": [
+    750,
+    774
+   ],
+   "align": "center",
+   "columns": [
+    {
+     "key": "nowplaying",
+     "x": 1928,
+     "clear_x0": 1925,
+     "clear_x1": 2121,
+     "text": "正在播放",
+     "color": [
+      255,
+      255,
+      255,
+      255
+     ],
+     "source": "NOW PLAYING",
+     "font_height_px": 20,
+     "ink": {
+      "cx": 2022.5,
+      "cy": 761.5,
+      "thr": 150
+     },
+     "note": "NOW PLAYING->正在播放; ink 对齐原词墨迹中心 cx2022.5/cy761.5",
+     "align": "center",
+     "center_x": 2022.5
+    }
+   ]
+  },
+  {
+   "index": 12,
+   "note": "ALL->顺序播放 (播放模式项, 蓝字0,128,255纯透明底)。原字 x1971-2024 y784-803 (h20, cy793.5)。左侧 x1930-1957 是模式图标(细箭头→, y790-797), 清字界 x1962 起避开图标 5px。中文 4 字 @22px 宽约86px, 比原 54px 长, 清字界取并集 x1962-2060。",
+   "band": [
+    781,
+    806
+   ],
+   "align": "left",
+   "columns": [
+    {
+     "key": "mode_all",
+     "x": 1971,
+     "clear_x0": 1962,
+     "clear_x1": 2061,
+     "text": "顺序播放",
+     "color": [
+      0,
+      128,
+      255,
+      255
+     ],
+     "source": "ALL",
+     "font_height_px": 22,
+     "ink": {
+      "x0": 1971,
+      "cy": 793.5,
+      "thr": 150
+     },
+     "note": "ALL->顺序播放(按顺序放一遍); ink对齐原墨迹左缘x1971/中心cy793.5"
+    }
+   ]
+  },
+  {
+   "index": 13,
+   "note": "REPEAT->单曲循环 (播放模式项)。原字 x1972-2082 y814-833 (h20, cy823.5); 图标 x1930-1957 y813-834 在清字界外。",
+   "band": [
+    811,
+    836
+   ],
+   "align": "left",
+   "columns": [
+    {
+     "key": "mode_repeat",
+     "x": 1971,
+     "clear_x0": 1962,
+     "clear_x1": 2086,
+     "text": "单曲循环",
+     "color": [
+      0,
+      128,
+      255,
+      255
+     ],
+     "source": "REPEAT",
+     "font_height_px": 22,
+     "ink": {
+      "x0": 1971,
+      "cy": 823.5,
+      "thr": 150
+     },
+     "note": "REPEAT->单曲循环; ink对齐原墨迹左缘x1971(=同列基准, 原1972 差1px)/中心cy823.5"
+    }
+   ]
+  },
+  {
+   "index": 14,
+   "note": "REPEAT ALL->列表循环 (播放模式项)。原字 x1972-2146 y844-863 (h20, cy853.5); 图标 x1930-1957 y843-864 在清字界外; 清字界右端 2150 距音量条 x2164 留 14px。",
+   "band": [
+    841,
+    866
+   ],
+   "align": "left",
+   "columns": [
+    {
+     "key": "mode_repeatall",
+     "x": 1971,
+     "clear_x0": 1962,
+     "clear_x1": 2150,
+     "text": "列表循环",
+     "color": [
+      0,
+      128,
+      255,
+      255
+     ],
+     "source": "REPEAT ALL",
+     "font_height_px": 22,
+     "ink": {
+      "x0": 1971,
+      "cy": 853.5,
+      "thr": 150
+     },
+     "note": "REPEAT ALL->列表循环; ink对齐原墨迹左缘x1971/中心cy853.5"
+    }
+   ]
+  },
+  {
+   "index": 15,
+   "note": "SHUFFLE->随机播放 (播放模式项)。原字 x1970-2101 y874-893 (h20, cy883.5); 图标(交叉箭头) x1930-1957 y873-894 在清字界外。",
+   "band": [
+    871,
+    896
+   ],
+   "align": "left",
+   "columns": [
+    {
+     "key": "mode_shuffle",
+     "x": 1971,
+     "clear_x0": 1962,
+     "clear_x1": 2105,
+     "text": "随机播放",
+     "color": [
+      0,
+      128,
+      255,
+      255
+     ],
+     "source": "SHUFFLE",
+     "font_height_px": 22,
+     "ink": {
+      "x0": 1971,
+      "cy": 883.5,
+      "thr": 150
+     },
+     "note": "SHUFFLE->随机播放; ink对齐原墨迹左缘x1971/中心cy883.5"
+    }
+   ]
+  }
+ ],
+ "regions": [
+  {
+   "id": "hdr_track",
+   "kind": "text",
+   "desc": "TRACK->曲目",
+   "rect": [
+    146,
+    180,
+    220,
+    198
+   ],
+   "must_diff": true
+  },
+  {
+   "id": "hdr_songname",
+   "kind": "text",
+   "desc": "SONG NAME->歌曲名",
+   "rect": [
+    237,
+    180,
+    361,
+    198
+   ],
+   "must_diff": true
+  },
+  {
+   "id": "hdr_artist",
+   "kind": "text",
+   "desc": "ARTIST->艺术家",
+   "rect": [
+    980,
+    180,
+    1059,
+    198
+   ],
+   "must_diff": true
+  },
+  {
+   "id": "chip_locked1",
+   "kind": "text",
+   "desc": "LOCKED->未解锁 (chip1 center2124)",
+   "rect": [
+    2082,
+    210,
+    2166,
+    229
+   ],
+   "must_diff": true
+  },
+  {
+   "id": "chip_locked2",
+   "kind": "text",
+   "desc": "LOCKED->未解锁 (chip2 center2716)",
+   "rect": [
+    2674,
+    281,
+    2758,
+    300
+   ],
+   "must_diff": true
+  },
+  {
+   "id": "chip_locked3",
+   "kind": "text",
+   "desc": "LOCKED->未解锁 (chip3 center1766)",
+   "rect": [
+    1724,
+    1826,
+    1808,
+    1845
+   ],
+   "must_diff": true
+  },
+  {
+   "id": "frame_nodata1",
+   "kind": "text",
+   "desc": "NO DATA->无数据 (框1)",
+   "rect": [
+    2079,
+    437,
+    2171,
+    456
+   ],
+   "must_diff": true
+  },
+  {
+   "id": "frame_nodata2",
+   "kind": "text",
+   "desc": "NO DATA->无数据 (框2)",
+   "rect": [
+    2671,
+    581,
+    2763,
+    600
+   ],
+   "must_diff": true
+  },
+  {
+   "id": "np_nowplaying",
+   "kind": "text",
+   "desc": "NOW PLAYING->正在播放",
+   "rect": [
+    1928,
+    753,
+    2117,
+    771
+   ],
+   "must_diff": true
+  },
+  {
+   "id": "np_all",
+   "kind": "text",
+   "desc": "ALL->顺序播放",
+   "rect": [
+    1971,
+    784,
+    2060,
+    803
+   ],
+   "must_diff": true
+  },
+  {
+   "id": "np_repeat",
+   "kind": "text",
+   "desc": "REPEAT->单曲循环",
+   "rect": [
+    1971,
+    814,
+    2082,
+    833
+   ],
+   "must_diff": true
+  },
+  {
+   "id": "np_repeatall",
+   "kind": "text",
+   "desc": "REPEAT ALL->列表循环",
+   "rect": [
+    1971,
+    844,
+    2146,
+    863
+   ],
+   "must_diff": true
+  },
+  {
+   "id": "np_shuffle",
+   "kind": "text",
+   "desc": "SHUFFLE->随机播放",
+   "rect": [
+    1971,
+    874,
+    2101,
+    893
+   ],
+   "must_diff": true
+  },
+  {
+   "id": "cg_label_shifted",
+   "kind": "text",
+   "desc": "CG LIBRARY完成率 右移152px 贴合原版间距(右缘1251)",
+   "rect": [
+    713,
+    1846,
+    1254,
+    1881
+   ],
+   "must_diff": true
+  }
+ ],
+ "qa_gap": false,
+ "must_same": [
+  {
+   "id": "digits_strip",
+   "rect": [
+    1474,
+    1846,
+    1790,
+    1881
+   ],
+   "desc": "0123456789 数字字形条(游戏坐标读取)"
+  },
+  {
+   "id": "pct",
+   "rect": [
+    1414,
+    1846,
+    1460,
+    1881
+   ],
+   "desc": "% 坐标槽字形"
+  },
+  {
+   "id": "min",
+   "rect": [
+    488,
+    1846,
+    528,
+    1881
+   ],
+   "desc": "分"
+  },
+  {
+   "id": "sec",
+   "rect": [
+    600,
+    1846,
+    641,
+    1881
+   ],
+   "desc": "秒"
+  },
+  {
+   "id": "tips",
+   "rect": [
+    23,
+    1888,
+    170,
+    1924
+   ],
+   "desc": "TIPS数"
+  },
+  {
+   "id": "slash1",
+   "rect": [
+    255,
+    1888,
+    298,
+    1924
+   ],
+   "desc": "/ 斜杠1"
+  },
+  {
+   "id": "slash2",
+   "rect": [
+    367,
+    1888,
+    410,
+    1924
+   ],
+   "desc": "/ 斜杠2"
+  },
+  {
+   "id": "np_icons",
+   "rect": [
+    1928,
+    790,
+    1957,
+    897
+   ],
+   "desc": "播放模式图标列(箭头/单曲循环/列表循环/随机)"
+  },
+  {
+   "id": "np_volume",
+   "rect": [
+    2164,
+    753,
+    2213,
+    809
+   ],
+   "desc": "音量条+喇叭图标"
+  },
+  {
+   "id": "panel_digits_strip",
+   "rect": [
+    1929,
+    699,
+    2370,
+    739
+   ],
+   "desc": "播放器面板 0123456789/ 数字条(游戏按坐标读取; 原 y699-739) — 防清字界上扩误吞"
+  },
+  {
+   "id": "panel_frame_right",
+   "rect": [
+    2455,
+    600,
+    2470,
+    905
+   ],
+   "desc": "播放器面板右侧蓝框竖边(x2459起) — 防清字界右扩误吞"
+  }
+ ]
+}

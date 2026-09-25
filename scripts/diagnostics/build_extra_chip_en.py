@@ -162,7 +162,7 @@ def main():
         print('      bbox y %d..%d x %d..%d' % (ys.min(), ys.max(), xs.min(), xs.max()))
 
     # 2. the untouched elements really are byte identical
-    KEEP = [('总游戏时间', 28, 197, ROW1), ('CG LIBRARY完成率', 717, 1099, ROW1),
+    KEEP = [('总游戏时间', 28, 197, ROW1), ('CG LIBRARY完成率', 869, 1251, ROW1),
             ('%', 1422, 1452, ROW1), ('TIPS数', 27, 164, ROW2),
             ('digit strip', 1478, 1773, ROW1)]
     for name, x0, x1, (y0, y1) in KEEP:
@@ -239,6 +239,8 @@ def main():
             "总游戏时间/CG LIBRARY完成率/%/TIPS数/数字条 全部逐像素保留，"
             "故两个版本的中文字形完全一致。"
             "运行时由 patchdef.fileRedirection.system['32'] = {jp:71, en:78} 按语言选择。"
+            "[间距修复2026-09-25] CG LIBRARY完成率 随日文版图集整块右移 152px"
+            "(717..1099 -> 869..1251)，右缘与原版一致、到百分比数字空隙恢复 84px。"
         ),
         "font": "C:/Windows/Fonts/simhei.ttf",
         "font_height_px": 35,
@@ -255,9 +257,12 @@ def main():
                 {"key": "sep2", "x": 498, "clear_x0": 494, "clear_x1": 507,
                  "text": ":", "source": "EN original ':'",
                  "note": "自英文原版图集搬运"},
-                {"key": "cg", "x": 717, "clear_x0": 713, "clear_x1": 1103,
+                {"key": "cg", "x": 869, "clear_x0": 865, "clear_x1": 1254,
                  "text": "CG LIBRARY完成率", "source": "CG LIBRARYコンプリート率",
-                 "note": "沿用日文版图集原像素，未重绘"},
+                 "note": "沿用日文版图集原像素（该图集里标签已在 x869..1251）。"
+                         "★2026-09-25 间距修复：整块由 717..1099 右移到 869..1251，"
+                         "右缘与日文/英文原版（1251/1249）一致，"
+                         "到百分比数字的空隙恢复为原版 84px（原为 236px）。"},
                 {"key": "pct", "x": 1422, "clear_x0": 1418, "clear_x1": 1456,
                  "text": "%", "source": "%", "note": "原像素保留"},
             ]},
