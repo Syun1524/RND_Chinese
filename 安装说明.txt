@@ -1,0 +1,62 @@
+﻿# ROBOTICS;NOTES DaSH 简体中文 AI人工精校版 v1.3
+
+---
+
+## 这是什么
+
+ROBOTICS;NOTES DaSH 的**简体中文**补丁。
+
+运行时基于 **[Committee of Zero](https://github.com/CommitteeOfZero) 的英文优化补丁（LanguageBarrier）**，
+文本与图片译文均以**日语原文**为准。感谢 CoZ 的开源工作。
+
+---
+
+## 安装
+
+1. 完全退出游戏。
+2. 运行 `RNDZh-Setup-v1.3.exe`，指向游戏根目录（含 `Game.exe` 的 `ROBOTICS;NOTES DaSH` 文件夹），点「安装」。
+3. 装完点「启动游戏」即可开始；之后从 Steam 正常启动也一样。
+
+Steam 版和免 DVD 版都可以用。
+
+---
+
+## 使用
+
+- 游戏目录里的 `RNDZhLauncher.exe` 是补丁启动器：cosplay 模式、影片字幕、
+  鼠标控制、DXVK 等开关都在这里，改完点「开始游戏」进游戏。从 Steam 直接启动游戏时设置同样生效。
+- 中文字形已随补丁预置（12 档字号），首次进入各界面无需等待烘焙。
+  若遇到未预置的字号，游戏会当场烘焙一次，画面会停顿一两秒，属正常现象；
+  此时请正常退出游戏，不要在烘焙过程中强杀进程（强杀会丢掉这次烘焙）。
+
+---
+
+## 界面保留英文的部分
+
+版权、公司、品牌标识，标题画面左上的英文题词，按键帮助图上的键帽名（`R1`、`L3`、`SHARE` 等），
+以及 `TIPS LIST` 字样，按本地化惯例保留英文。主菜单、系统菜单、设置项、`是 / 否` 等
+确认提示均已中文化。
+影片方面只替换了 dar020 一段（自制画面 + 原音轨重封），其余影片沿用原版。
+
+---
+
+## 卸载
+
+运行游戏目录里的 **`卸载汉化.exe`**（图标与启动器相同，靠中文文件名区分），按提示确认即可，
+游戏会恢复到安装前的样子。卸载器会留在原地，下次需要时还能再用。
+
+---
+
+## 授权与致谢
+
+- 运行时基于 **Committee of Zero LanguageBarrier**（见 `languagebarrier/LICENSE`、`THIRDPARTY.LB.txt`、`THIRDPARTY.patch.txt`，请勿删除）。
+- 中文字体 **Noto Sans CJK SC**（SIL Open Font License，允许再分发）。
+- cosplay 模式等运行时功能沿用 CoZ 补丁的原有设计。
+
+---
+
+## 汉化制作
+
+**仓式同学◆ × Eight_tide**
+
+翻译流程：AI 初翻（Gemini 3.0 Flash）→ 人工逐句精校。

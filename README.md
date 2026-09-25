@@ -120,7 +120,7 @@
 | `图片汉化/` | **成品中文图集**（`bg/` `system/` `manual/`，与补丁包 `c0data/` 逐字节一致）。其下 `system/data/_archive/` 存**非汉化的原件**（见该目录 README） |
 | `废弃图片/` | 已从补丁重定向中撤下的汉化图（仅留存备查，不随补丁分发） |
 | `视频汉化/` | 替换用影片（USM 重封说明 + `movie_dar020.usm`） |
-| `补丁数据/` | **补丁包里那些"非本项目产出"的原件**：`运行时配置/`（`patchdef.json`、`gamedef.json`、各 `.cls` 等）与 `代理DLL/`（DXVK 六件 + `VSFilter.dll`）。见该目录 README |
+| `补丁数据/` | **补丁包里那些"非本项目产出"的原件**：`运行时配置/`（`patchdef.json`、`gamedef.json`、各 `.cls`、`THIRDPARTY.patch.txt`）、`代理DLL/`（DXVK 六件 + `VSFilter.dll`）、`正文字体/`（思源黑体简中）。见该目录 README |
 | `scripts/` | 构建与部署脚本（`deploy_patch.py`、`sync_images.py`、`gen_pkg_manifest.py` 等） |
 | `docs/` | 交接文档、打包清单、设计说明、`字体种子.md` |
 
