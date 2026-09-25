@@ -106,6 +106,7 @@ void TextRendering::Init(void* widthData, void* widthData2,
   try {
     forceIncludeHan = lb::config["patch"].value<bool>("forceIncludeHan", false);
   } catch (...) { /* ignore */ }
+  this->forceIncludeHan = forceIncludeHan;
 
   for (int i = 0; i < fullCharMap.length(); i++) {
     int glyph_index = FT_Get_Char_Index(this->ftFace, fullCharMap[i]);
@@ -500,7 +501,13 @@ void TextRendering::loadCache() {
       }
 
       for (auto it = fontData.begin(); it != fontData.end(); it++) {
-        if (it->second.lang != TextRendering::Get().language) {
+        // With forceIncludeHan the charset no longer depends on the language
+        // (every Han glyph is kept in both), so a cache baked under one
+        // language is identical to one baked under the other and the check
+        // would only throw away a perfectly good cache -- e.g. a pre-baked
+        // seed shipped in the patch, which must serve JP and EN alike.
+        if (!TextRendering::Get().forceIncludeHan &&
+            it->second.lang != TextRendering::Get().language) {
           lb::LanguageBarrierLog(
               "Font cache language mismatch, clearing font cache");
 

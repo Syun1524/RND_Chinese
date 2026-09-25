@@ -143,6 +143,11 @@ struct TextRendering {
   int NUM_GLYPHS = 351;
   std::string fontPath;
   bool enabled = false;
+  // forceIncludeHan (patchdef) keeps every renderable glyph in the charset
+  // regardless of the game language, so a cache baked under JP is
+  // byte-for-byte the same as one baked under EN. When it is on, loadCache
+  // skips its language check and one cache serves both.
+  bool forceIncludeHan = false;
   // Quoting brackets (「」『』): drawn at a half-width step with their ink pulled
   // to the cell's left edge, instead of full-width with the ink in the right
   // half. Widths are in the same 32 = 1em units the layout table uses.
