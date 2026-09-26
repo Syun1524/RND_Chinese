@@ -168,58 +168,42 @@
 > `c0data` 注入图（由 `scripts/sync_images.py` 从 `图片汉化/` 生成）。
 > 代理 DLL、运行时配置、影片、归档原件已在本仓库中，无需外部来源。
 
-## sc3tools（文本提取 / 回写工具）
+## 工具（均为 CoZ 上游的汉化专用 fork）
 
-**一个 exe，两套码表。** 用 `rnd` 处理日文原版脚本，用 `rndzh` 处理中文：
+本项目对 CoZ 的两个组件做了实质性修改，各自有独立 fork 仓库便于对照：
 
-```
-sc3tools_chs/target/release/sc3tools.exe extract-text "mes00.cpk/*.msb" rnd     # 提日文
-sc3tools_chs/target/release/sc3tools.exe extract-text "enscript/*.msb" rndzh    # 提中文
-sc3tools_chs/target/release/sc3tools.exe replace-text "cnscript/*.msb.txt" rndzh  # 回写中文
-```
-
-输出放在输入文件同级的 `txt/` 子目录。回写是**就地改写**脚本文件
-（`replace-text <脚本> <文本> <game>`；文本与脚本按文件名 stem 配对，
-`<name>.msb` 要配 `<name>.msb.txt`）。
-
-### 为什么有 `rndzh` 这个额外的 game 名
-
-上游 Committee of Zero 的 sc3tools 一个游戏只有一套码表 —— 他们的英化补丁
-**不改码表**，日文版和英文版共用同一份 `resources/rnd/charset.utf8`，
-所以一个 exe 内嵌 8 个游戏的码表就够了（`sghd`/`cc`/`rn`/`rnd`…）。
-
-本汉化项目把简体中文码表从 3020 扩到 **4550 字符**，无法与日文原版码表
-共存于同一资源目录，因此拆成两个「游戏」条目 —— **资源目录名即码表所在目录**：
-
-| game | 资源目录 | 码表 | 用途 |
+| 工具 | 用途 | fork 仓库（分支 `rnd-chinese`） | 基准上游 |
 |---|---|---|---|
-| `rnd` | `resources/rnd/` | 3020 字符（日文原版，md5 `6040d18f`） | 提取日文原版脚本 |
-| `rndzh` | `resources/rndzh/` | **4550 字符**（简体中文，md5 `999b4b23`） | 提取 / 回写中文译文 |
+| **LanguageBarrier_chs** | 运行时：文本/资源重定向、中文渲染 | [Kurashift/LanguageBarrier_chs](https://github.com/Kurashift/LanguageBarrier_chs) | `cc982fd9` |
+| **sc3tools_chs** | 文本提取 / 回写（`.msb` ↔ `.txt`） | [Kurashift/sc3tools_chs](https://github.com/Kurashift/sc3tools_chs) | `6ba9278a` |
 
-用错码表会得到大面积错码（`種子島` → `丽仁亿`），或直接报
-`illegal character code`。**提取日文用 `rnd`、中文用 `rndzh`。**
+### sc3tools_chs 用法：一个 exe，两套码表
 
-### 相对上游的三处代码改动（`chinese_pipeline`）
+```bash
+sc3tools extract-text "mes00.cpk/*.msb" rnd      # 提日文原版脚本
+sc3tools extract-text "enscript/*.msb" rndzh     # 提中文译文
+sc3tools replace-text "cnscript/*.msb.txt" rndzh # 回写中文
+```
 
-上游逻辑对英文补丁是对的，但用在中文码表上会产生可见 bug。三处改动都
-**只对 `rndzh` 生效**（`GameDef::chinese_pipeline` 开关），`rnd` 保持上游行为：
+上游一个游戏只有一套码表（英化补丁不改码表），而简体中文码表从 3020 扩到
+**4550 字符**，放不进同一资源目录 —— 所以拆成两个「游戏」条目，
+**资源目录名即码表所在目录**。用错码表会得到大面积错码或
+`illegal character code`。**日文用 `rnd`、中文用 `rndzh`。**
 
-| 文件 | 改动 | 原因 |
+| game | 码表 | 用途 |
 |---|---|---|
-| `text.rs` | 半角空格不转全角 U+3000 | 中文码表里 U+3000 走汉字字形步进，会让 `Mr. Pleiades` 两侧出现一个汉字宽的间隔 |
-| `lib.rs` | 禁用「底稿含全角字母数字 → 新文本整行转全角」 | 英文底稿会命中 755 行 twipo 推文，把 `@B_TITOR` 变成全角 `＠Ｂ＿ＴＩＴＯＲ` |
-| `lib.rs` | 全半角按**字面**比较（上游先归一化再比） | 否则底稿 U+3000 与译文半角空格被判「相同」而跳过重写，旧的全角空格字节残留 |
+| `rnd` | 3020 字符（日文原版，与上游一致） | 提取日文原版脚本 |
+| `rndzh` | **4550 字符**（简体中文，本 fork 新增） | 提取 / 回写中文译文 |
 
-### 改码表必须重编
+三处中文管线调整只对 `rndzh` 生效（`chinese_pipeline` 开关），`rnd` 不受影响：
+半角空格不转全角 U+3000、禁用「底稿含全角字母数字 → 整行转全角」、
+全半角按字面比较。原因见 [sc3tools_chs 的 README](https://github.com/Kurashift/sc3tools_chs#中文管线的三处调整)。
 
-**码表是 `rust-embed` 编译期打进 exe 的**（`#[folder = "resources/"]`，
-**整目录**打包）。所以：
+⚠️ **改码表必须重编**：码表是 `rust-embed` 编译期打进 exe 的
+（`#[folder = "resources/"]`，**整目录**打包），增删该目录下任何文件都要
+`cargo build --release`，直接跑旧 exe 无效。
 
-- 改 `charset.utf8` → 必须 `cargo build --release`，直接跑旧 exe 无效
-- 增删 `resources/` 下的**任何**文件也要重编，即使代码根本没读它
-- 改完建议跑工作区的两道验证（见下）
-
-### 验证（改完工具务必跑）
+### 改完工具跑这两道门禁
 
 ```bash
 python scripts/diagnostics/verify_sc3tools_merged.py   # A/B 对照：与改前的旧工具逐字节等价
@@ -237,10 +221,12 @@ python scripts/diagnostics/negtest_sc3tools_merged.py  # 反向验证：三处�
 ## 致谢与许可
 
 - **汉化：Eight_tide × 仓式同学◆**（AI 翻译 Gemini 3.0 Flash · 人工精校 · CG / 系统图手工嵌入）
-- 运行时框架 [LanguageBarrier](https://github.com/CommitteeOfZero/LanguageBarrier)
-  与英文优化补丁由 **Committee of Zero** 开发（MIT；因含 xy-VSFilter，二进制按 GPLv2 分发）。
-- 本补丁基于 CoZ 的工作，译文 / 图集 / 工具为本项目完成。
-- 文本编码工具 [sc3tools](https://github.com/CommitteeOfZero/sc3tools)。
-- 歌词字体基于 Noto Sans SC（SIL OFL 1.1，随字体分发）。
-- 本方为**非官方**汉化，与 MAGES./5pb.、Nitroplus、Steam 及 Committee of Zero 均无隶属关系。
-  请支持正版。若认为本仓库内容有不妥之处，请联系作者。
+- 运行时 [LanguageBarrier](https://github.com/CommitteeOfZero/LanguageBarrier) 与
+  文本工具 [sc3tools](https://github.com/CommitteeOfZero/sc3tools) 由
+  **Committee of Zero** 开发（MIT；因含 xy-VSFilter，二进制按 GPLv2 分发）。
+  **本项目在其上做了实质性修改**，改动见
+  [LanguageBarrier_chs](https://github.com/Kurashift/LanguageBarrier_chs) 与
+  [sc3tools_chs](https://github.com/Kurashift/sc3tools_chs)。
+- 译文 / 图集 / 中文渲染改动为本项目完成；歌词字体基于 Noto Sans SC（SIL OFL 1.1）。
+- 本方为**非官方**汉化，与 MAGES./5pb.、Nitroplus、Steam 及 Committee of Zero
+  均无隶属关系。请支持正版。
