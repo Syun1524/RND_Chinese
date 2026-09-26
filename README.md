@@ -13,25 +13,25 @@
 >
 > | 组件 | 改动规模 | 性质 |
 > |---|---|---|
-> | **`LanguageBarrier_rndchs/`** | **+1667 / −1064 行，13 个文件** | 实质性 fork：中文码表/字体渲染、ruby 注音定位、backlog 名字对齐、引号收窄、SigScan 多版本兼容等 |
-> | **`sc3tools/`** | 3 个源文件 + 新增 `rndzh/` 码表 | 中文码表管线：新增中文 game 条目与三处调整 |
+> | **`LanguageBarrier_chs/`** | **+1667 / −1064 行，13 个文件** | 实质性 fork：中文码表/字体渲染、ruby 注音定位、backlog 名字对齐、引号收窄、SigScan 多版本兼容等 |
+> | **`sc3tools_chs/`** | 3 个源文件 + 新增 `rndzh/` 码表 | 中文码表管线：新增中文 game 条目与三处调整 |
 >
 > **独立 fork 仓库**（便于与上游对照、也方便后人取用）：
 >
 > | 组件 | fork 地址 | 基准上游提交 |
 > |---|---|---|
-> | LanguageBarrier | [Kurashift/LanguageBarrier `rnd-chinese`](https://github.com/Kurashift/LanguageBarrier/tree/rnd-chinese) | `cc982fd9`（2025-04-27） |
-> | sc3tools | [Kurashift/sc3tools `rnd-chinese`](https://github.com/Kurashift/sc3tools/tree/rnd-chinese) | `6ba9278a`（2025-05-22） |
+> | LanguageBarrier | [Kurashift/LanguageBarrier_chs `rnd-chinese`](https://github.com/Kurashift/LanguageBarrier_chs/tree/rnd-chinese) | `cc982fd9`（2025-04-27） |
+> | sc3tools | [Kurashift/sc3tools_chs `rnd-chinese`](https://github.com/Kurashift/sc3tools_chs/tree/rnd-chinese) | `6ba9278a`（2025-05-22） |
 >
 > 两个 fork 的分支都**从各自的上游基准提交拉出**，改动作为独立 commit 叠加，
 > 所以 `git diff <基准>` 就是本项目的完整改动集；各仓库根部的 `FORK-NOTES.md`
 > 写明改动方向与构建方法。
 >
-> 本仓库内仍保留源码副本（`LanguageBarrier_rndchs/`、`sc3tools/`），
+> 本仓库内仍保留源码副本（`LanguageBarrier_chs/`、`sc3tools_chs/`），
 > 因为补丁发布依赖它们的编译产物；fork 仓库则是为了对外可追溯。
 > 改动清单与原因见 **[第三部分](#第三部分相对-coz-的技术差异)**（运行时）与
 > **[sc3tools 一节](#sc3tools文本提取--回写工具)**（工具）。
-> CoZ 的 MIT 许可与版权声明在 `LanguageBarrier_rndchs/LanguageBarrier/LICENSE`
+> CoZ 的 MIT 许可与版权声明在 `LanguageBarrier_chs/LanguageBarrier/LICENSE`
 > 与补丁包内原样保留。
 
 ---
@@ -84,13 +84,13 @@
 # 第三部分：相对 CoZ 的技术差异
 
 > 完整改动集见独立 fork 分支
-> [Kurashift/LanguageBarrier `rnd-chinese`](https://github.com/Kurashift/LanguageBarrier/tree/rnd-chinese)
+> [Kurashift/LanguageBarrier_chs `rnd-chinese`](https://github.com/Kurashift/LanguageBarrier_chs/tree/rnd-chinese)
 > （基准上游 `cc982fd9`）：`git diff cc982fd9` 即 **13 个文件、+1667 / −1064 行**。
 > 下面只列要点。
 
 ## 运行时（LanguageBarrier 源码）
 
-改动集中在 10 处，都在 `LanguageBarrier_rndchs/LanguageBarrier/`：
+改动集中在 10 处，都在 `LanguageBarrier_chs/LanguageBarrier/`：
 
 | 文件 | 改动 | 为什么 |
 |---|---|---|
@@ -107,7 +107,7 @@
 
 ## 工具链
 
-- `sc3tools/src/text.rs`：半角空格不再转全角 U+3000（仅 `rndzh`）——
+- `sc3tools_chs/src/text.rs`：半角空格不再转全角 U+3000（仅 `rndzh`）——
   中文码表里 U+3000 走汉字字形步进，会让英文术语两侧多出一个汉字宽的间隔。
   详见上面「sc3tools」一节的三处改动表。
 - `SigScan` 的数组回退（上表最后第二行）配合 `gamedef.json` 里追加的两条备选特征码，
@@ -146,8 +146,8 @@
 | `cnscript/` | 中文译稿（`.msb.txt`）与中文码表 |
 | `jpscript/` | 日文原版脚本（提取用基线） |
 | `subs/` | 影片字幕 `.ass` 与歌词字体 |
-| `LanguageBarrier_rndchs/` | LanguageBarrier 运行时源码 + 发布用 `dinput8.dll` / `VSFilter.dll`（编译中间产物不入库） |
-| `sc3tools/` | 文本提取 / 回写工具（Rust）。**一个 exe 双码表**：`rnd` 日文原版、`rndzh` 简体中文 |
+| `LanguageBarrier_chs/` | LanguageBarrier 运行时源码 + 发布用 `dinput8.dll` / `VSFilter.dll`（编译中间产物不入库） |
+| `sc3tools_chs/` | 文本提取 / 回写工具（Rust）。**一个 exe 双码表**：`rnd` 日文原版、`rndzh` 简体中文 |
 | `tools/` | 启动器 `RNDZhLauncher.cpp` + 换装核对工具 `RNDZhOutfitTool.cpp` 源码与构建脚本 |
 | `setup/` | 安装器 / 卸载器源码（`src/`）与构建脚本（`build/`） |
 | `图片汉化/` | **成品中文图集**（`bg/` `system/` `manual/`，与补丁包 `c0data/` 逐字节一致）。其下 `system/data/_archive/` 存**非汉化的原件**（见该目录 README） |
@@ -163,7 +163,7 @@
 
 > ⚠️ **本仓库不含「可直接打包」的完整补丁包**。安装包由工作区的 `成品ing/补丁包/`
 > 组装（`build_installer.py` 从那里取件）。从本仓库重建安装包时，以下内容需要另行生成：
-> 编译产物 `enscript/*.msb`（由 `sc3tools` + `cnscript` 编出）、
+> 编译产物 `enscript/*.msb`（由 `sc3tools_chs` + `cnscript` 编出）、
 > 字体缓存 `fonts/*.dds`（需实机跑游戏烘焙，见 `docs/字体种子.md`）、
 > `c0data` 注入图（由 `scripts/sync_images.py` 从 `图片汉化/` 生成）。
 > 代理 DLL、运行时配置、影片、归档原件已在本仓库中，无需外部来源。
@@ -173,9 +173,9 @@
 **一个 exe，两套码表。** 用 `rnd` 处理日文原版脚本，用 `rndzh` 处理中文：
 
 ```
-sc3tools/target/release/sc3tools.exe extract-text "mes00.cpk/*.msb" rnd     # 提日文
-sc3tools/target/release/sc3tools.exe extract-text "enscript/*.msb" rndzh    # 提中文
-sc3tools/target/release/sc3tools.exe replace-text "cnscript/*.msb.txt" rndzh  # 回写中文
+sc3tools_chs/target/release/sc3tools.exe extract-text "mes00.cpk/*.msb" rnd     # 提日文
+sc3tools_chs/target/release/sc3tools.exe extract-text "enscript/*.msb" rndzh    # 提中文
+sc3tools_chs/target/release/sc3tools.exe replace-text "cnscript/*.msb.txt" rndzh  # 回写中文
 ```
 
 输出放在输入文件同级的 `txt/` 子目录。回写是**就地改写**脚本文件

@@ -7,7 +7,7 @@
 
 | 文件 | 大小 | 来源 | 说明 |
 |---|---|---|---|
-| `dinput8.dll` | — | 本项目编译 | **不在此目录**：见 `LanguageBarrier_rndchs/LanguageBarrier/dinput8-Release/` |
+| `dinput8.dll` | — | 本项目编译 | **不在此目录**：见 `LanguageBarrier_chs/LanguageBarrier/dinput8-Release/` |
 | `d3d9` | 3.2 MB | CoZ 补丁包（DXVK） | DXVK 的 d3d9 代理 |
 | `d3d10` | 1.2 MB | CoZ 补丁包（DXVK） | DXVK 的 d3d10 代理 |
 | `d3d10_1` | 1.2 MB | CoZ 补丁包（DXVK） | DXVK 的 d3d10_1 代理 |
@@ -42,7 +42,7 @@ VSFilter.dll 9f1e0cd80184f554
 ```
 
 > 注：`dinput8.dll` 是我们自己编译的（LanguageBarrier），不在本目录；
-> 它随源码一起进版本控制，见 `LanguageBarrier_rndchs/LanguageBarrier/dinput8-Release/`。
+> 它随源码一起进版本控制，见 `LanguageBarrier_chs/LanguageBarrier/dinput8-Release/`。
 
 ## 许可
 

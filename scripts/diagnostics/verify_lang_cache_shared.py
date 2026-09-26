@@ -46,7 +46,7 @@ LOG = os.path.join(GAME, "languagebarrier", "log.txt")
 FRAG = os.path.join(GAME, "NOTES DaSH -原版日语 副本")
 DLL_TARGETS = [os.path.join(GAME, "dinput8.dll"),
                os.path.join(FRAG, "dinput8.dll")]
-NEW_DLL = (r"D:\DATA\tran\agent tran\GitHub\RND_Chinese\LanguageBarrier_rndchs"
+NEW_DLL = (r"D:\DATA\tran\agent tran\GitHub\RND_Chinese\LanguageBarrier_chs"
            r"\LanguageBarrier\dinput8-Release\dinput8.dll")
 OLD_DLL = (r"D:\DATA\tran\agent tran\9.6文本外工作\成品ing\_backup"
            r"\fontseed_20260925_231408\dinput8.dll")

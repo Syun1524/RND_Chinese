@@ -25,11 +25,11 @@
 
 ```
 仓库 D:\DATA\tran\agent tran\GitHub\RND_Chinese\
-├── LanguageBarrier_rndchs\LanguageBarrier\      ← C++ 源码（改了 4 个文件）
+├── LanguageBarrier_chs\LanguageBarrier\      ← C++ 源码（改了 4 个文件）
 │   ├── GameText.cpp / GameText.h                ← ruby 撞码修复
 │   ├── TextRendering.cpp / TextRendering.h      ← 缓存指纹校验
 │   └── dinput8-Release\dinput8.dll              ← 编译产物（发布必需）
-├── sc3tools\                                    ← 文本提取/回写工具（★ 2026-09-26 起合并为一个）
+├── sc3tools_chs\                                    ← 文本提取/回写工具（★ 2026-09-26 起合并为一个）
 │   ├── resources\rnd\charset.utf8               ← 日文原版码表（3020 字符）
 │   ├── resources\rndzh\charset.utf8             ← 中文码表（4550，必须与运行时 patchdef 一致）
 │   └── target\release\sc3tools.exe              ← 发布必需；`rnd` 处理日文、`rndzh` 处理中文
@@ -37,7 +37,7 @@
 └── .gitignore                                   ← 排除构建产物
 
 > ⚠️ **本文档写于 sc3tools 合并之前**（当时是 `sc3tools_rndchs` + `sc3tools_jp` 两套，
-> 且中文码表挂在 `rnd` 名下）。2026-09-26 已合并为单一 `sc3tools/`、中文码表移到
+> 且中文码表挂在 `rnd` 名下）。2026-09-26 已合并为单一 `sc3tools_chs/`、中文码表移到
 > `rndzh`。下面正文里出现的**旧路径与旧用法保留为历史记录**，
 > 现行用法见仓库根 `README.md` 的「sc3tools」一节。
 
@@ -75,7 +75,7 @@ D:\DATA\tran\agent tran\9.6文本外工作\
 
 **编译 DLL**：
 ```bash
-cd "D:/DATA/tran/agent tran/GitHub/RND_Chinese/LanguageBarrier_rndchs/LanguageBarrier"
+cd "D:/DATA/tran/agent tran/GitHub/RND_Chinese/LanguageBarrier_chs/LanguageBarrier"
 MSYS_NO_PATHCONV=1 "C:/VS2022BT/MSBuild/Current/Bin/MSBuild.exe" \
   LanguageBarrier.vcxproj -p:Configuration=dinput8-Release -p:Platform=Win32 \
   -v:minimal -nologo
@@ -389,11 +389,11 @@ idx_end + offset              （字符串数据地址）
 
 714 个未使用索引中，再排除"`cnscript` 里有用到"的，只剩 **284 个**可安全中和
 （图集 69 行 → 65 行，省 6.5%，约 417MB → 390MB）。需三处同步 + 全量重烤，**建议出正式包再做**。
-> 注意：不能按"未使用"直接删——删掉 `cnscript` 用到的字，`sc3tools` 重建会报 `CharNotInCharset`。
+> 注意：不能按"未使用"直接删——删掉 `cnscript` 用到的字，`sc3tools_chs` 重建会报 `CharNotInCharset`。
 
 ### 12.7 其他工具经验
 
-- `sc3tools` 的 `extract-text` 默认会把**全角标点改半角**；往返前务必加 **`--preserve-fullwidth`**，
+- `sc3tools_chs` 的 `extract-text` 默认会把**全角标点改半角**；往返前务必加 **`--preserve-fullwidth`**，
   否则往返会失真（实测 `，`→`,`）。加了才是逐字节可控。
 - 仓库内 sc3tools 基线比上游旧（上游已改 JSON 驱动 gamedef），**不要直接 pull 上游**。
 

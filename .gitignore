@@ -55,22 +55,22 @@ venv/
 
 # Rust (sc3tools) — 构建中间产物
 # 注意：不能忽略整个 target/，否则 release exe 的例外规则不生效
-sc3tools/target/debug/
-sc3tools/target/release/build/
-sc3tools/target/release/deps/
-sc3tools/target/release/examples/
-sc3tools/target/release/incremental/
-sc3tools/target/release/.fingerprint/
-sc3tools/target/release/*.d
-sc3tools/target/release/*.rmeta
-sc3tools/target/release/*.rlib
-sc3tools/target/release/deps/**/*.rlib
-sc3tools/target/release/deps/**/*.exe
+sc3tools_chs/target/debug/
+sc3tools_chs/target/release/build/
+sc3tools_chs/target/release/deps/
+sc3tools_chs/target/release/examples/
+sc3tools_chs/target/release/incremental/
+sc3tools_chs/target/release/.fingerprint/
+sc3tools_chs/target/release/*.d
+sc3tools_chs/target/release/*.rmeta
+sc3tools_chs/target/release/*.rlib
+sc3tools_chs/target/release/deps/**/*.rlib
+sc3tools_chs/target/release/deps/**/*.exe
 *.rmeta
 *.rlib
 
 # 例外：发布必需的提取工具（用户不会自行编译 Rust）
-!sc3tools/target/release/sc3tools.exe
+!sc3tools_chs/target/release/sc3tools.exe
 
 # cargo 运行时锁与手工备份：不属于发布内容。
 # （此前被 `Release/` 那条误伤的规则连带忽略了，修好规则后暴露出来，这里显式排除。）

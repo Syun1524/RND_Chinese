@@ -34,8 +34,8 @@
 **非本项目产出**，本仓库没有任何构建它们的源码。详见该目录 README。
 
 > `dinput8.dll`（我们自己的运行时）不在此目录 —— 它由
-> `LanguageBarrier_rndchs/LanguageBarrier/` 编译，产物在
-> `LanguageBarrier_rndchs/LanguageBarrier/dinput8-Release/`。
+> `LanguageBarrier_chs/LanguageBarrier/` 编译，产物在
+> `LanguageBarrier_chs/LanguageBarrier/dinput8-Release/`。
 
 ## 与工作区的关系
 

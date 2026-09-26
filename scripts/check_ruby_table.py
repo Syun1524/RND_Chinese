@@ -24,7 +24,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 ROOT = r"D:\DATA\tran\agent tran\9.6文本外工作"
 GEN = os.path.join(ROOT, "scripts", "gen_ruby_base_table.py")
 REPO_LB = (r"D:\DATA\tran\agent tran\GitHub\RND_Chinese"
-           r"\LanguageBarrier_rndchs\LanguageBarrier")
+           r"\LanguageBarrier_chs\LanguageBarrier")
 TABLE = os.path.join(REPO_LB, "RubyBaseTable.inc")
 
 

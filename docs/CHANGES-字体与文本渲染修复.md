@@ -3,7 +3,7 @@
 本文件记录 2026-09-08 对 LanguageBarrier（RND 简体中文分支）所做的**代码级修复**。
 每一项都包含：症状、根因、改法、验证方式。便于后续提交/发布时追溯出处。
 
-相关源文件（均在本仓库 `LanguageBarrier_rndchs/LanguageBarrier/` 下）：
+相关源文件（均在本仓库 `LanguageBarrier_chs/LanguageBarrier/` 下）：
 
 - `TextRendering.h` / `TextRendering.cpp`
 - `GameText.h` / `GameText.cpp`
