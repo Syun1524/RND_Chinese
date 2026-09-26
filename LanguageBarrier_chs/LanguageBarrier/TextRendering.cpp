@@ -1,4 +1,8 @@
-﻿#include "TextRendering.h"
+﻿// [LOCALIZATION-BANNER] Fork for the ROBOTICS;NOTES DaSH Simplified Chinese patch.
+// Forked from CommitteeOfZero/LanguageBarrier (base commit cc982fd9),
+// maintained at https://github.com/Syun1524/RND_Chinese
+// See FORK-NOTES.md for the full change list. For upstream, use the CoZ repo.
+#include "TextRendering.h"
 #include <string>
 #include <freetype/ftstroke.h>
 #include "Game.h"

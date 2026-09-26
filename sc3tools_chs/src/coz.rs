@@ -1,3 +1,7 @@
+// [LOCALIZATION-BANNER] Fork for the ROBOTICS;NOTES DaSH Simplified Chinese patch.
+// Forked from CommitteeOfZero/sc3tools (base commit 6ba9278a),
+// maintained at https://github.com/Syun1524/RND_Chinese
+// Adds the `rndzh` game (Simplified Chinese charset). See FORK-NOTES.md.
 use crate::gamedef;
 use crate::sc3;
 use crate::text;
