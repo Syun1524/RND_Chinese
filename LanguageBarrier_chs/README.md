@@ -40,7 +40,7 @@ build_lb.bat        # 需要 MSVC v142 + vcpkg（x86-windows-static）
 ## 尚未跟进上游
 
 上游在本 fork 的基准之后新增了 `Hooking.*` / `NewHooks.*` / `ScriptDebugger.*` /
-`cryptbase.*` 等文件（一次大重构）。**本 fork 尚未合并** —— 那批改动与中文汉化
+`cryptbase.*` 等文件（一次大重构）。**本 fork 尚未合并**，那批改动与中文汉化
 无关，合并需单独评估。
 
 ## 许可

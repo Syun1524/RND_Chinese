@@ -1,6 +1,6 @@
 # 补丁数据（Patch Data）
 
-本目录存放**补丁包里那些"不是本项目编译/生成出来"的原件** —— 它们是组装一个
+本目录存放**补丁包里那些"不是本项目编译/生成出来"的原件**。它们是组装一个
 可运行安装包所必需的，但既不在本仓库任何源码里，也无法从别的素材重新生成。
 
 分成两类：
@@ -22,7 +22,7 @@
 
 ⚠️ **改 `patchdef.json` 或任一 `.cls` 之后**，必须跑工作区的
 `scripts/deploy_patch.py`（它会重新解析每条重定向、报告落到类型不符的文件上的条目）。
-历史上漏同步 `.cls` 出过「标题 UI 全白」事故 —— 下标前移导致重定向指到了角色模型。
+历史上漏同步 `.cls` 出过「标题 UI 全白」事故：下标前移导致重定向指到了角色模型。
 
 ⚠️ **改 `patchdef.json` 的 `base.charset` 之后**，字体种子会失效，
 必须重烘并跑 `scripts/check_seed_fonts.py`（见 `docs/字体种子.md`）。
@@ -33,7 +33,7 @@
 `d3d11`/`dxgi` + xy-VSFilter 的 `VSFilter.dll`）。来自 Committee of Zero 英文补丁包，
 **非本项目产出**，本仓库没有任何构建它们的源码。详见该目录 README。
 
-> `dinput8.dll`（我们自己的运行时）不在此目录 —— 它由
+> `dinput8.dll`（我们自己的运行时）不在此目录。它由
 > `LanguageBarrier_chs/LanguageBarrier/` 编译，产物在
 > `LanguageBarrier_chs/LanguageBarrier/dinput8-Release/`。
 

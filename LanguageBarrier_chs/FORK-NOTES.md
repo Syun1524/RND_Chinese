@@ -13,11 +13,11 @@
 
 - 独立 fork 仓库：<https://github.com/Kurashift/LanguageBarrier_chs>（分支 `rnd-chinese`）
 - `git diff cc982fd9` 即为本项目的完整改动集
-- **上游原件请用 [CommitteeOfZero 的仓库](https://github.com/CommitteeOfZero/LanguageBarrier)** ——
+- **上游原件请用 [CommitteeOfZero 的仓库](https://github.com/CommitteeOfZero/LanguageBarrier)**。
   本 fork 服务中文汉化，不保证与上游同步
 
 > 上游此后新增了 `Hooking.*` / `NewHooks.*` / `ScriptDebugger.*` / `cryptbase.*`
-> 等文件（大重构），**本 fork 尚未跟进** —— 那批改动与中文汉化无关，合并需单独评估。
+> 等文件（大重构），**本 fork 尚未跟进**；那批改动与中文汉化无关，合并需单独评估。
 
 ## 改了什么
 
