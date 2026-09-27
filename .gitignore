@@ -37,10 +37,22 @@ x86/
 # DLL：默认全部忽略；发布必需的运行时件用下面的例外保留。
 # 例外必须放在通配规则之后，且不能让父目录被忽略，否则无效。
 *.dll
-!dinput8-Release/dinput8.dll
-!dinput8-Release/VSFilter.dll
-!dinput8-Release/languagebarrier/LICENSE
-!dinput8-Release/languagebarrier/THIRDPARTY.LB.txt
+# ⚠️ 例外模式**必须带 `**/` 前缀**。gitignore 的规则里只要含 `/`，整条就锚定在
+#    .gitignore 所在目录（仓库根），`dinput8-Release/dinput8.dll` 只匹配
+#    `<根>/dinput8-Release/dinput8.dll` —— 而真实路径在两层之下，于是例外**静默失效**，
+#    文件被上面的 `*.dll` 吞掉。
+#    实际后果：2026-09-26 目录改名（LanguageBarrier_rndchs -> LanguageBarrier_chs）时，
+#    git 把旧路径记成「删除」、新路径因被忽略而没入库 —— **发布用的 dinput8.dll
+#    就这么从仓库里消失了**，而 v1.2 时它一直是被跟踪的。
+#    判据：`git ls-files | grep dinput8-Release` 应列出 dinput8.dll 与 VSFilter.dll。
+!**/dinput8-Release/dinput8.dll
+!**/dinput8-Release/VSFilter.dll
+!**/dinput8-Release/languagebarrier/LICENSE
+!**/dinput8-Release/languagebarrier/THIRDPARTY.LB.txt
+# 链接 xy-vsfilter 用的导入库与运行时 DLL（contrib 下）。同样需要 `**/` 前缀：
+# VSFilter.lib 会被上面的 `*.lib` 吞掉，VSFilter.dll 被 `*.dll` 吞掉。
+!**/xy-vsfilter/VSFilter.dll
+!**/xy-vsfilter/VSFilter.lib
 # 代理 DLL：补丁运行必需，来自 CoZ 补丁包（非本项目编译产物），
 # 是「从本仓库重建安装包」不可缺的原件。见 补丁数据/README.md
 # ⚠️ 路径必须与目录实际位置一致 —— 移动目录后这里要同步改，否则例外失效、
