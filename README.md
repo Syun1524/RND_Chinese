@@ -7,7 +7,7 @@
 - 技术基础：Committee of Zero 的英文优化补丁（LanguageBarrier 运行时），在其框架上替换为中文码表、字体、译文与图集
 - 适用：Steam 正版与免 DVD 版通用，装完保持游戏原有语言设定
 
-> ## ⚠️ 本项目包含对 Committee of Zero 组件的**修改版**
+> ##  本项目包含对 Committee of Zero 组件的**修改版**
 >
 > 不是原样转发的补丁包，而是在 CoZ 运行时上做了实质性改动。两个组件：
 >
