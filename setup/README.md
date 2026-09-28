@@ -4,7 +4,7 @@
 |---|---|
 | `src/` | 源文件：`RNDZhSetup.cpp`（安装器）、`RNDZhUninstall.cpp`（卸载器）、图标、manifest、.rc |
 | `build/` | 构建脚本（`.bat`）+ `sdk/`（安装器版 SFX 模块，来自 LZMA SDK） |
-| `../成品ing/setup/` | 工作区里的实际构建目录，产物 `RNDZh-Setup-v0.1.exe` 也生成在那里 |
+| `../成品ing/setup/` | 工作区里的实际构建目录，产物 `RNDZh-Setup-v1.4.exe` 也生成在那里 |
 
 ## 构建
 
@@ -12,7 +12,7 @@
 cd build
 build_setup.bat        :: src\RNDZhSetup.cpp    -> bin\RNDZhSetup.exe
 build_uninstall.bat    :: src\RNDZhUninstall.cpp -> bin\RNDZhUninstall.exe
-build_installer.bat    :: 打成单文件 RNDZh-Setup-v0.1.exe（需要补丁包已就位）
+build_installer.bat    :: 打成单文件 RNDZh-Setup-v1.4.exe（需要补丁包已就位）
 ```
 
 中间产物（`.obj` / `.res`）写在 `%TEMP%`，源码树不会落垃圾。

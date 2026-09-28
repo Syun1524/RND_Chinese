@@ -1,0 +1,34 @@
+[Script Info]
+; ROBOTICS;NOTES DaSH — mv_rnd_prologue（movie.cpk ID 51）简体中文覆盖字幕
+; 本文件由 build_prologue_subs.py 生成，勿手改（改脚本后重跑）。
+; 排版依据（均取自本片画面逐帧实测）：
+;   引文三行居中，行距 66px（原画英文行距随推近从 93 收到 65，取用户截图帧的 66）
+;   引文字号 54（渲染比 0.64，故中文墨高约 35px）
+;   署名紧跟引文块下方、右缘对齐中文块右缘（原画署名即紧贴引文，不沉到画面角落）
+;   标题卡两行居中；主标题字号 74 对齐原画 cap height 46px
+; 可读性：明亮背景段用半透明柔边描边（非实心黑框），避免"贴纸感"
+; 时间点：引文 0:00:00.93~0:00:06.33、署名 0:00:01.03~0:00:07.10、上行 0:00:20.25~0:00:26.05、下行 0:00:20.55~0:00:27.55
+; 淡入淡出：原画是普通统一 alpha 渐变（非擦除/遮挡，已用「暗底先显、亮底后显」
+;   的对比度差异证实），故用 \fad 精确复刻。
+ScriptType: v4.00+
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+YCbCr Matrix: TV.601
+PlayResX: 1920
+PlayResY: 1088
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Quote,RND Serif SC,54,&H00FFFFFF,&H000000FF,&H96000000,&H00000000,0,0,0,0,100,100,1,0,1,3,0,5,40,40,40,1
+Style: Signature,RND Serif SC,38,&H00FFFFFF,&H000000FF,&H96000000,&H00000000,0,0,0,0,100,100,1,0,1,3,0,3,40,78,40,1
+Style: TitleSub,RND Title SC,48,&H00FFFFFF,&H000000FF,&H8C000000,&H00000000,0,0,0,0,100,100,2,0,1,3,0,5,40,40,40,1
+Style: TitleMain,RND Title SC,74,&H00FFFFFF,&H000000FF,&H8C000000,&H00000000,0,0,0,0,100,100,3,0,1,3,0,5,40,40,40,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.93,0:00:06.33,Quote,,0,0,0,,{\pos(960,790)\fad(1500,400)\blur1}很难说什么是不可能的，
+Dialogue: 0,0:00:00.93,0:00:06.33,Quote,,0,0,0,,{\pos(960,856)\fad(1500,400)\blur1}因为昨天的梦想
+Dialogue: 0,0:00:00.93,0:00:06.33,Quote,,0,0,0,,{\pos(960,922)\fad(1500,400)\blur1}就是今天的希望，与明天的现实。
+Dialogue: 0,0:00:01.03,0:00:07.10,Signature,,0,0,0,,{\an3\pos(1260,1015)\fad(1300,600)\blur1}——罗伯特·H·戈达德
+Dialogue: 0,0:00:20.25,0:00:26.05,TitleSub,,0,0,0,,{\pos(960,418)\fad(350,1500)\blur1}科学ADV系列
+Dialogue: 0,0:00:20.55,0:00:27.55,TitleMain,,0,0,0,,{\pos(960,615)\fad(750,2000)\blur1}机器人笔记 DaSH

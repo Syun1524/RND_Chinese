@@ -1,4 +1,4 @@
-﻿# ROBOTICS;NOTES DaSH 简体中文 AI人工精校版 v1.3
+﻿# ROBOTICS;NOTES DaSH 简体中文 AI人工精校版 v1.4
 
 ---
 
@@ -14,7 +14,7 @@ ROBOTICS;NOTES DaSH 的**简体中文**补丁。
 ## 安装
 
 1. 完全退出游戏。
-2. 运行 `RNDZh-Setup-v1.3.exe`，指向游戏根目录（含 `Game.exe` 的 `ROBOTICS;NOTES DaSH` 文件夹），点「安装」。
+2. 运行 `RNDZh-Setup-v1.4.exe`，指向游戏根目录（含 `Game.exe` 的 `ROBOTICS;NOTES DaSH` 文件夹），点「安装」。
 3. 装完点「启动游戏」即可开始；之后从 Steam 正常启动也一样。
 
 Steam 版和免 DVD 版都可以用。

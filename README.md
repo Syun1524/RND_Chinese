@@ -3,7 +3,7 @@
 **ROBOTICS;NOTES DaSH**（MAGES/5pb，Steam 版）的简体中文汉化补丁。
 译文以**日语原文**为准，gemini3.0flash + 人工精校。
 
-- 当前版本：**v1.3**
+- 当前版本：**v1.4**
 - 技术基础：Committee of Zero 的英文优化补丁（LanguageBarrier 运行时），在其框架上替换为中文码表、字体、译文与图集
 - 适用：Steam 正版与免 DVD 版通用，装完保持游戏原有语言设定
 
@@ -45,13 +45,13 @@
 | **对白 / 旁白** | 全中文，人名地名等术语全套统一 |
 | **正文界面** | 菜单、TIPS、系统消息、Twipo / 邮件等界面文本全中文 |
 | **CG / 系统图片** | 标题菜单、选项界面、系统菜单、CG 库 / 音乐库标签、自动存档提示等全部汉化并手工嵌入图集 |
-| **影片** | MV 有中文卡拉OK字幕（逐字高亮 + 翻译轨，可在启动器开关）；1 段剧情影片替换 |
+| **影片** | MV 有中文卡拉OK字幕（逐字高亮 + 翻译轨，可在启动器开关）；片头引文与标题有中文覆盖；1 段剧情影片替换 |
 | **启动器** | 中文启动器，提供鼠标操作、滚轮推进文本、cosplay 换装模式等开关 |
 
 ## 怎么装
 
 1. **先完全退出游戏**（进程会锁住补丁文件）。
-2. 双击 `RNDZh-Setup-v1.3.exe`，安装器会自动找到游戏目录（Steam 库或免 DVD 目录都能认）。
+2. 双击 `RNDZh-Setup-v1.4.exe`，安装器会自动找到游戏目录（Steam 库或免 DVD 目录都能认）。
 3. 点「安装」。装完点「RNDZhLauncher.exe」启动即可。
 
 卸载：运行游戏目录里的 `卸载汉化.exe`，会还原到装补丁前的状态。
@@ -69,7 +69,7 @@
 | 正文字体 | Noto 合并 TTC | **思源黑体简中**（`NotoSansCJKsc-Regular.otf`） |
 | 文本重定向 | 仅 `MES01` | `MES00` **+** `MES01`（TIPS / 系统消息等一并接管） |
 | 图片重定向 | bg 18 / system 5 | **bg 64 / system 12 / movie 1** |
-| 影片字幕 | 英文卡拉OK | **中文逐字卡拉OK + 翻译轨**（三种模式可开关） |
+| 影片字幕 | 英文卡拉OK | **中文逐字卡拉OK + 翻译轨**（三种模式可开关）；片头另加中文覆盖 |
 | 启动器 | `LauncherC0.exe`（Qt5，需十余个 DLL） | `RNDZhLauncher.exe`（单文件，无 Qt 依赖） |
 | 换装 | `swimsuitPatch`（只切泳装） | `fileIdRemap` 保留LB重定向内部资源，同归档引用，含 cosplay 模式（和服 / 泳装 / 体操服 / 猫耳） |
 | 安装 / 卸载 | `nguninstall.exe` | 安装器 / 卸载器，**自动兼容含分号的目录名** |
@@ -145,7 +145,7 @@
 |---|---|
 | `cnscript/` | 中文译稿（`.msb.txt`）与中文码表 |
 | `jpscript/` | 日文原版脚本（提取用基线） |
-| `subs/` | 影片字幕 `.ass` 与歌词字体 |
+| `subs/` | 影片字幕 `.ass`（歌曲卡拉OK + 片头覆盖）与字幕字体 |
 | `LanguageBarrier_chs/` | LanguageBarrier 运行时源码 + 发布用 `dinput8.dll` / `VSFilter.dll`（编译中间产物不入库） |
 | `sc3tools_chs/` | 文本提取 / 回写工具（Rust）。**一个 exe 双码表**：`rnd` 日文原版、`rndzh` 简体中文 |
 | `tools/` | 启动器 `RNDZhLauncher.cpp` + 换装核对工具 `RNDZhOutfitTool.cpp` 源码与构建脚本 |

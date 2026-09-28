@@ -41,9 +41,13 @@
         "milocha.otf",
         "Roboto-Regular_0.ttf",
         "steelfish-rg.ttf",
-        "RNDLyricSC-Bold.ttf"
+        "RNDLyricSC-Bold.ttf",
+        "RNDSerifSC-Regular.ttf",
+        "RNDTitleSC-Light.ttf"
       ],
-      "subs": {},
+      "subs": {
+        "51": "mv_rnd_prologue.ass"
+      },
       "videoRedirection": {}
     },
     "archiveRedirection": {
