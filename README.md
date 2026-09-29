@@ -230,4 +230,4 @@ python scripts/diagnostics/negtest_sc3tools_merged.py  # 反向验证：三处�
 - 译文 / 图集 / 中文渲染改动为本项目完成；歌词字体基于 Noto Sans SC（SIL OFL 1.1）。
 - 本方为**非官方**汉化，与 MAGES./5pb.、Nitroplus、Steam 及 Committee of Zero
   均无隶属关系。请支持正版。
-- <small>感谢神秘token提供者dc:@baizhi0892</small>
+- <sub><sup>感谢神秘token提供者dc:@baizhi0892</sup></sub>
