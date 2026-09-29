@@ -36,7 +36,7 @@ using namespace Gdiplus;
 static const int WIN_W = 480, WIN_H = 268;
 // 产品版本。⚠ 改版本要同步三处：这里、launcher/RNDZhLauncher.cpp 的 VER、
 // 成品ing/setup/build/build_installer.py 的 VERSION（决定包文件名）。
-static const wchar_t* VER = L"1.4";
+static const wchar_t* VER = L"1.5";
 static const Color
   C_BG      (255, 255, 255, 255),   // 窗口底
   C_PANEL   (255, 245, 246, 248),   // 顶部标题条
@@ -633,6 +633,10 @@ static bool RunInstall() {
   //    · RNDZhUninstall.exe —— 卸载器**旧名**。新版改名成「卸载汉化.exe」
   //      （旧名与 RNDZhLauncher.exe 太像，容易误点成卸载）。
   //      升级安装时这里不清，游戏目录里会同时躺着新旧两个卸载器。
+  //    · c0data 里两个孤儿副本 —— v1.4 及更早把它们与 RND_PC_* 各存了一份
+  //      （内容逐字节相同，日文原版两个归档里就是各一份）。v1.5 起合并成
+  //      一份、system/33 与 system/35 改指它，所以旧的那两份必须删掉：
+  //      复制步骤只覆盖/新增文件，**不会**清理包内已不存在的条目。
   //    只删「不是我正在运行的那一份」—— 比较**完整路径**，不能只比文件名，
   //    否则从游戏目录内运行时会把两者视为同一个而永远跳过。
   {
@@ -643,6 +647,15 @@ static bool RunInstall() {
     for (auto n : staleNames) {
       std::wstring stale = Join(g_gameDir, n);
       if (Exists(stale) && _wcsicmp(stale.c_str(), selfPath.c_str()) != 0) {
+        SetFileAttributesW(stale.c_str(), FILE_ATTRIBUTE_NORMAL);
+        DeleteFileW(stale.c_str());
+      }
+    }
+    // v1.4 遗留的重复图集（现在由 RND_PC_* 那份统一提供）
+    const wchar_t* orphanAtlases[] = { L"control_pc.png", L"keyboard_pc.png" };
+    for (auto n : orphanAtlases) {
+      std::wstring stale = Join(Join(g_gameDir, L"languagebarrier\\c0data"), n);
+      if (Exists(stale)) {
         SetFileAttributesW(stale.c_str(), FILE_ATTRIBUTE_NORMAL);
         DeleteFileW(stale.c_str());
       }

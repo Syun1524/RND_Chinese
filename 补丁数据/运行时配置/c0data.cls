@@ -63,8 +63,6 @@ RND_PC_controller_jp.png
 RND_PC_keyboard_jp.png
 data01.png
 option_pc.png
-control_pc.png
-keyboard_pc.png
 meswindow.png
 ar_chip.png
 ar_chip3.png
