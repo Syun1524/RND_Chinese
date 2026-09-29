@@ -778,7 +778,15 @@ int __fastcall mgsFileOpenHook(mgsFileLoader* pThis, void* dummy, int unused) {
   int fileId = pThis->fileId;
   char* archiveName = pThis->vfsObject->archiveName;
 
-  if (pThis->vfsObject && (fileId > 0 || (fileName && fileName[0] != '\0'))) {
+  // Entry 0 is a real archive index, not "no file was requested": the `manual`
+  // archive's first entry is the controller guide, and `bg`'s is the
+  // under-construction placeholder. Upstream's `fileId > 0` test therefore
+  // skipped those redirects -- the controller guide stayed in Japanese while
+  // the keyboard guide (entry 1) localized correctly. -1 is the only sentinel
+  // the engine uses (it switches to the file name), so `>= 0` admits 0 without
+  // changing anything else; an unmapped entry still falls through untouched.
+  if (pThis->vfsObject &&
+      (fileId >= 0 || (fileName && fileName[0] != '\0'))) {
     std::stringstream logstr;
     logstr << "mgsFileOpen(" << archiveName << ", 0x" << std::hex << fileId
            << ")" << std::dec;
