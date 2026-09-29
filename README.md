@@ -229,5 +229,5 @@ python scripts/diagnostics/negtest_sc3tools_merged.py  # 反向验证：三处�
   [sc3tools_chs](https://github.com/Kurashift/sc3tools_chs)。
 - 译文 / 图集 / 中文渲染改动为本项目完成；歌词字体基于 Noto Sans SC（SIL OFL 1.1）。
 - 本方为**非官方**汉化，与 MAGES./5pb.、Nitroplus、Steam 及 Committee of Zero
-  均无隶属关系。请支持正版。
+  均无隶属关系。请支持正版。<br>
  <sub>感谢神秘token提供者dc:@baizhi0892，帮助很大</sub>
