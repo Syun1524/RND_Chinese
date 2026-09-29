@@ -899,6 +899,20 @@ static void StartUpdateCheck() {
   else   InterlockedExchange(&g_checking, 0);
 }
 
+// 打开外部链接。ShellExecuteW 返回值 <= 32 就是失败（没有默认浏览器、被安全软件
+// 拦下、URL 非法…），此时**不能什么都不做** —— 玩家看到的就是"点了没反应"。
+// 退化成把链接显示出来让他手动复制（2026-09-29 用户反馈"不跳转"）。
+// 返回是否成功打开，调用方据此决定要不要收起卡片。
+static bool OpenUrl(HWND h, const wchar_t* url) {
+  if (!url || !*url) url = REL_URL;
+  HINSTANCE r = ShellExecuteW(h, L"open", url, nullptr, nullptr, SW_SHOWNORMAL);
+  if ((INT_PTR)r > 32) return true;
+  std::wstring msg = L"没能自动打开浏览器，请手动复制下面的链接：\n\n";
+  msg += url;
+  MessageBoxW(h, msg.c_str(), L"打开下载页", MB_ICONINFORMATION | MB_OK);
+  return false;
+}
+
 static void Paint(HDC hdc) {
   RECT rc; GetClientRect(g_hwnd, &rc);
   // 物理客户区尺寸。声明 DPI 感知后 rc 就是物理像素；绘制时用 ScaleTransform
@@ -1036,8 +1050,11 @@ static void Paint(HDC hdc) {
       gr.FillRectangle(&fillb, cr);
       Pen bp(hot ? C_DIM : C_BORDER, 1.f);
       gr.DrawRectangle(&bp, cr);
+      // 已有新版本时按钮就写「前往下载」—— 文案与实际动作一致，
+      // 玩家一眼知道点它会发生什么（2026-09-29）。
       const wchar_t* txt = busy ? L"检查中…"
-                        : (!g_checkMsg.empty() ? g_checkMsg.c_str() : L"检查更新");
+                        : (!g_checkMsg.empty() ? g_checkMsg.c_str()
+                        : (!g_newVer.empty() ? L"前往下载" : L"检查更新"));
       DrawTxtW(gr, txt, F(11), busy ? C_MUTED : C_DIM, cr.X, cr.Y + 5, cr.Width, 1);
       // 小红点：查到新版本后常亮（右上角，压在按钮边框上，直径 8）
       if (!g_newVer.empty()) {
@@ -1197,12 +1214,21 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
   // 无标题栏窗口靠 WM_NCHITTEST 划分「可拖动区」：把非客户区当成标题栏（HTCAPTION），
   // 系统就会给原生的拖动行为。主题图整块 + 顶部横条都是拖动区；
   // 关闭按钮必须显式留在客户区，否则它的点击会被拖动逻辑吞掉。
+  //
+  // ★ 更新卡片也画在左栏（主题图上），所以它**必须**和关闭按钮一样显式放行
+  //   （2026-09-29 修）：左栏整块判 HTCAPTION 时，卡片上的按下被系统当成"拖窗口"，
+  //   客户区根本收不到 WM_LBUTTONDOWN —— 卡片画得出来、却永远点不动。
+  //   探针实测：卡片中心 -> HTCAPTION（点击被吞），右栏按钮 -> HTCLIENT（正常）。
   case WM_NCHITTEST: {
     POINT p{ GET_X_LPARAM(l), GET_Y_LPARAM(l) };
     ScreenToClient(h, &p);
     int x = (int)unscale(p.x), y = (int)unscale(p.y);
     RectF cb = CloseRect();
     if (x >= cb.X && x <= cb.GetRight() && y >= cb.Y && y <= cb.GetBottom()) return HTCLIENT;
+    if (!g_newVer.empty()) {
+      RectF br = BannerRect();
+      if (x >= br.X && x <= br.GetRight() && y >= br.Y && y <= br.GetBottom()) return HTCLIENT;
+    }
     if (x < LEFT_W || y < 46) return HTCAPTION;
     return HTCLIENT;
   }
@@ -1278,13 +1304,19 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         InvalidateRect(h, nullptr, FALSE);
       }
       else if (id == ID_START) { LaunchGame(); }
-      else if (id == ID_CHECK) { StartUpdateCheck(); }
+      // 「检查更新」按钮：已知有新版本 → 直接跳下载页（按钮文案此时就是
+      // 「前往下载」，见 Paint）；否则重新查询。2026-09-29 修：以前它只重查、
+      // 从不跳转，玩家点它永远等不到浏览器打开。
+      else if (id == ID_CHECK) {
+        if (!g_newVer.empty()) { if (OpenUrl(h, g_newUrl.c_str())) { g_newVer.clear(); g_newUrl.clear(); } }
+        else StartUpdateCheck();
+      }
       else if (id == ID_BANNER) {   // 点更新卡片 → 打开下载页（卡片消失，红点熄灭）
-        ShellExecuteW(h, L"open", g_newUrl.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
-        g_newVer.clear(); g_newUrl.clear();
+        // 打不开就保留卡片（OpenUrl 已弹出可复制的链接），别让提示一起消失
+        if (OpenUrl(h, g_newUrl.c_str())) { g_newVer.clear(); g_newUrl.clear(); }
         InvalidateRect(h, nullptr, FALSE);
       }
-      else if (id == ID_GITHUB) { ShellExecuteW(h, L"open", REPO_URL, nullptr, nullptr, SW_SHOWNORMAL); }
+      else if (id == ID_GITHUB) { OpenUrl(h, REPO_URL); }
       else if (id == ID_CLOSE) { PostMessageW(h, WM_CLOSE, 0, 0); }
       // 立刻落盘：玩家可能在这里改完就关窗口、再用 Steam 或 boot.bat 直启游戏
       if (saveNow) SaveConfig();
