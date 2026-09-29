@@ -49,16 +49,15 @@ def archive_name(stem):
     for suf in ("重做", "_zh"):
         if stem.endswith(suf):
             stem = stem[: -len(suf)]
-    # manual/system 与 bg 三处共享同一张图，c0data 里只存一份、名字不同
     return ALIAS.get(stem, stem)
 
 
 # 镜像名 -> c0data 里的原始资源名（stripping 后仍对不上的，在这里补）
-#   control_pc/keyboard_pc  在 system 与 manual 两个归档里各有一份
+#   control_pc / keyboard_pc 两个归档（system 与 manual）共享同一张图，
+#     c0data 里只留一份，名字与源图同名 —— 所以**不需要别名**。
+#     别再加回第二份：多出来的那份没有源文件映射，改图时会静默停在旧版。
 #   guid_pc 的原始资源名带 _jp 后缀
 ALIAS = {
-    "control_pc": "RND_PC_controller_jp",
-    "keyboard_pc": "RND_PC_keyboard_jp",
     "guid_pc": "guid_pc_jp",
 }
 

@@ -1,4 +1,4 @@
-﻿// RNDZhSetup — ROBOTICS;NOTES DaSH 简体中文补丁 安装程序
+// RNDZhSetup — ROBOTICS;NOTES DaSH 简体中文补丁 安装程序
 // 原生 Win32 + GDI+，无外部依赖。由 7z SFX 解包后自动运行：
 //   SFX 把「Setup.exe + 全部补丁文件」解到临时目录 → 运行本程序 → 本程序把文件装进游戏目录。
 //
@@ -651,8 +651,11 @@ static bool RunInstall() {
         DeleteFileW(stale.c_str());
       }
     }
-    // v1.4 遗留的重复图集（现在由 RND_PC_* 那份统一提供）
-    const wchar_t* orphanAtlases[] = { L"control_pc.png", L"keyboard_pc.png" };
+    // 早期版本遗留的重复图集。这两张图在日文原版的两个归档里各存一份，
+    // 补丁包里只留一份 —— 文件名用 `control_pc.png` / `keyboard_pc.png`
+    // （与 system 归档一致），所以旧版留下的 `RND_PC_*_jp.png` 要删掉。
+    const wchar_t* orphanAtlases[] = { L"RND_PC_controller_jp.png",
+                                       L"RND_PC_keyboard_jp.png" };
     for (auto n : orphanAtlases) {
       std::wstring stale = Join(Join(g_gameDir, L"languagebarrier\\c0data"), n);
       if (Exists(stale)) {

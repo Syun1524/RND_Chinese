@@ -77,34 +77,54 @@ def break_split_back(root):
 
 
 def break_duplicate_file(root):
-    """把一份图复制成另一个名字，制造内容重复。"""
+    """把一份图复制成另一个名字，制造内容重复。
+
+    ⚠ 文件名从 gate.ORPHANS 取，**不要写死** —— 2026-09-30 图集改名时，
+    这里写死的旧名让本测试直接 FileNotFoundError（测试自己坏了，
+    而不是门禁抓到了错）。凡是「故意做错的输入」也要跟着真实数据走。
+    """
     lb = os.path.join(root, "成品ing", "补丁包", "languagebarrier")
     c0 = os.path.join(lb, "c0data")
-    shutil.copy2(os.path.join(c0, "RND_PC_controller_jp.png"),
-                 os.path.join(c0, "control_pc.png"))
+    shared = "control_pc.png"
+    orphan = gate.ORPHANS[0]
+    shutil.copy2(os.path.join(c0, shared), os.path.join(c0, orphan))
 
 
 def break_orphan_in_cls(root):
-    """把孤儿名加回 cls（末尾追加）。"""
-    lb = os.path.join(root, "成品ing", "补丁包", "languagebarrier")
-    p = os.path.join(lb, "c0data.cls")
-    s = io.open(p, encoding="utf-8-sig").read()
-    io.open(p, "w", encoding="utf-8", newline="").write(s.rstrip("\r\n") + "\r\ncontrol_pc.png\r\n")
-
-
-def break_dup_name_in_cls(root):
-    """制造重名条目。"""
+    """把已合并掉的旧名加回 cls（末尾追加）。"""
     lb = os.path.join(root, "成品ing", "补丁包", "languagebarrier")
     p = os.path.join(lb, "c0data.cls")
     s = io.open(p, encoding="utf-8-sig").read()
     io.open(p, "w", encoding="utf-8", newline="").write(
-        s.rstrip("\r\n") + "\r\nRND_PC_controller_jp.png\r\n")
+        s.rstrip("\r\n") + "\r\n" + gate.ORPHANS[0] + "\r\n")
+
+
+def break_dup_name_in_cls(root):
+    """制造重名条目（把共享的那份名字再追加一行）。
+
+    ⚠ 名字要从 cls 里**按下标取**：MUST_SHARE 里存的第 2 个元素是
+    **fileId（如 "33"）**，不是文件名 —— 直接拿它拼 cls 会追加一行 "33"，
+    既不是重名也不是图片，门禁当然抓不到（本测试曾因此假绿一次）。
+    """
+    lb = os.path.join(root, "成品ing", "补丁包", "languagebarrier")
+    cls_p = os.path.join(lb, "c0data.cls")
+    cls2 = [l.strip() for l in io.open(cls_p, encoding="utf-8-sig").read().splitlines() if l.strip()]
+    fr = json.load(io.open(os.path.join(lb, "patchdef.json"), encoding="utf-8-sig"))["base"]["fileRedirection"]
+    v = fr["system"]["33"]
+    v = v["jp"] if isinstance(v, dict) else v
+    io.open(cls_p, "w", encoding="utf-8", newline="").write(
+        "\r\n".join(cls2) + "\r\n" + cls2[v] + "\r\n")
 
 
 def break_missing_file(root):
     """把共享的那份文件删掉（下标还在，但磁盘没有）。"""
     lb = os.path.join(root, "成品ing", "补丁包", "languagebarrier")
-    os.remove(os.path.join(lb, "c0data", "RND_PC_controller_jp.png"))
+    cls_p = os.path.join(lb, "c0data.cls")
+    cls2 = [l.strip() for l in io.open(cls_p, encoding="utf-8-sig").read().splitlines() if l.strip()]
+    fr = json.load(io.open(os.path.join(lb, "patchdef.json"), encoding="utf-8-sig"))["base"]["fileRedirection"]
+    v = fr["system"]["33"]
+    v = v["jp"] if isinstance(v, dict) else v
+    os.remove(os.path.join(lb, "c0data", cls2[v]))
 
 
 def main():

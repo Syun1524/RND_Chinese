@@ -9,9 +9,10 @@
   于是留成了两份。
 
   ★ 为什么这是真问题而不只是冗余：`sync_images.py` 的同步源是
-  `临时/cn/汉化好的/manual/`，它的别名表只把源图映射到 `RND_PC_*`，
-  **从不写 `control_pc.png`** —— 那份是孤儿副本。两份内容恰好相同时看不出问题，
-  一改图，`system/33` 这条路径就会静默停在旧图上（同 2026-09-25 extra_chip 漏同步）。
+  两份里只有一份在同步管线上，另一份没有源文件映射 —— 那是孤儿副本。
+  两份内容恰好相同时看不出问题，一改图，`system/33` 这条路径就会静默停在旧图上
+  （同 2026-09-25 extra_chip 漏同步）。现合并成一份，名字与源图同名
+  （`control_pc.png` / `keyboard_pc.png`）。
 
 本门禁检查：
   A. `c0data.cls` 里没有重名条目；
@@ -44,8 +45,8 @@ MUST_SHARE = [
     ("system", "35", "manual", "1", "键盘操作图"),
 ]
 
-# 已合并掉的孤儿名，不得回来
-ORPHANS = ["control_pc.png", "keyboard_pc.png"]
+# 已合并掉的旧名，不得回来（现在用 control_pc.png / keyboard_pc.png）
+ORPHANS = ["RND_PC_controller_jp.png", "RND_PC_keyboard_jp.png"]
 
 # 允许「内容相同」的例外（目前没有）。键为排序后的文件名元组。
 DUP_ALLOWLIST = set()

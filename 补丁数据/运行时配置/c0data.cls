@@ -59,8 +59,8 @@ rnd_ibg134f.png
 rnd_ibg149a.png
 rnd_ibg149b.png
 z_autosavealert.png
-RND_PC_controller_jp.png
-RND_PC_keyboard_jp.png
+control_pc.png
+keyboard_pc.png
 data01.png
 option_pc.png
 meswindow.png
