@@ -703,11 +703,10 @@ static inline float RWf()  { return (float)WIN_W - PAD_R; }   // 右栏内容右
 #define RXL RXLf()
 #define RW  RWf()
 
-// 命中 id：0..OPT_COUNT-1 选项 / 200 开始 / 201 检查更新 / 202 关闭 / 203 GitHub
-//         204 更新卡片 / 1000+i 第 i 个设置行的"行头"（点它展开/收起）
+// 命中 id：0..OPT_COUNT-1 选项 / 200 开始 / 201 检查更新(兼「立即更新」) / 202 关闭 /
+//         203 GitHub / 1000+i 第 i 个设置行的"行头"（点它展开/收起）
 //         1100+i*10+k 第 i 行展开后的第 k 个选项
 enum { ID_START = 200, ID_CHECK = 201, ID_CLOSE = 202, ID_GITHUB = 203,
-       ID_BANNER = 204,
        ID_ROW = 1000, ID_ROWITEM = 1100 };
 // 四个设置行的语义（下标即 ROW 顺序）：0 = cosplay / 1 = 影片字幕 / 2 = 显示模式 / 3 = 分辨率
 enum { ROW_OUTFIT = 0, ROW_SUBS = 1, ROW_SCRN = 2, ROW_RES = 3 };
@@ -804,17 +803,12 @@ static const UINT_PTR TIMER_CHECKMSG = 1; // 用它定时清掉 g_checkMsg
 
 // 查到有新版本后的常驻状态（直到本版升级才消失）：
 static std::wstring g_newVer;             // 远程版本号（如 "v1.3"），空 = 没有新版本
-static std::wstring g_newUrl;             // 下载页链接（点卡片跳转用）
-// 卡片按下态（按下→抬起都在卡片上才跳转，和其它按钮同一手感）
-static bool g_bannerDown = false;
-
-// 更新卡片：**放在左栏主题图上**（版本号上方的小卡片）。
-// 原先它在右栏主按钮上方，会白占 36px —— 而它只在"确实有新版本"时才出现，
-// 平时那 36px 就是空的。搬到左栏后右栏省下这块空间，「画面」那一行才放得下
-// 而窗口尺寸不用变大。深色半透明底压在图上，本身也是常见的"提示卡"观感。
-static RectF BannerRect()     { return RectF(12.f, (float)WIN_H - 78.f, (float)LEFT_W - 24.f, 40.f); }
+static std::wstring g_newUrl;             // 下载页链接（仅「只有全量」时跳转用）
+static unsigned long long g_newDeltaSize = 0;  // 查到的增量大小（未装配也记，提示行用）
 
 // status: 0 = 有新版本(仅全量) / 1 = 已是最新 / 2 = 查询失败 / 3 = 有新版本且有可用增量
+// （2026-09-30 用户裁定：发现新版本**不出横幅卡片**，入口全部集成在「检查更新」
+//   按钮上 —— 查出增量后按钮变「立即更新」，点它就地升级）
 struct UpdFile { std::wstring path; std::string md5; };
 struct DeltaInfo {
   std::wstring from;                    // 基线版本（"1.6"），匹配 languagebarrier\version.txt
@@ -835,6 +829,9 @@ struct UpdResult {
   std::wstring localVer;                // 本地补丁版本（version.txt；空 = v1.5 及更早的安装）
   RemoteUpdate remote;
   int deltaIdx = -1;                    // 命中的基线增量下标（status==3 时有效）
+  bool arms = false;                    // ★ 本次检查是否由玩家**手动点「检查更新」**触发。
+                                        //   只有手动检查才把增量装配到按钮（第二级「立即更新」）；
+                                        //   启动时的自动检查只亮红点 —— 检查绝不直接下载（用户裁定）
 };
 
 // ── 增量更新（v1.6 新增）──
@@ -867,12 +864,13 @@ struct UpdResult {
 static std::wstring g_updBase =
     L"https://github.com/Syun1524/RND_Chinese/releases/latest/download/";
 
-// 更新运行状态（横幅据此切换形态）：
-//   0 空闲 / 1 下载 / 2 校验·解压 / 3 应用 / 4 完成 / 5 失败
+// 更新运行状态：
+//   g_updRun: 0 空闲 / 1 下载 / 2 校验·解压 / 3 应用（完成与失败都回 0，
+//             结果走按钮上的临时文字 / 失败弹窗 —— 2026-09-30 用户裁定**去掉横幅**，
+//             更新入口全部集成进「检查更新」按钮）
 static volatile LONG g_updRun = 0;
 static volatile LONG g_updBusy = 0;       // 一次完整更新流程进行中（防重入）
-static std::wstring g_updMsg;             // 横幅正文（进度说明 / 失败原因）
-static int g_updPct = 0;                  // 0..100
+static int g_updPct = 0;                  // 0..100（下载/应用进度，按钮上显示）
 static std::wstring g_updTmpDir;          // 本次更新的 %TEMP% 工作目录
 static DeltaInfo g_delta;                 // 命中的增量（file 为空 = 无，走全量兜底）
 static std::wstring g_remoteVer;          // 远端版本（无 v 前缀，应用后写进 version.txt）
@@ -901,9 +899,16 @@ static std::wstring DirPart(const std::wstring& p) {
 }
 static std::wstring FmtMB(unsigned long long b) {
   wchar_t buf[40];
+  if (b < 100 * 1024) {                       // KB 级（模拟/极小差量）显示 KB，别出 0.0MB
+    swprintf(buf, 40, L"%dKB", (int)(b / 1024));
+    return buf;
+  }
   swprintf(buf, 40, L"%.1fMB", (double)b / (1024.0 * 1024.0));
   return buf;
 }
+// 左下角版本号显示的「当前补丁版本」：初始取 version.txt（没有则退启动器 VER），
+// 增量应用成功后跟着新版本走 —— 不然玩家更新完了看到左下角还是旧号，会以为没更上
+static std::wstring g_dispVer;
 
 static bool ReadFileAll(const std::wstring& path, std::string& out) {
   out.clear();
@@ -1260,7 +1265,6 @@ static int ApplyPayload(const DeltaInfo& d, const std::wstring& newVer,
   int n = (int)d.files.size(), i = 0;
   for (auto& f : d.files) {
     i++;
-    g_updMsg = L"正在应用更新 " + std::to_wstring(i) + L"/" + std::to_wstring(n);
     g_updPct = n ? i * 100 / n : 100;
     if (g_hwnd) PostMessageW(g_hwnd, WM_APP + 3, 0, 0);
     std::wstring src = payload + L"\\" + NativeRel(f.path);
@@ -1335,7 +1339,7 @@ static void BypassProxyForLoopback(HINTERNET hNet, const std::wstring& url) {
 }
 
 // 流式下载到文件（增量包可达几十 MB，不能像 HttpGet 那样全进内存）。
-// 进度写 g_updPct/g_updMsg，每变一个百分点请求一次重绘（WM_APP+3）。
+// 进度写 g_updPct，每变一个百分点请求一次重绘（WM_APP+3）。
 static bool HttpDownloadToFile(const std::wstring& url, const std::wstring& dest) {
   HINTERNET hNet = InternetOpenW(L"RNDZhLauncher", INTERNET_OPEN_TYPE_PRECONFIG,
                                  nullptr, nullptr, 0);
@@ -1372,8 +1376,6 @@ static bool HttpDownloadToFile(const std::wstring& url, const std::wstring& dest
       if (pct != lastPct) {
         lastPct = pct;
         g_updPct = pct;
-        g_updMsg = L"正在下载增量包 " + std::to_wstring(pct) + L"%"
-                 + (total ? (L"（" + FmtMB(done) + L"/" + FmtMB(total) + L"）") : L"");
         if (g_hwnd) PostMessageW(g_hwnd, WM_APP + 3, 0, 0);
       }
     }
@@ -1445,8 +1447,9 @@ static bool VerNewer(const std::wstring& remote, const std::wstring& local) {
 // 不吃每小时 60 次的匿名限额）；拿不到再退回 releases/latest → tags 的老路。
 // 版本比较基准 = languagebarrier\version.txt（补丁版本），没有它才退回启动器 VER
 // —— 增量只更新内容不动启动器时，VER 会落后于补丁版本，必须用 version.txt 比对。
-static UpdResult* RunCheckCore() {
+static UpdResult* RunCheckCore(bool arms) {
   UpdResult* r = new UpdResult{ 2, L"", REL_URL };
+  r->arms = arms;
   r->localVer = LocalVer();
   std::wstring cmpBase = r->localVer.empty() ? std::wstring(VER) : r->localVer;
   std::string js;
@@ -1496,16 +1499,18 @@ static UpdResult* RunCheckCore() {
   }
   return r;
 }
-static DWORD WINAPI UpdateThread(LPVOID) {
-  UpdResult* r = RunCheckCore();
+static DWORD WINAPI UpdateThread(LPVOID lp) {
+  UpdResult* r = RunCheckCore(lp != nullptr);   // 参数非空 = 玩家手动点的「检查更新」
   PostMessageW(g_hwnd, WM_APP + 2, 0, (LPARAM)r);
   return 0;
 }
 
-static void StartUpdateCheck() {
+// arms=true：玩家手动点的检查 → 查出增量后装配「立即更新」（第二级）；
+// arms=false：启动自动检查 → 只亮红点，绝不装配下载（检查≠下载，用户裁定）。
+static void StartUpdateCheck(bool arms) {
   if (InterlockedCompareExchange(&g_checking, 1, 0) != 0) return;   // 已在查
   InvalidateRect(g_hwnd, nullptr, FALSE);
-  HANDLE t = CreateThread(nullptr, 0, UpdateThread, nullptr, 0, nullptr);
+  HANDLE t = CreateThread(nullptr, 0, UpdateThread, (LPVOID)(intptr_t)(arms ? 1 : 0), 0, nullptr);
   if (t) CloseHandle(t);
   else   InterlockedExchange(&g_checking, 0);
 }
@@ -1534,21 +1539,19 @@ static UpdDone* RunUpdateCore() {
       r->err = L"update.json 下载失败"; break;
     }
     // 1) 下载
-    g_updRun = 1; g_updPct = 0; g_updMsg = L"准备下载…";
+    g_updRun = 1; g_updPct = 0;
     if (g_hwnd) PostMessageW(g_hwnd, WM_APP + 3, 0, 0);
     std::wstring arc = g_updTmpDir + L"\\" + NativeRel(g_delta.file);
     if (!HttpDownloadToFile(g_updBase + g_delta.file, arc)) {
       r->err = L"增量包下载失败，请检查网络后重试"; break;
     }
     // 2) 校验 + 解压
-    g_updRun = 2; g_updPct = 0; g_updMsg = L"正在校验…";
+    g_updRun = 2; g_updPct = 0;
     if (g_hwnd) PostMessageW(g_hwnd, WM_APP + 3, 0, 0);
     std::string hx;
     if (!Md5File(arc, hx) || hx != g_delta.md5) {
       r->err = L"增量包校验失败（md5 不符），请重试或改用全量安装包"; break;
     }
-    g_updMsg = L"正在解压…";
-    if (g_hwnd) PostMessageW(g_hwnd, WM_APP + 3, 0, 0);
     DWORD code = (DWORD)-1;
     if (!Run7zExtract(g_dir + L"\\languagebarrier\\7zr.exe", arc,
                       g_updTmpDir + L"\\payload", &code) || code != 0) {
@@ -1570,7 +1573,6 @@ static UpdDone* RunUpdateCore() {
       r->selfUpdated = DeltaHasLauncher(g_delta);
       r->ok = true;                        // ★ 应用内路径的成功出口（曾漏掉 → 恒报失败）
     } else {
-      g_updMsg = L"游戏目录需要管理员权限，请在弹窗中确认…";
       if (g_hwnd) PostMessageW(g_hwnd, WM_APP + 3, 0, 0);
       std::wstring exe = g_dir + L"\\RNDZhLauncher.exe";
       std::wstring prm = L"--apply-update \"" + g_updTmpDir + L"\" \"" + g_delta.file + L"\"";
@@ -1715,12 +1717,13 @@ static void Paint(HDC hdc) {
       DrawTxt(gr, L"主题图", F(14), C_MUTED, LEFT_W / 2.f, WIN_H / 2.f, 1);
     }
     Pen edge(C_BORDER, 1.f); gr.DrawLine(&edge, LEFT_W, 0, LEFT_W, WIN_H);
-    // 版本号压在图上：左下角，图上多半是深色，用白字加一层淡阴影保证可读
+    // 版本号压在图上：左下角（显示当前补丁版本，增量后跟着变），图上多半是
+    // 深色，用白字加一层淡阴影保证可读
     {
       RectF vb(12, (float)WIN_H - 30, 80, 20);
       SolidBrush sh(Color(90, 0, 0, 0));
       gr.FillRectangle(&sh, RectF(vb.X + 1, vb.Y + 1, 58, 18));
-      DrawTxt(gr, (std::wstring(L"v") + VER).c_str(), F(12), C_WHITE, vb.X, vb.Y);
+      DrawTxt(gr, (L"v" + g_dispVer).c_str(), F(12), C_WHITE, vb.X, vb.Y);
     }
 
     // ── 右上角小字：实现方式 + 署名（右对齐，一眼能看到出处）──
@@ -1770,6 +1773,7 @@ static void Paint(HDC hdc) {
                RowHintRect().X, RowHintRect().Y, RW - RXL);
     }
 
+    // ── 更新反馈全部走弹窗与按钮（2026-09-30 用户裁定：不要横幅、不要长文案行）──
     // ── 主按钮 ──
     // 浅色极简 + **直角**（2026-09-13 用户指定：棱角分明，不再圆角）。
     // 文字「开始游戏」+ 微软雅黑 Bold（中文按字格排版，本来就有均匀的字距，
@@ -1783,54 +1787,9 @@ static void Paint(HDC hdc) {
       gr.DrawRectangle(&bp, sr);
       DrawTxtCentered(gr, L"开始游戏", FTech(20, true), C_TEXT, sr); }
 
-    // ── 更新卡片：**左栏主题图上**的小卡片 ──
-    // 四种形态（g_updRun）：0 空闲=发现新版本（有增量显示「一键更新」，否则
-    // 「前往下载」）/ 1-3 更新中=进度条 / 4 完成 / 5 失败（点卡片给全量兜底）。
-    // 压在图上所以用**深色半透明底 + 白字**；左侧「新」字徽标只在空闲形态出现。
-    if (!g_newVer.empty() || g_updRun > 0) {
-      RectF br = BannerRect();
-      // 运行中/完成不可点；失败与空闲可点（悬停才加亮）
-      bool hot = (st.hot == ID_BANNER) && (g_updRun == 0 || g_updRun == 5);
-      FillRR(gr, br, 6, Color(hot ? 235 : 210, 18, 24, 34));
-      StrokeRR(gr, br, 6, C_ACCENT, hot ? 1.6f : 1.2f);
-      RectF tag(br.X + 9.f, br.Y + 10.f, 26.f, 20.f);
-      bool idle = (g_updRun == 0);
-      if (idle) {                             // 左侧「新」徽标
-        SolidBrush tagb(C_ACCENT);
-        gr.FillRectangle(&tagb, tag);
-        DrawTxtCentered(gr, L"新", F(11, true), C_WHITE, tag);
-      }
-      float tx = idle ? tag.GetRight() + 9.f : br.X + 12.f;
-      if (g_updRun >= 1 && g_updRun <= 3) {
-        DrawTxtW(gr, g_updMsg.c_str(), F(12), C_WHITE, tx, br.Y + 7, br.Width - 24);
-        RectF bar(br.X + 12, br.Y + 28, br.Width - 24, 5);
-        FillRR(gr, bar, 2.5f, Color(80, 255, 255, 255));
-        if (g_updPct > 0)
-          FillRR(gr, RectF(bar.X, bar.Y, bar.Width * g_updPct / 100.f, bar.Height),
-                 2.5f, C_ACCENT);
-      } else if (g_updRun == 4) {
-        DrawTxtW(gr, g_updMsg.c_str(), F(13), C_WHITE, tx, br.Y + 10, br.Width - 24);
-      } else if (g_updRun == 5) {
-        DrawTxtW(gr, g_updMsg.c_str(), F(12), Color(255, 255, 190, 160),
-                 tx, br.Y + 10, br.Width - 110.f);
-        DrawTxt(gr, L"前往下载 →", F(12), C_WHITE, br.GetRight() - 11.f,
-                br.Y + 11.f, 2 /*右对齐*/);
-      } else if (!g_delta.file.empty()) {
-        // 有匹配基线的增量：整卡可点 = 一键更新
-        std::wstring line = L"发现新版本 " + g_newVer + L" · 增量 " + FmtMB(g_delta.size);
-        DrawTxtW(gr, line.c_str(), F(13), C_WHITE, tag.GetRight() + 9.f,
-                 br.Y + 10.f, br.Width - 170.f);
-        DrawTxt(gr, L"一键更新 →", F(12), C_WHITE, br.GetRight() - 11.f,
-                br.Y + 11.f, 2);
-      } else {
-        // 无增量可用：维持旧行为，整卡点 = 打开下载页
-        std::wstring line = L"发现新版本 " + g_newVer;
-        DrawTxtW(gr, line.c_str(), F(13), C_WHITE, tag.GetRight() + 9.f,
-                 br.Y + 10.f, br.Width - 160.f);
-        DrawTxt(gr, L"前往下载 →", F(12), C_WHITE, br.GetRight() - 11.f,
-                br.Y + 11.f, 2);
-      }
-    }
+    // ── 更新提示：**没有横幅卡片**（2026-09-30 用户裁定：排版难看且多余）。
+    //    发现新版本 → 「检查更新」按钮变「立即更新」+ 小红点，点击就地升级；
+    //    只有全量时按钮是「前往下载」。全部状态都收敛在按钮上，见下方按钮绘制。
 
     // ── 「检查更新」小按钮：贴在「开始游戏」左侧 ──
     // 点它去 GitHub 查最新版本：有新版本 → 右上角亮小红点 + 窗口内出小卡片
@@ -1839,19 +1798,20 @@ static void Paint(HDC hdc) {
     // 网络请求在后台线程跑（见 UpdateThread），查期间显示「检查中…」并挡住重复点击。
     // ★ 启动即自动查一次（见 wWinMain），有更新不用点按钮也会亮红点。
     { RectF cr = CheckRect();
-      bool busy = (g_checking != 0);
+      bool updating = (g_updRun >= 1 && g_updRun <= 3);
+      bool busy = (g_checking != 0) || updating;
       bool hot  = (st.hot == ID_CHECK) && !busy;
       SolidBrush fillb(hot ? C_HOVER : C_PANEL);
       gr.FillRectangle(&fillb, cr);
       Pen bp(hot ? C_DIM : C_BORDER, 1.f);
       gr.DrawRectangle(&bp, cr);
-      // 已有新版本时按钮就写「前往下载」—— 文案与实际动作一致，
-      // 玩家一眼知道点它会发生什么（2026-09-29）。
-      const wchar_t* txt = busy ? L"检查中…"
-                        : (!g_checkMsg.empty() ? g_checkMsg.c_str()
-                        : (!g_newVer.empty() ? L"前往下载" : L"检查更新"));
+      wchar_t upd[32];
+      swprintf(upd, 32, L"更新中 %d%%", g_updPct);
+      const wchar_t* txt = (g_checking != 0) ? L"检查中…"
+                        : updating ? upd
+                        : (!g_checkMsg.empty() ? g_checkMsg.c_str() : L"检查更新");
       DrawTxtW(gr, txt, F(11), busy ? C_MUTED : C_DIM, cr.X, cr.Y + 5, cr.Width, 1);
-      // 小红点：查到新版本后常亮（右上角，压在按钮边框上，直径 8）
+      // 小红点：查出有新版本后常亮，升级完成即熄
       if (!g_newVer.empty()) {
         SolidBrush dotb(C_DOT);
         gr.FillEllipse(&dotb, cr.GetRight() - 5.f, cr.Y - 4.f, 8.f, 8.f);
@@ -1998,7 +1958,6 @@ static int HitTest(int px, int py) {
       if (in(RowItemRect(st.openRow, n, k))) return ID_ROWITEM + st.openRow * 10 + k;
   }
   if (in(CloseRect())) return ID_CLOSE;
-  if (!g_newVer.empty() && in(BannerRect())) return ID_BANNER;
   if (in(StartRect())) return ID_START;
   if (in(CheckRect())) return ID_CHECK;
   if (in(GithubRect())) return ID_GITHUB;
@@ -2015,21 +1974,12 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
   // 无标题栏窗口靠 WM_NCHITTEST 划分「可拖动区」：把非客户区当成标题栏（HTCAPTION），
   // 系统就会给原生的拖动行为。主题图整块 + 顶部横条都是拖动区；
   // 关闭按钮必须显式留在客户区，否则它的点击会被拖动逻辑吞掉。
-  //
-  // ★ 更新卡片也画在左栏（主题图上），所以它**必须**和关闭按钮一样显式放行
-  //   （2026-09-29 修）：左栏整块判 HTCAPTION 时，卡片上的按下被系统当成"拖窗口"，
-  //   客户区根本收不到 WM_LBUTTONDOWN —— 卡片画得出来、却永远点不动。
-  //   探针实测：卡片中心 -> HTCAPTION（点击被吞），右栏按钮 -> HTCLIENT（正常）。
   case WM_NCHITTEST: {
     POINT p{ GET_X_LPARAM(l), GET_Y_LPARAM(l) };
     ScreenToClient(h, &p);
     int x = (int)unscale(p.x), y = (int)unscale(p.y);
     RectF cb = CloseRect();
     if (x >= cb.X && x <= cb.GetRight() && y >= cb.Y && y <= cb.GetBottom()) return HTCLIENT;
-    if (!g_newVer.empty()) {
-      RectF br = BannerRect();
-      if (x >= br.X && x <= br.GetRight() && y >= br.Y && y <= br.GetBottom()) return HTCLIENT;
-    }
     if (x < LEFT_W || y < 46) return HTCAPTION;
     return HTCLIENT;
   }
@@ -2040,22 +1990,38 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
     UpdResult* r = (UpdResult*)l;
     InterlockedExchange(&g_checking, 0);
     if (r) {
-      // ★ 不弹系统对话框（2026-09-15 用户要求）：有新版本 → 按钮亮小红点 +
-      //   窗口内出一张小卡片；「已是最新」「查不到」仍只是按钮上的临时文字，
-      //   几秒后自己消失。
+      // 启动自动检查（arms=false）只亮红点，不弹窗不装配；手动点「检查更新」
+      // 弹窗报结果，确认了才下载/跳转（2026-09-30 用户裁定）。
       if (r->status == 0 || r->status == 3) {
         g_newVer = r->latest;
         g_newUrl  = r->url;
         g_localVer = r->localVer;
         g_remoteVer = (r->status == 3) ? r->remote.version : L"";
-        g_delta = (r->status == 3) ? r->remote.deltas[r->deltaIdx] : DeltaInfo();
-        // status==3 → 卡片显示「一键更新」；status==0 → 维持「前往下载」
+        g_newDeltaSize = (r->status == 3) ? r->remote.deltas[r->deltaIdx].size : 0;
+        g_delta = (r->status == 3 && r->arms) ? r->remote.deltas[r->deltaIdx] : DeltaInfo();
+        if (r->arms) {
+          if (r->status == 3) {
+            std::wstring q = L"发现新版本 " + r->latest + L"（增量 "
+                           + FmtMB(g_newDeltaSize) + L"），立即更新？";
+            if (MessageBoxW(h, q.c_str(), L"检查更新",
+                            MB_YESNO | MB_ICONINFORMATION) == IDYES)
+              StartUpdateRun(h);
+          } else {
+            std::wstring q = L"发现新版本 " + r->latest + L"，需完整安装。打开下载页？";
+            if (MessageBoxW(h, q.c_str(), L"检查更新",
+                            MB_YESNO | MB_ICONINFORMATION) == IDYES)
+              OpenUrl(h, r->url.c_str());
+          }
+        }
       } else if (r->status == 1) {
-        g_checkMsg = std::wstring(L"已是最新 v") + VER;
-        SetTimer(h, TIMER_CHECKMSG, 4000, nullptr);
+        g_newVer.clear(); g_newUrl.clear(); g_newDeltaSize = 0;
+        g_delta = DeltaInfo();
+        if (r->arms)
+          MessageBoxW(h, (L"已是最新 v" + g_dispVer).c_str(),
+                      L"检查更新", MB_OK | MB_ICONINFORMATION);
       } else {
-        g_checkMsg = L"检查失败";
-        SetTimer(h, TIMER_CHECKMSG, 4000, nullptr);
+        if (r->arms)
+          MessageBoxW(h, L"检查失败", L"检查更新", MB_OK | MB_ICONWARNING);
       }
       delete r;
     }
@@ -2065,28 +2031,32 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
   case WM_APP + 3:                         // 增量更新进度（后台线程请求重绘）
     InvalidateRect(h, nullptr, FALSE);
     return 0;
-  case WM_APP + 4: {                       // 增量更新结束
+  case WM_APP + 4: {                       // 增量更新结束（成功/失败都回 0 态）
     UpdDone* r = (UpdDone*)l;
     InterlockedExchange(&g_updBusy, 0);
+    g_updRun = 0;
     if (r) {
       if (r->ok) {
-        g_updRun = 4;
-        g_updPct = 100;
-        g_updMsg = L"已更新到 " + r->ver + L" ✔";
-        g_delta = DeltaInfo();             // 复位为「无增量」形态
+        // 结果显示在按钮上（几秒后回「检查更新」），左下角版本号跟着走
+        g_checkMsg = L"已更新到 " + r->ver + L" ✔";
+        SetTimer(h, TIMER_CHECKMSG, 5000, nullptr);
+        g_delta = DeltaInfo();
+        g_dispVer = r->ver;
+        g_newDeltaSize = 0;
         g_newVer.clear(); g_newUrl.clear(); // 红点熄灭，下次检查按新 version.txt 比对
-        InvalidateRect(h, nullptr, FALSE);
         if (r->selfUpdated) {              // 本体已换：拉起新启动器再退场
           ShellExecuteW(h, L"open", (g_dir + L"\\RNDZhLauncher.exe").c_str(),
                         nullptr, nullptr, SW_SHOWNORMAL);
           PostMessageW(h, WM_CLOSE, 0, 0);
         }
       } else {
-        g_updRun = 5;                      // 失败态：卡片显示原因，点卡片走全量兜底
-        InvalidateRect(h, nullptr, FALSE);
+        // 失败弹窗说明原因；g_delta 保留，再点一次「检查更新」可重试
+        MessageBoxW(h, (r->err + L"\n\n也可用完整安装包升级。").c_str(),
+                    L"增量更新失败", MB_ICONERROR | MB_OK);
       }
       delete r;
     }
+    InvalidateRect(h, nullptr, FALSE);
     return 0;
   }
   case WM_TIMER:
@@ -2111,12 +2081,10 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
     //   在同一控件上」才执行动作（防止按下后拖走再松手误触发）。
     //   漏掉这一行 → st.press 永远是初值 -1 → **所有按钮/勾选框/下拉全都没反应**。
     st.press = HitTest(GET_X_LPARAM(l), GET_Y_LPARAM(l));
-    if (st.press == ID_BANNER) g_bannerDown = true;
     return 0; }
   case WM_LBUTTONUP: {
     int id = HitTest(GET_X_LPARAM(l), GET_Y_LPARAM(l));
-    bool bannerDown = g_bannerDown; g_bannerDown = false;
-    if (id == st.press || (bannerDown && id == ID_BANNER)) {
+    if (id == st.press) {
       bool saveNow = false;
       if (id >= 0 && id < OPT_COUNT) { st.on[id] = !st.on[id]; InvalidateRect(h, nullptr, FALSE); saveNow = true; }
       // 点行头：展开/收起该项的选项（手风琴 —— 同时只开一行，免得撑破窗口）
@@ -2136,28 +2104,8 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         InvalidateRect(h, nullptr, FALSE);
       }
       else if (id == ID_START) { LaunchGame(); }
-      // 「检查更新」按钮：已知有新版本 → 直接跳下载页（按钮文案此时就是
-      // 「前往下载」，见 Paint）；否则重新查询。2026-09-29 修：以前它只重查、
-      // 从不跳转，玩家点它永远等不到浏览器打开。
       else if (id == ID_CHECK) {
-        if (!g_newVer.empty()) { if (OpenUrl(h, g_newUrl.c_str())) { g_newVer.clear(); g_newUrl.clear(); } }
-        else StartUpdateCheck();
-      }
-      else if (id == ID_BANNER) {   // 更新卡片：增量可点更新，其余去下载页
-        if (g_updRun >= 1 && g_updRun <= 3) {
-          // 更新进行中：忽略点击
-        } else if (g_updRun == 5) {
-          // 失败态：点卡片给全量兜底，并复位横幅
-          if (OpenUrl(h, g_newUrl.c_str())) { g_newVer.clear(); g_newUrl.clear(); }
-          g_updRun = 0;
-          InvalidateRect(h, nullptr, FALSE);
-        } else if (!g_delta.file.empty()) {
-          StartUpdateRun(h);              // 有匹配基线的增量 → 一键更新
-        } else {
-          // 无增量（或 v1.5 安装）：旧行为 —— 打开下载页
-          if (OpenUrl(h, g_newUrl.c_str())) { g_newVer.clear(); g_newUrl.clear(); }
-          InvalidateRect(h, nullptr, FALSE);
-        }
+        if (g_updRun < 1 || g_updRun > 3) StartUpdateCheck(true);   // 检查 → 弹窗确认后才下载
       }
       else if (id == ID_GITHUB) { OpenUrl(h, REPO_URL); }
       else if (id == ID_CLOSE) { PostMessageW(h, WM_CLOSE, 0, 0); }
@@ -2202,10 +2150,12 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR cmdLine, int) {
   if (argv) LocalFree(argv);
 
   g_dir = ExeDir();
+  g_dispVer = LocalVer();                    // 左下角显示当前补丁版本（无 version.txt 退 VER）
+  if (g_dispVer.empty()) g_dispVer = VER;
 
   if (selftest) {
     // 自动化测试通道：无窗口、同步执行。命中增量才真正更新。
-    UpdResult* chk = RunCheckCore();
+    UpdResult* chk = RunCheckCore(true);
     UpdDone* done = nullptr;
     if (chk && chk->status == 3) {
       g_delta = chk->remote.deltas[chk->deltaIdx];
@@ -2285,9 +2235,9 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR cmdLine, int) {
                            nullptr, nullptr, hInst, nullptr);
   ShowWindow(g_hwnd, SW_SHOW); UpdateWindow(g_hwnd);
 
-  // 启动即自动查一次更新（后台线程，不卡窗口）：有新版本时按钮亮小红点 +
-  // 出现更新卡片，玩家不用点「检查更新」也能知道（2026-09-15 用户要求）。
-  StartUpdateCheck();
+  // 启动即自动查一次更新（2026-09-15 用户要求）。★ 2026-09-30 起 arms=false：
+  // 自动检查只亮红点，不装配「立即更新」—— 检查与下载严格两级（用户裁定）。
+  StartUpdateCheck(false);
 
   MSG msg;
   while (GetMessageW(&msg, nullptr, 0, 0)) { TranslateMessage(&msg); DispatchMessageW(&msg); }
