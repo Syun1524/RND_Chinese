@@ -27,6 +27,7 @@
 #include <shellapi.h>
 #include <tlhelp32.h>
 #include <wininet.h>
+#include <wincrypt.h>     // MD5（增量包校验）
 #include <string>
 #include <vector>
 #include <map>
@@ -38,6 +39,7 @@
 #pragma comment(lib, "gdiplus.lib")
 #pragma comment(lib, "shell32.lib")
 #pragma comment(lib, "wininet.lib")
+#pragma comment(lib, "advapi32.lib")   // Crypto*（MD5）
 
 // 图标：编译时把 game.ico 嵌入 exe 资源（ID 101），窗口/任务栏都用它。
 // 资源文件 launcher.rc 引用，见 build_launcher.bat。
@@ -64,7 +66,7 @@ static const int RIGHT_W = 425;   // 右栏固定宽度（放选项）
 
 // 产品版本。⚠ 改版本要同步三处：这里、成品ing/setup/src/RNDZhSetup.cpp 的 VER、
 // 成品ing/setup/build/build_installer.py 的 VERSION（决定包文件名）。
-static const wchar_t* VER = L"1.5";
+static const wchar_t* VER = L"1.6";
 // 产品标题（用户要求结尾带版本号）。窗口标题用这一份（游戏窗口标题不再改写）。
 static const std::wstring APP_TITLE =
     std::wstring(L"ROBOTICS;NOTES DaSH 简体中文 AI人工精校版 v") + VER;
@@ -812,8 +814,574 @@ static bool g_bannerDown = false;
 // 而窗口尺寸不用变大。深色半透明底压在图上，本身也是常见的"提示卡"观感。
 static RectF BannerRect()     { return RectF(12.f, (float)WIN_H - 78.f, (float)LEFT_W - 24.f, 40.f); }
 
-// status: 0 = 有新版本 / 1 = 已是最新 / 2 = 查询失败
-struct UpdResult { int status; std::wstring latest; std::wstring url; };
+// status: 0 = 有新版本(仅全量) / 1 = 已是最新 / 2 = 查询失败 / 3 = 有新版本且有可用增量
+struct UpdFile { std::wstring path; std::string md5; };
+struct DeltaInfo {
+  std::wstring from;                    // 基线版本（"1.6"），匹配 languagebarrier\version.txt
+  std::wstring file;                    // 增量包资产名（RNDZh-Update-vX_to_vY.7z）
+  unsigned long long size = 0;          // 字节数（横幅显示用）
+  std::string md5;                      // 增量包 md5（下载后必校验）
+  std::vector<std::wstring> del;        // 该基线到达新版要删的文件（'/' 分隔相对路径）
+  std::vector<UpdFile> files;           // 增量包含的文件 + 目标 md5（覆盖后逐一复核）
+};
+struct RemoteUpdate {
+  std::wstring version;                 // 远端最新版本（"1.7"，无 v 前缀）
+  std::vector<DeltaInfo> deltas;
+};
+struct UpdResult {
+  int status;
+  std::wstring latest;                  // 如 "v1.7"（横幅显示用）
+  std::wstring url;                     // 全量兜底的下载页
+  std::wstring localVer;                // 本地补丁版本（version.txt；空 = v1.5 及更早的安装）
+  RemoteUpdate remote;
+  int deltaIdx = -1;                    // 命中的基线增量下标（status==3 时有效）
+};
+
+// ── 增量更新（v1.6 新增）──
+//
+// v1.5 及以前：查到新版本只能跳浏览器全量重装（233MB）。
+// v1.6 起，Release 上随安装包一起发布「增量包 + update.json」两个资产，update.json
+// 固定走 .../releases/latest/download/update.json（302 自动跟随）—— 一个 GET 就拿到
+// 版本与全部增量，不需要解析 assets、不依赖 GitHub API（每小时 60 次的匿名限额）：
+//
+//   { "version": "1.7",
+//     "setup": { "name": "RNDZh-Setup-v1.7.exe", "size": 244455135 },
+//     "deltas": [
+//       { "from": "1.6", "file": "RNDZh-Update-v1.6_to_v1.7.7z", "size": 4200000,
+//         "md5": "...", "delete": ["languagebarrier/c0data/x.png"],
+//         "files": [ {"path": "languagebarrier/patchdef.json", "md5": "..."} ] } ] }
+//
+// 本地版本标记 = languagebarrier\version.txt（安装器随包写入；增量应用后由本程序改写）。
+// 没有它（v1.5 及更早装的）退回按启动器自身 VER 比较 —— 那时最多只能给全量兜底，
+// 旧启动器没有这段代码，本来就只会打开下载页，行为一致。
+//
+// 应用流程：下载到 %TEMP% → md5 校验 → languagebarrier\7zr.exe 解包 → 写权限探测
+//   （被拒则 UAC 自提权，由 --apply-update 子进程完成同样的应用流程）→ 备份被覆盖的
+//   原文件 → 逐文件覆盖并复核 md5 → 处理 delete[] → 分号片段子目录同步（复刻安装器
+//   6.5 步，漏了就是「根目录 DLL 新、片段 DLL 旧」的老坑）→ 最后写 version.txt
+//   （前面任何一步失败，标记仍是旧版，下次检查会再次增量，幂等）。
+// 启动器本体更新用「改名让位」：运行中的 exe 锁的是写/删，不锁改名。
+// 永不触碰 boot.bat（语言 token 按安装而异）/ RNDZhSetup.exe / Game.exe / 卸载汉化.exe。
+
+// 更新元数据基址（--update-base 可覆盖，本地测试指向 http 服务）。结尾强制带 '/'
+static std::wstring g_updBase =
+    L"https://github.com/Syun1524/RND_Chinese/releases/latest/download/";
+
+// 更新运行状态（横幅据此切换形态）：
+//   0 空闲 / 1 下载 / 2 校验·解压 / 3 应用 / 4 完成 / 5 失败
+static volatile LONG g_updRun = 0;
+static volatile LONG g_updBusy = 0;       // 一次完整更新流程进行中（防重入）
+static std::wstring g_updMsg;             // 横幅正文（进度说明 / 失败原因）
+static int g_updPct = 0;                  // 0..100
+static std::wstring g_updTmpDir;          // 本次更新的 %TEMP% 工作目录
+static DeltaInfo g_delta;                 // 命中的增量（file 为空 = 无，走全量兜底）
+static std::wstring g_remoteVer;          // 远端版本（无 v 前缀，应用后写进 version.txt）
+static std::wstring g_localVer;           // 检查时读到的本地补丁版本
+static bool g_headless = false;           // --selftest-update：无窗口跑完即退（自动化测试）
+
+// ── 小工具 ──
+static std::wstring TrimW(const std::wstring& s) {
+  size_t a = s.find_first_not_of(L" \t\r\n");
+  if (a == std::wstring::npos) return L"";
+  size_t b = s.find_last_not_of(L" \t\r\n");
+  return s.substr(a, b - a + 1);
+}
+// 增量元数据里的相对路径（'/' 分隔）→ 本地分隔符
+static std::wstring NativeRel(const std::wstring& p) {
+  std::wstring r = p;
+  for (auto& c : r) if (c == L'/') c = L'\\';
+  return r;
+}
+static std::wstring DirPart(const std::wstring& p) {
+  size_t s1 = p.find_last_of(L'/'), s2 = p.find_last_of(L'\\');
+  size_t k = std::wstring::npos;
+  if (s1 != std::wstring::npos) k = s1;
+  if (s2 != std::wstring::npos && (k == std::wstring::npos || s2 > k)) k = s2;
+  return (k == std::wstring::npos) ? L"" : p.substr(0, k);
+}
+static std::wstring FmtMB(unsigned long long b) {
+  wchar_t buf[40];
+  swprintf(buf, 40, L"%.1fMB", (double)b / (1024.0 * 1024.0));
+  return buf;
+}
+
+static bool ReadFileAll(const std::wstring& path, std::string& out) {
+  out.clear();
+  HANDLE h = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                         OPEN_EXISTING, 0, nullptr);
+  if (h == INVALID_HANDLE_VALUE) return false;
+  char buf[65536]; DWORD rd = 0;
+  for (;;) {
+    if (!ReadFile(h, buf, sizeof(buf), &rd, nullptr) || rd == 0) break;
+    out.append(buf, rd);
+  }
+  CloseHandle(h);
+  return true;                              // 空文件也算读到
+}
+static bool WriteFileAll(const std::wstring& path, const std::string& data) {
+  HANDLE h = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
+  if (h == INVALID_HANDLE_VALUE) return false;
+  DWORD wr = 0;
+  BOOL ok = WriteFile(h, data.data(), (DWORD)data.size(), &wr, nullptr);
+  CloseHandle(h);
+  return ok && wr == data.size();
+}
+
+// 文件 MD5（WinCrypt，无第三方依赖）。失败返回 false。
+static bool Md5File(const std::wstring& path, std::string& hex) {
+  hex.clear();
+  HCRYPTPROV hProv = 0;
+  if (!CryptAcquireContextW(&hProv, nullptr, MS_DEF_PROV, PROV_RSA_FULL,
+                            CRYPT_VERIFYCONTEXT)) return false;
+  HCRYPTHASH hHash = 0;
+  bool ok = CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash) != FALSE;
+  if (ok) {
+    HANDLE h = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                           OPEN_EXISTING, 0, nullptr);
+    ok = (h != INVALID_HANDLE_VALUE);
+    if (ok) {
+      BYTE buf[65536]; DWORD rd = 0;
+      for (;;) {
+        if (!ReadFile(h, buf, sizeof(buf), &rd, nullptr) || rd == 0) break;
+        if (!CryptHashData(hHash, buf, rd, 0)) { ok = false; break; }
+      }
+      CloseHandle(h);
+    }
+  }
+  if (ok) {
+    BYTE dg[16]; DWORD dglen = sizeof(dg);
+    ok = CryptGetHashParam(hHash, HP_HASHVAL, dg, &dglen, 0) != FALSE && dglen == 16;
+    if (ok) {
+      static const char* HX = "0123456789abcdef";
+      hex.resize(32);
+      for (int i = 0; i < 16; i++) { hex[i * 2] = HX[dg[i] >> 4]; hex[i * 2 + 1] = HX[dg[i] & 15]; }
+    }
+  }
+  if (hHash) CryptDestroyHash(hHash);
+  if (hProv) CryptReleaseContext(hProv, 0);
+  return ok;
+}
+
+// ── update.json 解析 ──
+// 只服务我们自己生成的文件，不需要完整 JSON 解析器；按「键名 → 值」定位即可。
+static bool JsonLocate(const std::string& s, const char* key, size_t from,
+                       size_t* vBegin, size_t* vEnd) {
+  std::string pat = std::string("\"") + key + "\"";
+  size_t p = s.find(pat, from);
+  if (p == std::string::npos) return false;
+  size_t c = s.find(':', p + pat.size());
+  if (c == std::string::npos) return false;
+  size_t j = c + 1;
+  while (j < s.size() && (s[j] == ' ' || s[j] == '\t' || s[j] == '\r' || s[j] == '\n')) j++;
+  if (j >= s.size()) return false;
+  *vBegin = j;
+  if (s[j] == '"') {                        // 字符串值
+    size_t q = j + 1;
+    while (q < s.size()) {
+      if (s[q] == '\\') { q += 2; continue; }
+      if (s[q] == '"') break;
+      q++;
+    }
+    if (q >= s.size()) return false;
+    *vEnd = q + 1;
+  } else if (s[j] == '[' || s[j] == '{') {
+    // 数组/对象值：括号配对扫描（引号感知）。
+    // ★ 不能走下面的标量扫描 —— 它遇到换行就停，而 update.json 是缩进多行的，
+    //   "deltas": [ 会在第一行就被截断，整个增量数组静默变成空（测试抓到过）。
+    int depth = 0;
+    bool instr = false;
+    size_t q = j;
+    for (; q < s.size(); q++) {
+      char c = s[q];
+      if (instr) {
+        if (c == '\\') { q++; continue; }
+        if (c == '"') instr = false;
+        continue;
+      }
+      if (c == '"') instr = true;
+      else if (c == '[' || c == '{') depth++;
+      else if (c == ']' || c == '}') { if (--depth == 0) { q++; break; } }
+    }
+    *vEnd = (q <= s.size()) ? q : s.size();
+  } else {                                  // 数字 / true / false
+    size_t q = j;
+    while (q < s.size() && s[q] != ',' && s[q] != '}' && s[q] != ']' && s[q] != '\n') q++;
+    *vEnd = q;
+  }
+  return true;
+}
+static std::string JsonStrVal(const std::string& s, const char* key, size_t from) {
+  size_t b, e;
+  if (!JsonLocate(s, key, from, &b, &e) || s[b] != '"') return "";
+  std::string raw = s.substr(b + 1, e - b - 2);
+  std::string out; out.reserve(raw.size());   // 常规转义兜底（我们生成的路径不含反斜杠）
+  for (size_t i = 0; i < raw.size(); i++) {
+    if (raw[i] == '\\' && i + 1 < raw.size()) { i++; out += (raw[i] == 'n') ? '\n' : raw[i]; }
+    else out += raw[i];
+  }
+  return out;
+}
+static unsigned long long JsonNumVal(const std::string& s, const char* key, size_t from) {
+  size_t b, e;
+  if (!JsonLocate(s, key, from, &b, &e)) return 0;
+  return _strtoui64(s.substr(b, e - b).c_str(), nullptr, 10);
+}
+static bool ParseUpdateJson(const std::string& js, RemoteUpdate& out) {
+  out.deltas.clear();
+  out.version = Utf8ToWide(JsonStrVal(js, "version", 0));
+  if (out.version.empty()) return false;
+  size_t db, de;
+  if (!JsonLocate(js, "deltas", 0, &db, &de)) return true;   // 没有增量数组 = 只发全量
+  if (db >= js.size() || js[db] != '[') return false;
+  size_t i = db + 1;
+  while (i < js.size() && i < de) {
+    size_t ob = js.find('{', i);
+    if (ob == std::string::npos || ob >= de) break;
+    int depth = 0; size_t q = ob;
+    for (; q < js.size(); q++) {
+      if (js[q] == '{') depth++;
+      else if (js[q] == '}') { if (--depth == 0) { q++; break; } }
+    }
+    std::string obj = js.substr(ob, q - ob);
+    DeltaInfo d;
+    d.file = Utf8ToWide(JsonStrVal(obj, "file", 0));
+    d.from = Utf8ToWide(JsonStrVal(obj, "from", 0));
+    d.md5  = JsonStrVal(obj, "md5", 0);
+    d.size = JsonNumVal(obj, "size", 0);
+    if (!d.file.empty() && !d.from.empty() && d.md5.size() == 32) {
+      size_t lb, le;
+      if (JsonLocate(obj, "delete", 0, &lb, &le) && lb < obj.size() && obj[lb] == '[') {
+        size_t p = lb + 1;
+        for (;;) {
+          size_t q1 = obj.find('"', p);
+          if (q1 == std::string::npos || q1 >= le) break;
+          size_t q2 = obj.find('"', q1 + 1);
+          if (q2 == std::string::npos) break;
+          d.del.push_back(Utf8ToWide(obj.substr(q1 + 1, q2 - q1 - 1)));
+          p = q2 + 1;
+        }
+      }
+      if (JsonLocate(obj, "files", 0, &lb, &le) && lb < obj.size() && obj[lb] == '[') {
+        size_t p = lb + 1;
+        for (;;) {
+          size_t o2 = obj.find('{', p);
+          if (o2 == std::string::npos || o2 >= le) break;
+          size_t c2 = obj.find('}', o2);
+          if (c2 == std::string::npos) break;
+          std::string fo = obj.substr(o2, c2 - o2 + 1);
+          UpdFile uf;
+          uf.path = Utf8ToWide(JsonStrVal(fo, "path", 0));
+          uf.md5  = JsonStrVal(fo, "md5", 0);
+          if (!uf.path.empty() && uf.md5.size() == 32) d.files.push_back(uf);
+          p = c2 + 1;
+        }
+      }
+      out.deltas.push_back(d);
+    }
+    i = q;
+  }
+  return true;
+}
+
+// ── 版本号 ──
+static std::vector<int> VerNums(const std::wstring& s) {
+  std::vector<int> v; std::wstring t;
+  for (wchar_t c : s) {
+    if (c >= L'0' && c <= L'9') t += c;
+    else if (!t.empty()) { v.push_back(_wtoi(t.c_str())); t.clear(); }
+  }
+  if (!t.empty()) v.push_back(_wtoi(t.c_str()));
+  return v;
+}
+static bool VerEq(const std::wstring& a, const std::wstring& b) { return VerNums(a) == VerNums(b); }
+
+// 本地补丁版本：languagebarrier\version.txt（安装器写入，如 "1.6"）。
+// 读不到（v1.5 及更早的安装）返回空 —— 调用方退回按启动器 VER 比较。
+static std::wstring LocalVer() {
+  std::string s;
+  if (!ReadFileAll(g_dir + L"\\languagebarrier\\version.txt", s)) return L"";
+  std::wstring w = TrimW(Utf8ToWide(s));
+  if (!w.empty() && (w[0] == L'v' || w[0] == L'V')) w = w.substr(1);
+  return w;
+}
+
+// ── 路径安检 ──
+// 元数据由我们自己的脚本生成，但落在玩家机器上执行前仍要设防：
+// 拒绝空/绝对/越界路径与受保护文件。
+static bool SafeRelPath(const std::wstring& p) {
+  if (p.empty()) return false;
+  if (p.find(L"..") != std::wstring::npos) return false;
+  if (p[0] == L'/' || p[0] == L'\\' || p.find(L':') != std::wstring::npos) return false;
+  static const wchar_t* prot[] = { L"boot.bat", L"RNDZhSetup.exe", L"Game.exe", L"卸载汉化.exe" };
+  for (auto n : prot) if (_wcsicmp(p.c_str(), n) == 0) return false;
+  return true;
+}
+// 删除清单额外禁碰启动器本体（更新它走「改名让位」，不走删除）
+static bool SafeDelPath(const std::wstring& p) {
+  return SafeRelPath(p) && _wcsicmp(p.c_str(), L"RNDZhLauncher.exe") != 0;
+}
+
+// ── 分号片段子目录 ──
+// 目录名含 ';' 时 Windows 加载器按分号切开、把片段当相对目录搜 DLL
+// （AGENTS.md「重大发现」）。安装器第 6.5 步把 8 个代理文件拷进各片段目录；
+// 增量更新替换了根目录的这些文件时必须同步刷新片段副本，否则游戏加载的还是旧 DLL
+// ——「根目录是新的、片段是旧的」这个坑本项目踩过三次。
+static const wchar_t* kProxyFiles[] = { L"dinput8.dll", L"d3d9", L"d3d10", L"d3d10_1",
+                                        L"d3d10core", L"d3d11", L"dxgi", L"VSFilter.dll" };
+static std::vector<std::wstring> SemicolonFragments(const std::wstring& gameDir) {
+  std::vector<std::wstring> out;
+  std::wstring name = gameDir;
+  size_t sl = name.find_last_of(L"\\/");
+  if (sl != std::wstring::npos) name = name.substr(sl + 1);
+  for (size_t p = name.find(L';'); p != std::wstring::npos; p = name.find(L';', p)) {
+    size_t q = name.find(L';', p + 1);
+    std::wstring seg = (q == std::wstring::npos) ? name.substr(p + 1)
+                                                 : name.substr(p + 1, q - p - 1);
+    while (!seg.empty() && (seg.back() == L' ' || seg.back() == L'.')) seg.pop_back();
+    if (!seg.empty()) out.push_back(seg);
+    if (q == std::wstring::npos) break;
+    p = q;                                   // for 循环的 find 会从 p 处重找，让位
+  }
+  return out;
+}
+static void CopyProxiesInto(const std::wstring& sub) {
+  for (auto n : kProxyFiles) {
+    std::wstring src = g_dir + L"\\" + n;
+    if (FileExists(src)) CopyFileW(src.c_str(), (sub + L"\\" + n).c_str(), FALSE);
+  }
+}
+static void SyncFragments() {
+  // 动态片段：缺就建（与安装器 6.5 步一致）
+  for (auto& frag : SemicolonFragments(g_dir)) {
+    std::wstring sub = g_dir + L"\\" + frag;
+    CreateDirectoryW(sub.c_str(), nullptr);
+    DWORD a = GetFileAttributesW(sub.c_str());
+    if (a != INVALID_FILE_ATTRIBUTES && (a & FILE_ATTRIBUTE_DIRECTORY))
+      CopyProxiesInto(sub);
+  }
+  // 兼容旧版安装器的硬编码片段目录（存在才刷新，不新建）
+  std::wstring hard = g_dir + L"\\NOTES DaSH";
+  DWORD a = GetFileAttributesW(hard.c_str());
+  if (a != INVALID_FILE_ATTRIBUTES && (a & FILE_ATTRIBUTE_DIRECTORY))
+    CopyProxiesInto(hard);
+}
+static bool DeltaHasLauncher(const DeltaInfo& d) {
+  for (auto& f : d.files)
+    if (_wcsicmp(f.path.c_str(), L"RNDZhLauncher.exe") == 0) return true;
+  return false;
+}
+// 自测诊断：最近一次 HttpGet 在 InternetOpenUrl 上失败的 URL 与 GetLastError
+static std::wstring g_diagUrl;
+static DWORD g_diagGle = 0;
+static int g_diagStage = 0;        // RunCheckCore 走到哪一步（0=update.json 路径成功）
+static std::string g_diagBody;     // update.json 响应前 200 字节
+static DWORD g_diagStatus = 0;     // update.json 响应的 HTTP 状态码
+static DWORD g_diagOutLen = 0;     // update.json 响应收到的字节数
+static std::wstring g_diagLastReq; // 最近一次 HttpGet 实际请求的 URL（成功也记）
+static DWORD g_diag1Status = 0;    // 第一次（update.json）调用的快照，兜底不覆盖
+static DWORD g_diag1OutLen = 0;
+static DWORD g_diag1Gle = 0;
+
+// ── 环境探测 ──
+static bool ProcessRunning(const wchar_t* exe) {
+  HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  if (snap == INVALID_HANDLE_VALUE) return false;
+  PROCESSENTRY32W pe; pe.dwSize = sizeof(pe);
+  bool found = false;
+  if (Process32FirstW(snap, &pe)) {
+    do { if (_wcsicmp(pe.szExeFile, exe) == 0) { found = true; break; } }
+    while (Process32NextW(snap, &pe));
+  }
+  CloseHandle(snap);
+  return found;
+}
+static bool CanWriteGameDir() {
+  EnsureDir(g_dir + L"\\languagebarrier");
+  std::wstring p = g_dir + L"\\languagebarrier\\.upd_probe";
+  HANDLE h = CreateFileW(p.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
+  if (h == INVALID_HANDLE_VALUE) return false;
+  CloseHandle(h); DeleteFileW(p.c_str());
+  return true;
+}
+
+// ── 临时目录 / 解压 ──
+// SHFileOperation 要求路径以双 \0 结尾
+static void DelTree(const std::wstring& dir) {
+  std::wstring from = dir;
+  from.push_back(L'\0'); from.push_back(L'\0');
+  SHFILEOPSTRUCTW op{};
+  op.wFunc = FO_DELETE; op.pFrom = from.c_str();
+  op.fFlags = FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI;
+  SHFileOperationW(&op);
+}
+static std::wstring MakeTmpDir() {
+  wchar_t t[MAX_PATH];
+  GetTempPathW(MAX_PATH, t);
+  std::wstring d = std::wstring(t) + L"RNDZhUpd";
+  DelTree(d);                               // 上次残留（含旧的 update.json/payload）
+  EnsureDir(d); EnsureDir(d + L"\\payload"); EnsureDir(d + L"\\backup");
+  return d;
+}
+static bool Run7zExtract(const std::wstring& exe7z, const std::wstring& arc,
+                         const std::wstring& outDir, DWORD* exitCode) {
+  *exitCode = (DWORD)-1;
+  // ★ -o 与路径之间不能有空格，含空格的路径把引号包在 -o 里面（7z 的解析规则）
+  std::wstring cmd = L"\"" + exe7z + L"\" x \"" + arc + L"\" -o\"" + outDir + L"\" -y";
+  STARTUPINFOW si{}; si.cb = sizeof(si);
+  si.dwFlags = STARTF_USESHOWWINDOW; si.wShowWindow = SW_HIDE;
+  PROCESS_INFORMATION pi{};
+  if (!CreateProcessW(exe7z.c_str(), &cmd[0], nullptr, nullptr, FALSE,
+                      CREATE_NO_WINDOW, nullptr, g_dir.c_str(), &si, &pi)) return false;
+  WaitForSingleObject(pi.hProcess, 300000);        // 应用阶段不该超过 5 分钟
+  GetExitCodeProcess(pi.hProcess, exitCode);
+  CloseHandle(pi.hThread); CloseHandle(pi.hProcess);
+  return true;
+}
+
+// ── 应用增量 ──
+// 把解包出的 payload 覆盖进游戏目录。返回 0 = 成功；失败时 err 给出原因，
+// 调用方据 backup 目录回滚（半途失败绝不留混合版本）。
+static int ApplyPayload(const DeltaInfo& d, const std::wstring& newVer,
+                        const std::wstring& tmpDir, std::wstring& err) {
+  std::wstring payload = tmpDir + L"\\payload";
+  std::wstring backup  = tmpDir + L"\\backup";
+  // 0) 安检 + 备份将被覆盖的原文件
+  for (auto& f : d.files) {
+    if (!SafeRelPath(f.path)) { err = L"增量元数据含非法路径：" + f.path; return 1; }
+    std::wstring dest = g_dir + L"\\" + NativeRel(f.path);
+    if (FileExists(dest)) {
+      std::wstring bk = backup + L"\\" + NativeRel(f.path);
+      std::wstring bkDir = DirPart(bk);
+      if (!bkDir.empty()) EnsureDir(bkDir);
+      if (!CopyFileW(dest.c_str(), bk.c_str(), FALSE)) { err = L"备份失败：" + f.path; return 1; }
+    }
+  }
+  // 1) 覆盖（启动器本体例外：写到 .new，由「改名让位」在最后落位）
+  int n = (int)d.files.size(), i = 0;
+  for (auto& f : d.files) {
+    i++;
+    g_updMsg = L"正在应用更新 " + std::to_wstring(i) + L"/" + std::to_wstring(n);
+    g_updPct = n ? i * 100 / n : 100;
+    if (g_hwnd) PostMessageW(g_hwnd, WM_APP + 3, 0, 0);
+    std::wstring src = payload + L"\\" + NativeRel(f.path);
+    if (!FileExists(src)) { err = L"增量包缺文件：" + f.path; return 2; }
+    if (_wcsicmp(f.path.c_str(), L"RNDZhLauncher.exe") == 0) {
+      std::wstring nw = g_dir + L"\\RNDZhLauncher.new.exe";
+      if (!CopyFileW(src.c_str(), nw.c_str(), FALSE)) { err = L"写入 RNDZhLauncher.new.exe 失败"; return 2; }
+      std::string hx;
+      if (!Md5File(nw, hx) || hx != f.md5) { err = L"校验失败：RNDZhLauncher.new.exe"; return 2; }
+      continue;
+    }
+    std::wstring dest = g_dir + L"\\" + NativeRel(f.path);
+    std::wstring ddir = DirPart(dest);
+    if (!ddir.empty()) EnsureDir(ddir);
+    if (!CopyFileW(src.c_str(), dest.c_str(), FALSE)) { err = L"覆盖失败：" + f.path; return 2; }
+    std::string hx;
+    if (!Md5File(dest, hx) || hx != f.md5) { err = L"校验失败：" + f.path; return 2; }
+  }
+  // 2) 删除清单（非法条目跳过不中断；条目本来就不存在也无所谓）
+  for (auto& p : d.del) {
+    if (!SafeDelPath(p)) continue;
+    DeleteFileW((g_dir + L"\\" + NativeRel(p)).c_str());
+  }
+  // 3) 分号片段子目录的代理 DLL 副本同步
+  SyncFragments();
+  // 4) 最后才写版本标记
+  EnsureDir(g_dir + L"\\languagebarrier");
+  if (!WriteFileAll(g_dir + L"\\languagebarrier\\version.txt",
+                    WideToUtf8(newVer) + "\r\n")) { err = L"写 version.txt 失败"; return 3; }
+  return 0;
+}
+// 覆盖失败后的回滚：有备份的恢复原文件，没备份的（新增文件）删掉
+static void Rollback(const DeltaInfo& d, const std::wstring& tmpDir) {
+  std::wstring backup = tmpDir + L"\\backup";
+  for (auto& f : d.files) {
+    if (_wcsicmp(f.path.c_str(), L"RNDZhLauncher.exe") == 0) continue;  // 本体由改名逻辑自回滚
+    std::wstring bk = backup + L"\\" + NativeRel(f.path);
+    std::wstring dest = g_dir + L"\\" + NativeRel(f.path);
+    if (FileExists(bk)) CopyFileW(bk.c_str(), dest.c_str(), FALSE);
+    else DeleteFileW(dest.c_str());
+  }
+}
+// 自更新落位：把 .new 改名顶上（运行中的 exe 允许被改名，锁的是写/删）。
+static bool FinalizeSelfUpdate(std::wstring& err) {
+  std::wstring exe = g_dir + L"\\RNDZhLauncher.exe";
+  std::wstring old = g_dir + L"\\RNDZhLauncher.old.exe";
+  std::wstring nw  = g_dir + L"\\RNDZhLauncher.new.exe";
+  if (!FileExists(nw)) return true;         // 本次没有本体更新
+  DeleteFileW(old.c_str());                 // 上次残留（能删就删）
+  if (!MoveFileW(exe.c_str(), old.c_str())) { err = L"旧启动器改名失败"; return false; }
+  if (!MoveFileW(nw.c_str(), exe.c_str())) {
+    MoveFileW(old.c_str(), exe.c_str());    // 回滚
+    err = L"新启动器落位失败";
+    return false;
+  }
+  DeleteFileW(old.c_str());                 // 自己还映射着它 —— 删不掉留给下次/卸载器清理
+  return true;
+}
+
+// --update-base 指向本地 http 服务（自动化测试）时绕过系统代理：
+// PRECONFIG 会把 127.0.0.1 也交给代理，代理连的是它自己的回环，必然失败。
+// 只对回环 URL 生效，GitHub 正常走系统代理。
+static bool IsLoopbackUrl(const std::wstring& url) {
+  return url.find(L"//127.0.0.1:") != std::wstring::npos
+      || url.find(L"//localhost:") != std::wstring::npos;
+}
+static void BypassProxyForLoopback(HINTERNET hNet, const std::wstring& url) {
+  if (!IsLoopbackUrl(url)) return;
+  INTERNET_PROXY_INFO pi{};
+  pi.dwAccessType = INTERNET_OPEN_TYPE_DIRECT;
+  InternetSetOptionW(hNet, INTERNET_OPTION_PROXY, &pi, sizeof(pi));
+}
+
+// 流式下载到文件（增量包可达几十 MB，不能像 HttpGet 那样全进内存）。
+// 进度写 g_updPct/g_updMsg，每变一个百分点请求一次重绘（WM_APP+3）。
+static bool HttpDownloadToFile(const std::wstring& url, const std::wstring& dest) {
+  HINTERNET hNet = InternetOpenW(L"RNDZhLauncher", INTERNET_OPEN_TYPE_PRECONFIG,
+                                 nullptr, nullptr, 0);
+  if (!hNet) return false;
+  BypassProxyForLoopback(hNet, url);
+  HINTERNET hUrl = InternetOpenUrlW(hNet, url.c_str(), nullptr, 0,
+      INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE, 0);
+  if (!hUrl) { InternetCloseHandle(hNet); return false; }
+  bool ok = false;
+  DWORD status = 0, slen = sizeof(status);
+  // >=400 视为失败（404 = 该版本没发增量包等）；重定向后拿到的是最终响应码
+  if (HttpQueryInfoW(hUrl, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER,
+                     &status, &slen, nullptr) && status >= 400) {
+    InternetCloseHandle(hUrl); InternetCloseHandle(hNet);
+    return false;
+  }
+  unsigned long long total = 0;
+  DWORD need = 0, nlen = sizeof(need);
+  if (HttpQueryInfoW(hUrl, HTTP_QUERY_CONTENT_LENGTH | HTTP_QUERY_FLAG_NUMBER,
+                     &need, &nlen, nullptr))
+    total = need;
+  HANDLE hFile = CreateFileW(dest.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
+  if (hFile != INVALID_HANDLE_VALUE) {
+    BYTE buf[65536]; DWORD rd = 0;
+    unsigned long long done = 0;
+    int lastPct = -1;
+    ok = true;
+    while (InternetReadFile(hUrl, buf, sizeof(buf), &rd)) {
+      if (rd == 0) break;
+      DWORD wr = 0;
+      if (!WriteFile(hFile, buf, rd, &wr, nullptr) || wr != rd) { ok = false; break; }
+      done += rd;
+      int pct = total ? (int)(done * 100 / total) : 0;
+      if (pct != lastPct) {
+        lastPct = pct;
+        g_updPct = pct;
+        g_updMsg = L"正在下载增量包 " + std::to_wstring(pct) + L"%"
+                 + (total ? (L"（" + FmtMB(done) + L"/" + FmtMB(total) + L"）") : L"");
+        if (g_hwnd) PostMessageW(g_hwnd, WM_APP + 3, 0, 0);
+      }
+    }
+    CloseHandle(hFile);
+  }
+  InternetCloseHandle(hUrl); InternetCloseHandle(hNet);
+  return ok;
+}
 
 // 极简 JSON 取字符串值：只认第一个 "key" : "value"，够用且不引依赖
 static std::wstring JsonStr(const std::string& s, const char* key) {
@@ -829,22 +1397,29 @@ static std::wstring JsonStr(const std::string& s, const char* key) {
   return Utf8ToWide(s.substr(q1 + 1, q2 - q1 - 1));
 }
 
-static bool HttpGet(const std::wstring& url, std::string& out) {
+static bool HttpGet(const std::wstring& url, std::string& out, DWORD maxBytes = 65536) {
   out.clear();
+  g_diagLastReq = url;
   HINTERNET hNet = InternetOpenW(L"RNDZhLauncher", INTERNET_OPEN_TYPE_PRECONFIG,
                                  nullptr, nullptr, 0);
-  if (!hNet) return false;
+  if (!hNet) { g_diagGle = GetLastError(); g_diagUrl = url; return false; }
+  BypassProxyForLoopback(hNet, url);
   HINTERNET hUrl = InternetOpenUrlW(hNet, url.c_str(), nullptr, 0,
       INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE, 0);
-  if (!hUrl) { InternetCloseHandle(hNet); return false; }
+  if (!hUrl) { g_diagGle = GetLastError(); g_diagUrl = url; InternetCloseHandle(hNet); return false; }
+  DWORD status = 0, slen = sizeof(status);
+  bool netOk = !HttpQueryInfoW(hUrl, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER,
+                               &status, &slen, nullptr) || status < 400;
+  g_diagStatus = netOk ? status : 0xFFFFFFFF;
   char buf[4096]; DWORD rd = 0;
-  while (InternetReadFile(hUrl, buf, sizeof(buf), &rd) && rd > 0) {
+  while (netOk && InternetReadFile(hUrl, buf, sizeof(buf), &rd) && rd > 0) {
     out.append(buf, rd);
-    if (out.size() > 65536) break;       // 只需要头部几十字节，防跑飞
+    if (out.size() > maxBytes) break;    // 防跑飞（update.json 会传更大的上限）
   }
+  g_diagOutLen = (DWORD)out.size();
   InternetCloseHandle(hUrl);
   InternetCloseHandle(hNet);
-  return !out.empty();
+  return netOk && !out.empty();
 }
 
 // 远程版本号比本地新吗：抽数字逐段比（"v1.2" vs "1.10"），非数字一律忽略
@@ -866,10 +1441,42 @@ static bool VerNewer(const std::wstring& remote, const std::wstring& local) {
   return false;
 }
 
-// 先问 releases/latest（有发布就用它，能拿到 html_url 直达下载页）；
-// 仓库没有 release 时退回 tags 的第一个。都拿不到 = 查询失败。
-static DWORD WINAPI UpdateThread(LPVOID) {
+// 检查核心：先问 update.json（一个 GET 拿到版本 + 全部增量，不依赖 GitHub API、
+// 不吃每小时 60 次的匿名限额）；拿不到再退回 releases/latest → tags 的老路。
+// 版本比较基准 = languagebarrier\version.txt（补丁版本），没有它才退回启动器 VER
+// —— 增量只更新内容不动启动器时，VER 会落后于补丁版本，必须用 version.txt 比对。
+static UpdResult* RunCheckCore() {
   UpdResult* r = new UpdResult{ 2, L"", REL_URL };
+  r->localVer = LocalVer();
+  std::wstring cmpBase = r->localVer.empty() ? std::wstring(VER) : r->localVer;
+  std::string js;
+  bool got    = HttpGet(g_updBase + L"update.json", js, 4 << 20);
+  // 第一次调用的快照（后面兜底的 HttpGet 会覆盖全局诊断）
+  DWORD st1 = g_diagStatus, ol1 = g_diagOutLen, gl1 = g_diagGle;
+  g_diag1Status = st1; g_diag1OutLen = ol1; g_diag1Gle = gl1;
+  std::wstring req1 = g_diagLastReq;
+  bool parsed = got && ParseUpdateJson(js, r->remote);
+  bool haveVer = parsed && !r->remote.version.empty();
+  if (!haveVer) {                       // 自测诊断：1=没取到 2=解析失败 3=version 空
+    g_diagStage = !got ? 1 : (!parsed ? 2 : 3);
+    g_diagBody  = js.substr(0, 200);
+    g_diagStatus = st1; g_diagOutLen = ol1; g_diagGle = gl1; g_diagUrl = req1;
+  }
+  if (haveVer) {
+    r->latest = L"v" + r->remote.version;
+    r->url = REL_URL;
+    if (VerNewer(r->remote.version, cmpBase)) {
+      if (!r->localVer.empty()) {
+        for (int i = 0; i < (int)r->remote.deltas.size(); i++)
+          if (VerEq(r->remote.deltas[i].from, r->localVer)) { r->deltaIdx = i; break; }
+      }
+      r->status = (r->deltaIdx >= 0) ? 3 : 0;    // 无匹配基线 → 只能给全量兜底
+    } else {
+      r->status = 1;
+    }
+    return r;
+  }
+  // 兜底：releases/latest（能拿到 html_url 直达下载页）；没有 release 退 tags 第一个
   std::string body;
   if (HttpGet(std::wstring(L"https://api.github.com/repos/Syun1524/RND_Chinese/releases/latest"), body)) {
     std::wstring tag = JsonStr(body, "tag_name");
@@ -887,6 +1494,10 @@ static DWORD WINAPI UpdateThread(LPVOID) {
       if (!n.empty()) { r->latest = n; r->url = REL_URL; r->status = VerNewer(n, VER) ? 0 : 1; }
     }
   }
+  return r;
+}
+static DWORD WINAPI UpdateThread(LPVOID) {
+  UpdResult* r = RunCheckCore();
   PostMessageW(g_hwnd, WM_APP + 2, 0, (LPARAM)r);
   return 0;
 }
@@ -897,6 +1508,165 @@ static void StartUpdateCheck() {
   HANDLE t = CreateThread(nullptr, 0, UpdateThread, nullptr, 0, nullptr);
   if (t) CloseHandle(t);
   else   InterlockedExchange(&g_checking, 0);
+}
+
+// ── 增量更新执行 ──
+struct UpdDone { bool ok; bool selfUpdated; std::wstring ver; std::wstring err; };
+
+// 完整更新流程：下载 → md5 校验 → 解压 → 应用。交互模式在后台线程跑；
+// --selftest-update 同步调用。返回值 new 出来，调用方负责释放。
+static UpdDone* RunUpdateCore() {
+  UpdDone* r = new UpdDone{ false, false, g_remoteVer, L"" };
+  do {
+    if (!FileExists(g_dir + L"\\Game.exe")) {
+      r->err = L"未找到 Game.exe，请把启动器放在游戏根目录再更新"; break;
+    }
+    if (ProcessRunning(L"Game.exe")) {
+      r->err = L"游戏正在运行，请先退出游戏再更新（补丁文件被占用）"; break;
+    }
+    if (!FileExists(g_dir + L"\\languagebarrier\\7zr.exe")) {
+      r->err = L"缺少 languagebarrier\\7zr.exe，请用全量安装包升级"; break;
+    }
+    // 元数据快照进临时目录：UAC 提权的子进程读不到本进程的内存，只能读文件
+    std::string meta;
+    if (!HttpGet(g_updBase + L"update.json", meta, 4 << 20)
+        || !WriteFileAll(g_updTmpDir + L"\\update.json", meta)) {
+      r->err = L"update.json 下载失败"; break;
+    }
+    // 1) 下载
+    g_updRun = 1; g_updPct = 0; g_updMsg = L"准备下载…";
+    if (g_hwnd) PostMessageW(g_hwnd, WM_APP + 3, 0, 0);
+    std::wstring arc = g_updTmpDir + L"\\" + NativeRel(g_delta.file);
+    if (!HttpDownloadToFile(g_updBase + g_delta.file, arc)) {
+      r->err = L"增量包下载失败，请检查网络后重试"; break;
+    }
+    // 2) 校验 + 解压
+    g_updRun = 2; g_updPct = 0; g_updMsg = L"正在校验…";
+    if (g_hwnd) PostMessageW(g_hwnd, WM_APP + 3, 0, 0);
+    std::string hx;
+    if (!Md5File(arc, hx) || hx != g_delta.md5) {
+      r->err = L"增量包校验失败（md5 不符），请重试或改用全量安装包"; break;
+    }
+    g_updMsg = L"正在解压…";
+    if (g_hwnd) PostMessageW(g_hwnd, WM_APP + 3, 0, 0);
+    DWORD code = (DWORD)-1;
+    if (!Run7zExtract(g_dir + L"\\languagebarrier\\7zr.exe", arc,
+                      g_updTmpDir + L"\\payload", &code) || code != 0) {
+      r->err = L"增量包解压失败（7zr 退出码 " + std::to_wstring((unsigned long)code) + L"）";
+      break;
+    }
+    // 3) 应用：写不进游戏目录就 UAC 自提权，由 --apply-update 子进程完成同样的应用流程
+    g_updRun = 3;
+    if (CanWriteGameDir()) {
+      int rc = ApplyPayload(g_delta, g_remoteVer, g_updTmpDir, r->err);
+      g_diagStage = 100 + rc;              // 自测诊断：应用阶段返回码
+      if (rc != 0) { Rollback(g_delta, g_updTmpDir); break; }
+      if (DeltaHasLauncher(g_delta)) {
+        // 本体落位必须在这里做（提权路径由子进程做）：先把 .new 备好，
+        // 成功后靠「改名让位」换上 —— 漏了这步，重启拉起的还是旧本体。
+        std::wstring e2;
+        if (!FinalizeSelfUpdate(e2)) { Rollback(g_delta, g_updTmpDir); r->err = e2; break; }
+      }
+      r->selfUpdated = DeltaHasLauncher(g_delta);
+      r->ok = true;                        // ★ 应用内路径的成功出口（曾漏掉 → 恒报失败）
+    } else {
+      g_updMsg = L"游戏目录需要管理员权限，请在弹窗中确认…";
+      if (g_hwnd) PostMessageW(g_hwnd, WM_APP + 3, 0, 0);
+      std::wstring exe = g_dir + L"\\RNDZhLauncher.exe";
+      std::wstring prm = L"--apply-update \"" + g_updTmpDir + L"\" \"" + g_delta.file + L"\"";
+      SHELLEXECUTEINFOW se{ sizeof(se) };
+      se.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_FLAG_NO_UI;   // UAC 被拒要自己感知
+      se.lpVerb = L"runas"; se.lpFile = exe.c_str(); se.lpParameters = prm.c_str();
+      se.nShow = SW_HIDE; se.hwnd = g_hwnd;
+      if (!ShellExecuteExW(&se)) {
+        r->err = (GetLastError() == ERROR_CANCELLED)
+            ? L"已取消管理员授权，更新未应用"
+            : L"无法请求管理员权限，请右键以管理员身份运行启动器后重试";
+        break;
+      }
+      WaitForSingleObject(se.hProcess, 300000);
+      DWORD ec = 1; GetExitCodeProcess(se.hProcess, &ec);
+      CloseHandle(se.hProcess);
+      if (ec != 0) {
+        std::string log;
+        ReadFileAll(g_updTmpDir + L"\\apply.log", log);
+        r->err = log.empty()
+            ? L"提权应用失败（退出码 " + std::to_wstring((unsigned long)ec) + L"）"
+            : Utf8ToWide(log);
+        break;
+      }
+      r->ok = true;
+      r->selfUpdated = DeltaHasLauncher(g_delta);   // 子进程已把本体落位
+    }
+  } while (0);
+  if (r->ok) DelTree(g_updTmpDir);          // 成功就清 %TEMP%；失败留着便于排查
+  return r;
+}
+static DWORD WINAPI UpdateRunThread(LPVOID) {
+  UpdDone* r = RunUpdateCore();
+  PostMessageW(g_hwnd, WM_APP + 4, 0, (LPARAM)r);
+  return 0;
+}
+// 点横幅「一键更新」进入（防重入）
+static void StartUpdateRun(HWND h) {
+  if (InterlockedCompareExchange(&g_updBusy, 1, 0) != 0) return;
+  if (g_delta.file.empty() || g_updRun != 0) { InterlockedExchange(&g_updBusy, 0); return; }
+  g_updTmpDir = MakeTmpDir();
+  // 顺手清上次自更新被占用删不掉的残留
+  DeleteFileW((g_dir + L"\\RNDZhLauncher.old.exe").c_str());
+  DeleteFileW((g_dir + L"\\RNDZhLauncher.new.exe").c_str());
+  InvalidateRect(h, nullptr, FALSE);
+  HANDLE t = CreateThread(nullptr, 0, UpdateRunThread, nullptr, 0, nullptr);
+  if (t) CloseHandle(t);
+  else { InterlockedExchange(&g_updBusy, 0); g_updRun = 0; }
+}
+
+// UAC 提权后的应用阶段子进程：父进程写不进游戏目录时，以管理员身份重跑「应用」。
+// 不建窗口；交代 = %TEMP% 里的 apply.log（空 = 成功）+ 退出码（0 成功）。
+static int RunApplyChild(const std::wstring& tmpDir, const std::wstring& deltaFile) {
+  g_dir = ExeDir();
+  std::string js;
+  std::wstring err;
+  int code = 1;
+  do {
+    if (!ReadFileAll(tmpDir + L"\\update.json", js)) { err = L"提权子进程读不到 update.json"; break; }
+    RemoteUpdate ru;
+    if (!ParseUpdateJson(js, ru)) { err = L"提权子进程解析 update.json 失败"; break; }
+    const DeltaInfo* d = nullptr;
+    for (auto& x : ru.deltas) if (x.file == deltaFile) { d = &x; break; }
+    if (!d) { err = L"update.json 里没有增量 " + deltaFile; break; }
+    int rc = ApplyPayload(*d, ru.version, tmpDir, err);
+    if (rc != 0) { Rollback(*d, tmpDir); code = rc; break; }
+    if (DeltaHasLauncher(*d)) {
+      if (!FinalizeSelfUpdate(err)) { code = 5; break; }
+    }
+    code = 0;
+  } while (0);
+  WriteFileAll(tmpDir + L"\\apply.log", WideToUtf8(err));   // 空 = 成功
+  return code;
+}
+
+// --selftest-update 的结果落盘（自动化测试读取），固定 %TEMP%\rndzh_upd_selftest.json
+static void WriteSelftestResult(const UpdResult* chk, const UpdDone* done) {
+  std::wstring js = L"{";
+  js += L"\"check_status\":" + std::to_wstring(chk ? chk->status : -1);
+  js += L",\"remote\":\"" + (chk ? chk->latest : L"") + L"\"";
+  js += L",\"local\":\"" + (chk ? chk->localVer : L"") + L"\"";
+  js += L",\"delta_found\":" + std::to_wstring(chk && chk->deltaIdx >= 0 ? 1 : 0);
+  js += L",\"ok\":" + std::wstring(done && done->ok ? L"true" : L"false");
+  js += L",\"selfUpdated\":" + std::wstring(done && done->selfUpdated ? L"true" : L"false");
+  js += L",\"err\":\"" + [&]{ std::wstring e = done ? done->err : L"";
+                              for (auto& c : e) if (c == L'"' || c == L'\\') c = L'\'';
+                              return e; }() + L"\"";
+  js += L",\"diag_gle\":" + std::to_wstring((unsigned long)g_diagGle);
+  js += L",\"diag_url\":\"" + g_diagUrl + L"\"";
+  js += L",\"diag_stage\":" + std::to_wstring(g_diagStage);
+  js += L",\"diag_status\":" + std::to_wstring((unsigned long)g_diag1Status);
+  js += L",\"diag_outlen\":" + std::to_wstring((unsigned long)g_diag1OutLen);
+  js += L",\"diag_gle\":" + std::to_wstring((unsigned long)g_diag1Gle);
+  js += L"}";
+  wchar_t t[MAX_PATH]; GetTempPathW(MAX_PATH, t);
+  WriteFileAll(std::wstring(t) + L"rndzh_upd_selftest.json", WideToUtf8(js));
 }
 
 // 打开外部链接。ShellExecuteW 返回值 <= 32 就是失败（没有默认浏览器、被安全软件
@@ -1013,28 +1783,53 @@ static void Paint(HDC hdc) {
       gr.DrawRectangle(&bp, sr);
       DrawTxtCentered(gr, L"开始游戏", FTech(20, true), C_TEXT, sr); }
 
-    // ── 更新卡片：**左栏主题图上**的小卡片，只在查到新版本时出现 ──
-    // 整张卡片可点：点它打开下载页（2026-09-15 用户要求：小卡片 + 跳转，不弹窗）。
-    // 压在图上所以用**深色半透明底 + 白字**（浅色卡片压在照片上会看不清）；
-    // 左侧「新」字徽标（主题蓝底白字），右侧「前往下载 →」。
-    if (!g_newVer.empty()) {
+    // ── 更新卡片：**左栏主题图上**的小卡片 ──
+    // 四种形态（g_updRun）：0 空闲=发现新版本（有增量显示「一键更新」，否则
+    // 「前往下载」）/ 1-3 更新中=进度条 / 4 完成 / 5 失败（点卡片给全量兜底）。
+    // 压在图上所以用**深色半透明底 + 白字**；左侧「新」字徽标只在空闲形态出现。
+    if (!g_newVer.empty() || g_updRun > 0) {
       RectF br = BannerRect();
-      bool hot = (st.hot == ID_BANNER);
-      SolidBrush fillb(Color(hot ? 235 : 210, 18, 24, 34));
+      // 运行中/完成不可点；失败与空闲可点（悬停才加亮）
+      bool hot = (st.hot == ID_BANNER) && (g_updRun == 0 || g_updRun == 5);
       FillRR(gr, br, 6, Color(hot ? 235 : 210, 18, 24, 34));
       StrokeRR(gr, br, 6, C_ACCENT, hot ? 1.6f : 1.2f);
-      // 左侧「新」徽标
       RectF tag(br.X + 9.f, br.Y + 10.f, 26.f, 20.f);
-      SolidBrush tagb(C_ACCENT);
-      gr.FillRectangle(&tagb, tag);
-      DrawTxtCentered(gr, L"新", F(11, true), C_WHITE, tag);
-      // 文案：发现新版本 vX.Y（当前版本号左下角已有，卡片里不重复）
-      std::wstring line = L"发现新版本 " + g_newVer;
-      DrawTxtW(gr, line.c_str(), F(13), C_WHITE, tag.GetRight() + 9.f,
-               br.Y + 10.f, br.Width - 160.f);
-      // 右侧「前往下载 →」
-      DrawTxt(gr, L"前往下载 →", F(12), C_WHITE, br.GetRight() - 11.f,
-              br.Y + 11.f, 2 /*右对齐*/);
+      bool idle = (g_updRun == 0);
+      if (idle) {                             // 左侧「新」徽标
+        SolidBrush tagb(C_ACCENT);
+        gr.FillRectangle(&tagb, tag);
+        DrawTxtCentered(gr, L"新", F(11, true), C_WHITE, tag);
+      }
+      float tx = idle ? tag.GetRight() + 9.f : br.X + 12.f;
+      if (g_updRun >= 1 && g_updRun <= 3) {
+        DrawTxtW(gr, g_updMsg.c_str(), F(12), C_WHITE, tx, br.Y + 7, br.Width - 24);
+        RectF bar(br.X + 12, br.Y + 28, br.Width - 24, 5);
+        FillRR(gr, bar, 2.5f, Color(80, 255, 255, 255));
+        if (g_updPct > 0)
+          FillRR(gr, RectF(bar.X, bar.Y, bar.Width * g_updPct / 100.f, bar.Height),
+                 2.5f, C_ACCENT);
+      } else if (g_updRun == 4) {
+        DrawTxtW(gr, g_updMsg.c_str(), F(13), C_WHITE, tx, br.Y + 10, br.Width - 24);
+      } else if (g_updRun == 5) {
+        DrawTxtW(gr, g_updMsg.c_str(), F(12), Color(255, 255, 190, 160),
+                 tx, br.Y + 10, br.Width - 110.f);
+        DrawTxt(gr, L"前往下载 →", F(12), C_WHITE, br.GetRight() - 11.f,
+                br.Y + 11.f, 2 /*右对齐*/);
+      } else if (!g_delta.file.empty()) {
+        // 有匹配基线的增量：整卡可点 = 一键更新
+        std::wstring line = L"发现新版本 " + g_newVer + L" · 增量 " + FmtMB(g_delta.size);
+        DrawTxtW(gr, line.c_str(), F(13), C_WHITE, tag.GetRight() + 9.f,
+                 br.Y + 10.f, br.Width - 170.f);
+        DrawTxt(gr, L"一键更新 →", F(12), C_WHITE, br.GetRight() - 11.f,
+                br.Y + 11.f, 2);
+      } else {
+        // 无增量可用：维持旧行为，整卡点 = 打开下载页
+        std::wstring line = L"发现新版本 " + g_newVer;
+        DrawTxtW(gr, line.c_str(), F(13), C_WHITE, tag.GetRight() + 9.f,
+                 br.Y + 10.f, br.Width - 160.f);
+        DrawTxt(gr, L"前往下载 →", F(12), C_WHITE, br.GetRight() - 11.f,
+                br.Y + 11.f, 2);
+      }
     }
 
     // ── 「检查更新」小按钮：贴在「开始游戏」左侧 ──
@@ -1155,6 +1950,12 @@ static bool IsSteamInstall() {
 }
 
 static void LaunchGame() {
+  // 更新进行中不进游戏：补丁文件正被替换，拉起游戏会锁文件、半新半旧
+  if (g_updRun >= 1 && g_updRun <= 3) {
+    MessageBoxW(g_hwnd, L"正在更新，请等更新完成后再开始游戏。", L"更新进行中",
+                MB_ICONINFORMATION | MB_OK);
+    return;
+  }
   SaveConfig();
   ApplyDxvk(st.on[OPT_DXVK]);
   const wchar_t* lang = DetectLang();   // 跟随玩家原本的版本（存档目录随之）
@@ -1240,11 +2041,15 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
     InterlockedExchange(&g_checking, 0);
     if (r) {
       // ★ 不弹系统对话框（2026-09-15 用户要求）：有新版本 → 按钮亮小红点 +
-      //   窗口内出一张小卡片（点它去下载页）；「已是最新」「查不到」仍只是
-      //   按钮上的临时文字，几秒后自己消失。
-      if (r->status == 0) {
+      //   窗口内出一张小卡片；「已是最新」「查不到」仍只是按钮上的临时文字，
+      //   几秒后自己消失。
+      if (r->status == 0 || r->status == 3) {
         g_newVer = r->latest;
-        g_newUrl = r->url;
+        g_newUrl  = r->url;
+        g_localVer = r->localVer;
+        g_remoteVer = (r->status == 3) ? r->remote.version : L"";
+        g_delta = (r->status == 3) ? r->remote.deltas[r->deltaIdx] : DeltaInfo();
+        // status==3 → 卡片显示「一键更新」；status==0 → 维持「前往下载」
       } else if (r->status == 1) {
         g_checkMsg = std::wstring(L"已是最新 v") + VER;
         SetTimer(h, TIMER_CHECKMSG, 4000, nullptr);
@@ -1255,6 +2060,33 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
       delete r;
     }
     InvalidateRect(h, nullptr, FALSE);
+    return 0;
+  }
+  case WM_APP + 3:                         // 增量更新进度（后台线程请求重绘）
+    InvalidateRect(h, nullptr, FALSE);
+    return 0;
+  case WM_APP + 4: {                       // 增量更新结束
+    UpdDone* r = (UpdDone*)l;
+    InterlockedExchange(&g_updBusy, 0);
+    if (r) {
+      if (r->ok) {
+        g_updRun = 4;
+        g_updPct = 100;
+        g_updMsg = L"已更新到 " + r->ver + L" ✔";
+        g_delta = DeltaInfo();             // 复位为「无增量」形态
+        g_newVer.clear(); g_newUrl.clear(); // 红点熄灭，下次检查按新 version.txt 比对
+        InvalidateRect(h, nullptr, FALSE);
+        if (r->selfUpdated) {              // 本体已换：拉起新启动器再退场
+          ShellExecuteW(h, L"open", (g_dir + L"\\RNDZhLauncher.exe").c_str(),
+                        nullptr, nullptr, SW_SHOWNORMAL);
+          PostMessageW(h, WM_CLOSE, 0, 0);
+        }
+      } else {
+        g_updRun = 5;                      // 失败态：卡片显示原因，点卡片走全量兜底
+        InvalidateRect(h, nullptr, FALSE);
+      }
+      delete r;
+    }
     return 0;
   }
   case WM_TIMER:
@@ -1311,10 +2143,21 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         if (!g_newVer.empty()) { if (OpenUrl(h, g_newUrl.c_str())) { g_newVer.clear(); g_newUrl.clear(); } }
         else StartUpdateCheck();
       }
-      else if (id == ID_BANNER) {   // 点更新卡片 → 打开下载页（卡片消失，红点熄灭）
-        // 打不开就保留卡片（OpenUrl 已弹出可复制的链接），别让提示一起消失
-        if (OpenUrl(h, g_newUrl.c_str())) { g_newVer.clear(); g_newUrl.clear(); }
-        InvalidateRect(h, nullptr, FALSE);
+      else if (id == ID_BANNER) {   // 更新卡片：增量可点更新，其余去下载页
+        if (g_updRun >= 1 && g_updRun <= 3) {
+          // 更新进行中：忽略点击
+        } else if (g_updRun == 5) {
+          // 失败态：点卡片给全量兜底，并复位横幅
+          if (OpenUrl(h, g_newUrl.c_str())) { g_newVer.clear(); g_newUrl.clear(); }
+          g_updRun = 0;
+          InvalidateRect(h, nullptr, FALSE);
+        } else if (!g_delta.file.empty()) {
+          StartUpdateRun(h);              // 有匹配基线的增量 → 一键更新
+        } else {
+          // 无增量（或 v1.5 安装）：旧行为 —— 打开下载页
+          if (OpenUrl(h, g_newUrl.c_str())) { g_newVer.clear(); g_newUrl.clear(); }
+          InvalidateRect(h, nullptr, FALSE);
+        }
       }
       else if (id == ID_GITHUB) { OpenUrl(h, REPO_URL); }
       else if (id == ID_CLOSE) { PostMessageW(h, WM_CLOSE, 0, 0); }
@@ -1332,8 +2175,49 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
   return DefWindowProcW(h, m, w, l);
 }
 
-int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
+int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR cmdLine, int) {
+  // ── 内部命令行（增量更新的测试/提权通道，见「增量更新」注释块）──
+  //   --update-base <url>              更新元数据基址（默认 GitHub latest 下载目录）
+  //   --selftest-update                无窗口跑一次 检查→下载→应用，结果写
+  //                                    %TEMP%\rndzh_upd_selftest.json，退出码 0/1/2
+  //   --apply-update <tmpDir> <7z名>   UAC 提权子进程：应用增量后立即退出（不建窗口）
+  int argc = 0;
+  LPWSTR* argv = CommandLineToArgvW(cmdLine, &argc);
+  // ⚠ wWinMain 的 lpCmdLine 已被 CRT 去掉程序名，所以 CommandLineToArgvW 的
+  //   结果里没有 argv[0]，必须从 i=0 遍历 —— 从 i=1 开始会把「--update-base」
+  //   本身跳过、URL 落在偶数位全部漏掉（本轮自测踩过：参数从未生效）。
+  bool selftest = false;
+  for (int i = 0; argv && i < argc; i++) {
+    if (!wcscmp(argv[i], L"--update-base") && i + 1 < argc) {
+      g_updBase = argv[++i];
+      if (!g_updBase.empty() && g_updBase.back() != L'/') g_updBase.push_back(L'/');
+    } else if (!wcscmp(argv[i], L"--selftest-update")) {
+      selftest = true;
+    } else if (!wcscmp(argv[i], L"--apply-update") && i + 2 < argc) {
+      int rc = RunApplyChild(argv[i + 1], argv[i + 2]);
+      if (argv) LocalFree(argv);
+      return rc;                       // 不初始化 GDI+/窗口，跑完即退
+    }
+  }
+  if (argv) LocalFree(argv);
+
   g_dir = ExeDir();
+
+  if (selftest) {
+    // 自动化测试通道：无窗口、同步执行。命中增量才真正更新。
+    UpdResult* chk = RunCheckCore();
+    UpdDone* done = nullptr;
+    if (chk && chk->status == 3) {
+      g_delta = chk->remote.deltas[chk->deltaIdx];
+      g_remoteVer = chk->remote.version;
+      g_updTmpDir = MakeTmpDir();
+      done = RunUpdateCore();
+    }
+    WriteSelftestResult(chk, done);
+    int code = done ? (done->ok ? 0 : 1) : 2;
+    DelTree(g_updTmpDir);
+    ExitProcess(code);
+  }
 
   GdiplusStartupInput gi; ULONG_PTR token;
   GdiplusStartup(&token, &gi, nullptr);

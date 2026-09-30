@@ -6,6 +6,9 @@
 
     python scripts/gen_pkg_manifest.py            # 重建
     python scripts/gen_pkg_manifest.py --check    # 只比对，不改
+    python scripts/gen_pkg_manifest.py --snapshot 成品ing/_releases/v1.5_manifest.json
+        # 只把「路径/size/md5」快照写到指定文件（发版基线，供 build_delta.py 算差量），
+        # 不动主 manifest 与文件清单。必须在改动补丁包内容之前跑。
 """
 import argparse
 import hashlib
@@ -55,11 +58,28 @@ def read_listing():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="只比对，不写入")
+    ap.add_argument("--snapshot", metavar="PATH",
+                    help="只写「路径/size/md5」基线快照到 PATH，不动主 manifest")
     args = ap.parse_args()
 
     disk = walk_pkg()
     if not disk:
         sys.exit("补丁包目录为空：%s" % PKG)
+
+    if args.snapshot:
+        paths = sorted(disk, key=lambda s: s.encode("utf-8"))
+        files = [{"path": p, "size": disk[p], "md5": md5(os.path.join(PKG, p))}
+                 for p in paths]
+        snap = {"file_count": len(files),
+                "total_bytes": sum(disk.values()),
+                "files": files}
+        d = os.path.dirname(os.path.abspath(args.snapshot))
+        if d and not os.path.isdir(d):
+            os.makedirs(d)
+        with io.open(args.snapshot, "w", encoding="utf-8", newline="") as f:
+            f.write(json.dumps(snap, ensure_ascii=False, indent=2).replace("\n", "\r\n"))
+        print("已写基线快照 %s（%d 文件，含 md5）" % (args.snapshot, len(files)))
+        return
 
     man = json.load(io.open(MANIFEST, encoding="utf-8-sig"))
     lst = read_listing()

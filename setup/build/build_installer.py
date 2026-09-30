@@ -39,7 +39,7 @@ SETUP = os.path.join(SETUP_DIR, 'bin', 'RNDZhSetup.exe')
 # 成品安装包直接输出到 setup/ 根，方便取用
 OUT_DIR = SETUP_DIR
 
-VERSION = '1.5'
+VERSION = '1.6'
 TITLE = 'ROBOTICS;NOTES DaSH 简中补丁 AI人工精校版'
 # 一行说清「装什么 + 前提」。不做无意义的二次确认 ——
 # 真正需要用户确认的是安装器界面里的「开始安装」。
@@ -63,6 +63,21 @@ def main():
     stage = os.path.join(tmp, 'rnd_stage')
     payload = os.path.join(tmp, 'rnd_payload.7z')
     cfg_path = os.path.join(tmp, 'rnd_sfx_config.txt')
+
+    # 0) 版本标记与解压工具必须随包（启动器 v1.6 的增量更新依赖这两样）：
+    #    · languagebarrier\version.txt —— 补丁版本标记。启动器「检查更新」用它
+    #      对比远端 update.json 决定能否增量；写进 PKG 让安装器像普通文件一样
+    #      复制进游戏目录，安装器代码零改动。
+    #    · languagebarrier\7zr.exe —— 增量包解压工具（sdk 同一份，601KB）。
+    #      放 languagebarrier 里，卸载器整树删除它，不产生残留。
+    #    ⚠ manifest 是按 PKG 实际内容生成的：本步之后要重跑 gen_pkg_manifest.py。
+    verfile = os.path.join(PKG, 'languagebarrier', 'version.txt')
+    sevenzr_pkg = os.path.join(PKG, 'languagebarrier', '7zr.exe')
+    if not os.path.exists(sevenzr_pkg):
+        sys.exit('缺少 %s（从 setup/build/sdk/7zr.exe 复制进来）' % sevenzr_pkg)
+    with open(verfile, 'w', encoding='utf-8', newline='') as f:
+        f.write(VERSION + '\r\n')
+    log('[0/4] 已写 %s（版本 %s）' % (verfile, VERSION))
 
     # 1) 准备 stage：补丁包全部内容（剔除垃圾）+ 安装器
     log('[1/4] 准备临时目录…')

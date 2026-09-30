@@ -36,7 +36,7 @@ using namespace Gdiplus;
 static const int WIN_W = 480, WIN_H = 268;
 // 产品版本。⚠ 改版本要同步三处：这里、launcher/RNDZhLauncher.cpp 的 VER、
 // 成品ing/setup/build/build_installer.py 的 VERSION（决定包文件名）。
-static const wchar_t* VER = L"1.5";
+static const wchar_t* VER = L"1.6";
 static const Color
   C_BG      (255, 255, 255, 255),   // 窗口底
   C_PANEL   (255, 245, 246, 248),   // 顶部标题条
@@ -642,8 +642,12 @@ static bool RunInstall() {
   {
     wchar_t self[MAX_PATH]; GetModuleFileNameW(nullptr, self, MAX_PATH);
     std::wstring selfPath = self;
+    //    · RNDZhLauncher.old.exe / .new.exe —— v1.6 起启动器自更新的中间产物：
+    //      应用增量时本体走「改名让位」（.old 是被换下的旧本体，.new 是待落位的
+    //      新本体），更新过程被中断或重启就会留下，这里统一清掉。
     const wchar_t* staleNames[] = { L"RNDZhSetup.exe", L"RNDZhUninstall.exe",
-                                    L"RNDZh-Uninstall.exe" };
+                                    L"RNDZh-Uninstall.exe",
+                                    L"RNDZhLauncher.old.exe", L"RNDZhLauncher.new.exe" };
     for (auto n : staleNames) {
       std::wstring stale = Join(g_gameDir, n);
       if (Exists(stale) && _wcsicmp(stale.c_str(), selfPath.c_str()) != 0) {

@@ -155,6 +155,8 @@ static void CollectPatchFiles() {
     L"卸载汉化.exe",              // 本程序（新版名）
     L"RNDZhUninstall.exe",        // 旧版名：装着旧补丁的目录里可能还有它
     L"RNDZhSetup.exe",            // 更早的安装器副本（现在不再安装，但历史残留要清）
+    L"RNDZhLauncher.old.exe",     // v1.6 起启动器自更新的中间产物（改名让位换下的旧本体）
+    L"RNDZhLauncher.new.exe",     // 同上（待落位的新本体，更新被中断时会留下）
     L"d3d9", L"d3d10", L"d3d10_1", L"d3d10core", L"d3d11", L"dxgi",
     L"proton_boot_fix.sh", L"安装说明.txt", L"_cn_patch_boot_orig.bat",
     // 早期版本调试用的日志；万一旧副本里有，卸载时一并清掉
