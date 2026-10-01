@@ -53,8 +53,8 @@ CG LIBRARY收集率
 DOC
 要与IRUO.联动吗？
 是／否
-‘
-’
+『
+』
 全部
 已获取
 FESTIVAL PHASE 1

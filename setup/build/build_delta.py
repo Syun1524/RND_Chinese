@@ -153,6 +153,11 @@ def main():
 
     setup_name = 'RNDZh-Setup-v%s.exe' % args.version
     setup_path = os.path.join(args.out_dir, setup_name)
+    # ★ 优先读 setup/ 下的新构建：出包流程里「cp 安装包到 out_dir」发生在 build_delta
+    #   **之后**，用 out_dir 的文件会把上一版的大小记进 update.json（2026-10-01 实测）。
+    fresh = os.path.join(SETUP_DIR, setup_name)
+    if os.path.exists(fresh):
+        setup_path = fresh
     update = {
         'version': args.version,
         'date': time.strftime('%Y-%m-%d'),
