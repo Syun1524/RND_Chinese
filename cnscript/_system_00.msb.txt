@@ -54,7 +54,7 @@ DOC
 要与IRUO.联动吗？
 是／否
 『
-』
+』 已添加到Tips。
 全部
 已获取
 FESTIVAL PHASE 1

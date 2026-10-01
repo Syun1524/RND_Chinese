@@ -66,7 +66,7 @@ static const int RIGHT_W = 425;   // 右栏固定宽度（放选项）
 
 // 产品版本。⚠ 改版本要同步三处：这里、成品ing/setup/src/RNDZhSetup.cpp 的 VER、
 // 成品ing/setup/build/build_installer.py 的 VERSION（决定包文件名）。
-static const wchar_t* VER = L"1.6";
+static const wchar_t* VER = L"1.7";
 // 产品标题（用户要求结尾带版本号）。窗口标题用这一份（游戏窗口标题不再改写）。
 static const std::wstring APP_TITLE =
     std::wstring(L"ROBOTICS;NOTES DaSH 简体中文 AI人工精校版 v") + VER;
@@ -85,6 +85,7 @@ static const Color
   C_SEL     (255, 226, 238, 252),   // 下拉项"当前选中"底
   C_HOVER   (255, 233, 237, 242),   // 悬停底（下拉项/主按钮）——要比 C_HILITE 明显，
                                     // 否则玩家感觉"没有反馈"（2026-09-13 用户反馈）
+  C_ROWALT  (255, 243, 246, 250),   // 设置行交替底纹（斑马纹：只做行边界暗示）
   C_WHITE   (255, 255, 255, 255),
   C_DOT     (255, 226,  61,  54);   // 更新小红点（「检查更新」按钮右上角）
 
@@ -164,6 +165,33 @@ static const wchar_t* SCRN_LABEL[2] = { L"窗口", L"全屏" };
 static const wchar_t* RES_LABEL[3]  = { L"1024*576", L"1280*720", L"1920*1080" };
 static const int SCRN_N = 2, RES_N = 3;
 
+// ── 语言模式（2026-10-01 用户指定）──
+// 0 = 中文（补丁注入生效）/ 1 = 日语（停用注入，进原版日文）
+// 实现上**只把 dinput8.dll 改名**：它是补丁唯一的注入入口，改名后 Windows 加载器
+// 回落到 System32 的真 dinput8.dll，LanguageBarrier 完全不跑。
+// VSFilter.dll / languagebarrier 目录**不用动** —— 它们都是被 dinput8 加载/读取的，
+// 注入不跑就都不生效，留着无害（用户确认「只改这一处即可」）。
+// ⚠ 目录名含分号时，加载器读的是「分号后片段同名子目录」里那份 dinput8，
+//   所以根目录 + 各片段子目录**都要改**（本项目踩过三次的坑）。
+static const wchar_t* LANGMODE_LABEL[2] = { L"中文", L"日语" };
+static const int LANGMODE_N = 2;
+static const wchar_t* LANGMODE_KEY = L"langMode";
+static const wchar_t* PATCHOFF_EXT = L".patchoff";   // 停用时的改名后缀
+
+// ── 行间分隔线（2026-10-01 用户定稿：用线分割，要有设计感）──
+// 设计：**左实右隐的渐隐线**（日式界面的「区切り線」做法）——
+//   左端实、向右淡出到透明；不是贯穿实线（那像表格），也不是纯短刻度（太弱）。
+//   既给出明确的分段信号，又不把版面切碎。颜色取自现有边框色，透明度渐变。
+static void DrawRowSeparator(Graphics& g, const RectF& row) {
+  float y = row.GetBottom() + 4.f;
+  float x0 = row.X + 2.f, x1 = row.GetRight() - 60.f;   // 右端留白：不顶到边界
+  LinearGradientBrush b(PointF(x0, y), PointF(x1, y),
+                        Color(190, 200, 206, 216),    // 左端：淡灰蓝，可见
+                        Color(0, 200, 206, 216));     // 右端：完全透明
+  Pen p(&b, 1.f);
+  g.DrawLine(&p, x0, y, x1, y);
+}
+
 static const wchar_t* SET_KEY = L"zzOutfitSet";
 
 struct State {
@@ -172,6 +200,7 @@ struct State {
   int  outfit;          // 0..4
   int  scrn;            // 0 = 窗口 / 1 = 全屏
   int  res;             // 0..2（1024*576 / 1280*720 / 1920*1080）
+  int  langMode;        // 0 = 汉化版 / 1 = 原版（见 LANGMODE_LABEL）
   bool scrnOk = false;  // config.dat 读到了吗（读不到就别写，免得凭空造一个文件）
   int  openRow = -1;    // 展开的设置行（-1 全收起）—— 手风琴：同时只开一行
   int  hot = -1;        // 悬停项，用与 press 同一套 id
@@ -437,11 +466,13 @@ static void SaveConfig() {
   }
   emit(SET_KEY, std::wstring(L"\"") + OUTFIT_VALUE[st.outfit] + L"\"");
   emit(L"karaokeSubs", std::wstring(L"\"") + SUBS_VALUE[st.subs] + L"\"");
+  emit(LANGMODE_KEY, st.langMode ? L"true" : L"false");   // true = 原版（停用注入）
   emit(L"showAllSettings", L"true");
   emit(L"rneMouseControls", L"true");
   static const wchar_t* MINE[] = { L"__schema_version", L"mouseControls",
     L"scrollDownToAdvanceText", L"disableScrollDownToCloseBacklog",
-    SET_KEY, L"enableDxvk", L"karaokeSubs", L"showAllSettings", L"rneMouseControls" };
+    SET_KEY, L"enableDxvk", L"karaokeSubs", LANGMODE_KEY,
+    L"showAllSettings", L"rneMouseControls" };
   for (auto& kv : old) {
     bool mine = false;
     for (auto m : MINE) if (kv.first == m) { mine = true; break; }
@@ -487,8 +518,59 @@ static void LoadConfig() {
     for (int i = 0; i < OUTFIT_N; i++)
       if (sit->second.find(OUTFIT_VALUE[i]) != std::wstring::npos) { st.outfit = i; break; }
 
+  st.langMode = getb(LANGMODE_KEY, false) ? 1 : 0;   // 默认汉化版
+
   // 画面设置不在 config.json 里，读游戏自己的 config.dat（见 LoadScreenCfg）
   LoadScreenCfg();
+}
+
+// ── 语言模式：汉化版 / 原版（2026-10-01 用户指定）──
+// 停用 = 把 dinput8.dll 改名成 dinput8.dll.patchoff；启用 = 改回来。
+// **根目录 + 分号片段子目录都要改**（目录名含 ';' 时加载器读的是片段里那份）。
+// 只改这一个文件就够：VSFilter.dll 是静态链进 dinput8 的，languagebarrier/ 是被
+// dinput8 读取的数据目录 —— 注入不跑，两者都不会生效，留着无害。
+// 改名是 O(1) 元数据操作，不改内容、不需要备份，失败也不损坏安装。
+static std::vector<std::wstring> SemicolonFragments(const std::wstring& gameDir);  // 定义在后
+
+static bool ApplyLangMode(bool native) {
+  std::wstring dir = g_dir;
+  std::vector<std::wstring> dirs{ dir };
+  for (auto& frag : SemicolonFragments(dir)) dirs.push_back(dir + L"\\" + frag);
+  int changed = 0, failed = 0;
+  for (auto& d : dirs) {
+    std::wstring on  = d + L"\\dinput8.dll";
+    std::wstring off = on + PATCHOFF_EXT;
+    if (native) {                       // 原版：改名停用
+      if (FileExists(on) && !FileExists(off)) {
+        if (MoveFileW(on.c_str(), off.c_str())) changed++; else failed++;
+      }
+    } else {                            // 汉化：改回来
+      if (FileExists(off) && !FileExists(on)) {
+        if (MoveFileW(off.c_str(), on.c_str())) changed++; else failed++;
+      }
+    }
+  }
+  if (failed) {
+    MessageBoxW(g_hwnd,
+        L"切换语言模式失败：dinput8.dll 被占用（游戏正在运行？）。\n\n请先完全退出游戏再切换。",
+        L"语言模式", MB_ICONWARNING | MB_OK);
+    return false;
+  }
+  return true;
+}
+
+// 当前磁盘状态是否已是目标模式（用于启动前判断要不要动文件）
+static bool LangModeMatches(bool native) {
+  std::wstring dir = g_dir;
+  std::vector<std::wstring> dirs{ dir };
+  for (auto& frag : SemicolonFragments(dir)) dirs.push_back(dir + L"\\" + frag);
+  bool anyOn = false, anyOff = false;
+  for (auto& d : dirs) {
+    if (FileExists(d + L"\\dinput8.dll")) anyOn = true;
+    if (FileExists(d + L"\\dinput8.dll" + PATCHOFF_EXT)) anyOff = true;
+  }
+  if (native) return anyOff && !anyOn;   // 原版态：只剩 .patchoff
+  return anyOn;                          // 汉化态：dinput8.dll 在
 }
 
 // DXVK：d3d9/d3d10/d3d10_1/d3d10core/d3d11/dxgi 带/不带 .dll
@@ -523,6 +605,18 @@ static Font* FTech(float sz, bool bold = true) {
   if (it != cache.end()) return it->second;
   Font* f = new Font(g_ffTech, sz, bold ? FontStyleBold : FontStyleRegular, UnitPixel);
   cache[key] = f; return f;
+}
+
+// 量一段文字的**紧贴宽度**（GenericTypographic：不含 GDI+ 默认的额外留白）。
+// ★ 绘制与命中判定共用这一个函数，保证「看到的框」与「点得到的区域」永远一致
+//   （2026-10-01 用户反馈"文案和框对不上"）。
+static float TextW(const wchar_t* s, Font* f) {
+  static Graphics* mg = nullptr;
+  if (!mg) mg = Graphics::FromHDC(CreateCompatibleDC(nullptr));
+  RectF b;
+  mg->MeasureString(s, -1, f, PointF(0.f, 0.f),
+                    StringFormat::GenericTypographic(), &b);
+  return b.Width;
 }
 
 static void FillRR(Graphics& g, const RectF& r, float rad, const Color& c) {
@@ -671,11 +765,56 @@ static void DrawSettingRow(Graphics& g, const RectF& r, const wchar_t* label,
                            const wchar_t* value, bool hot, bool open,
                            bool dim = false) {
   if (hot || open) FillRR(g, r, 7, hot ? C_HOVER : C_PANEL);
+  // ★ 层级：标签深色（"找什么"），当前值降一档灰（"现在是什么"）。
+  //   两者原本同色同重，所以五行连读像"一片字"（2026-10-01 用户反馈"堆在一起"）。
   DrawTxt(g, label, F(15), C_TEXT, r.X + 4, r.Y + 8);
-  // 值右对齐，给右侧的小三角留 22px
-  DrawTxt(g, value, F(14), dim ? C_DIM : C_TEXT, r.GetRight() - 22, r.Y + 9, 2);
-  // 小三角：收起时朝右、展开时朝下（比旋转箭头更好画也更清楚）
-  float cx = r.GetRight() - 10, cy = r.Y + 17;
+  // ★ 「值 + 三角」作为一个整体**右对齐到同一条右边界**（2026-10-01 用户反馈
+  //   "右边空白没对齐"）：三角固定在最右，值紧贴在三角左侧。
+  //   旧版值右对齐、三角再跟着值跑 → 三角位置随值长度浮动，右列看着参差。
+  const float TRI_W = 7.f, GAP = 8.f;
+  float right = r.GetRight() - 6.f;              // 三角右缘统一在这条线
+  Font* fv = F(14);
+  float vw = TextW(value, fv);
+  float vx = right - TRI_W - GAP - vw;
+  DrawTxt(g, value, fv, dim ? C_MUTED : C_DIM, vx, r.Y + 9);
+  float cx = right - TRI_W / 2.f, cy = r.Y + 17;   // 三角中心：固定列
+  SolidBrush db(open ? C_ACCENT : C_DIM);
+  PointF tri[3];
+  if (open) { tri[0] = { cx-4, cy-2 }; tri[1] = { cx+4, cy-2 }; tri[2] = { cx, cy+3 }; }
+  else      { tri[0] = { cx-2, cy-4 }; tri[1] = { cx-2, cy+4 }; tri[2] = { cx+3, cy }; }
+  g.FillPolygon(&db, tri, 3);
+}
+
+// 紧凑半格（并排的两格专用）：**每个格是独立控件**。
+// ★ 2026-10-01 用户三轮反馈后的定稿：
+//   ① 值必须贴住自己的标签（值离邻格标签太近会被读成别人的值）；
+//   ② 悬停框必须紧贴内容（旧版左右各留一堆白，"框和文案对不上"）；
+//   ③ **经典两列式**：左格内容贴左缘、右格内容贴右缘 —— 右格的三角因此落在
+//      与其它行相同的三角列上，右边不再有一片莫名的空白；两格之间留自然间隔。
+//   两格各自独立高亮/各自展开（**不做整行合并**：两个独立下拉共用一个高亮框，
+//   会让人以为点下去展开同一个东西，市面上没有这种做法）。
+static float CompactPairW(const wchar_t* label, const wchar_t* value) {
+  return TextW(label, F(15)) + 8.f + TextW(value, F(14)) + 8.f + 7.f;
+}
+static RectF CompactContentRect(const RectF& r, const wchar_t* label,
+                                const wchar_t* value, bool alignRight) {
+  float w = CompactPairW(label, value) + 8.f;    // 两侧各留 4px 呼吸
+  return RectF(alignRight ? (r.GetRight() - w - 2.f) : r.X, r.Y, w, 34.f);
+}
+static void DrawSettingRowCompact(Graphics& g, const RectF& r, const wchar_t* label,
+                                  const wchar_t* value, bool hot, bool open,
+                                  bool dim = false, bool alignRight = false) {
+  RectF cap = CompactContentRect(r, label, value, alignRight);
+  if (hot || open) FillRR(g, cap, 7, hot ? C_HOVER : C_PANEL);
+  const float TRI_W = 7.f, GAP = 8.f;
+  float right = alignRight ? (r.GetRight() - 6.f) : (r.X + 4.f + CompactPairW(label, value));
+  Font* fv = F(14);
+  float vw = TextW(value, fv);
+  float vx = right - TRI_W - GAP - vw;
+  Font* fl = F(15);
+  DrawTxt(g, label, fl, C_TEXT, vx - 8.f - TextW(label, fl), r.Y + 8);
+  DrawTxt(g, value, fv, dim ? C_MUTED : C_DIM, vx, r.Y + 9);
+  float cx = right - TRI_W / 2.f, cy = r.Y + 17;
   SolidBrush db(open ? C_ACCENT : C_DIM);
   PointF tri[3];
   if (open) { tri[0] = { cx-4, cy-2 }; tri[1] = { cx+4, cy-2 }; tri[2] = { cx, cy+3 }; }
@@ -709,12 +848,20 @@ static inline float RWf()  { return (float)WIN_W - PAD_R; }   // 右栏内容右
 enum { ID_START = 200, ID_CHECK = 201, ID_CLOSE = 202, ID_GITHUB = 203,
        ID_ROW = 1000, ID_ROWITEM = 1100 };
 // 四个设置行的语义（下标即 ROW 顺序）：0 = cosplay / 1 = 影片字幕 / 2 = 显示模式 / 3 = 分辨率
-enum { ROW_OUTFIT = 0, ROW_SUBS = 1, ROW_SCRN = 2, ROW_RES = 3 };
+// 2026-10-01 起：显示模式与分辨率**并排各占半行**（同一个 ROW 槽位），
+// 语言模式独占下一行。ROW_N 仍是 4，但 2/3 共用一行（见 RowRect）。
+enum { ROW_OUTFIT = 0, ROW_SUBS = 1, ROW_SCRN = 2, ROW_RES = 3, ROW_LANG = 4 };
 
 // 4 个复选框：行高 37（标题 15px + 灰色说明 11px）
 // （原为 42；为了在**不加大窗口**的前提下腾出「画面」那一行，整体收紧 5px。
 //   收紧后仍保持"标题→说明→下一条"的清晰层次，不是简单挤压。）
 static RectF OptRect(int i)   { return RectF(RXL, 48.f + i * 37.f, RW - RXL, 26.f); }
+// ★ 勾选框的**可点区域**（2026-10-01 用户指定：不要整行都能点，只有勾选方块本身）。
+//   方块绘制在 (r.X, r.Y+2, 22, 22)，这里给一圈小余量便于点中（±4px）。
+static RectF OptBoxRect(int i) {
+  RectF r = OptRect(i);
+  return RectF(r.X - 4.f, r.Y - 2.f, 30.f, 30.f);
+}
 // ── 右栏下半：4 个「标签 + 当前值」行（点哪行展开哪行的选项）──
 // 原先是 3 个带外框的下拉 + 2 行灰色小字说明 + 3 条分隔线，视觉很碎、也占地方。
 // 现在统一成同构的 4 行：左边标签、右边当前值 + 小三角。
@@ -727,13 +874,39 @@ static RectF OptRect(int i)   { return RectF(RXL, 48.f + i * 37.f, RW - RXL, 26.
 //   小字占一行（11px + 留白），所以它**下面三行整体下移 HINT_OFF**。
 static const wchar_t* OUTFIT_HINT =
     L"LanguageBarrier 重定向模型归档，运行时切换该套立绘";
-static const float ROW_Y0 = 206.f, ROW_STEP = 46.f, ROW_H = 34.f;
+// ── 分组（2026-10-01）──
+// 右栏是「两段式清单」：上半 = 开关（复选框，点一下即生效），下半 = 设置（行内下拉）。
+// ★ 分组的**唯一手段是「组标签 + 更大的组间间隔」**，不画线、不加框、不铺底色：
+//   原来组间间隔（21px）比组内行距（37/46px）还小，两组"粘"在一起才显得乱；
+//   现在组间（约 35px）> 组内行距（42px 那一档的视觉间隙），边界自己就出来了。
+//   组标签复用已有的「选项」样式（12px C_MUTED），不是新装饰。
+static const float ROW_Y0 = 224.f, ROW_STEP = 42.f, ROW_H = 34.f;
 static const float HINT_OFF = 16.f;      // cosplay 那行小字占掉的高度
-static const int ROW_N = 4;
-static RectF RowRect(int i) {
-  float dy = (i >= 1) ? HINT_OFF : 0.f;   // 第 1 行（cosplay）之后都让出小字的位置
-  return RectF(RXL, ROW_Y0 + i * ROW_STEP + dy, RW - RXL, ROW_H);
+static const int ROW_N = 4;              // 行槽位数（显示模式/分辨率并排 = 第 2 槽）
+// 第二组（设置）的组标签位置：与顶部「选项」标签的节奏一致（标签 → 18px → 内容）
+static RectF Section2LabelRect() { return RectF(RXL, ROW_Y0 - 18.f, RW - RXL, 14.f); }
+// 行槽位 → 实际 y：第 0 行 = cosplay，第 1 行 = 影片字幕，第 2 行 = 显示模式|分辨率（并排），
+// 第 3 行 = 语言模式。逻辑行号仍用 ROW_* 常量。
+static RectF RowSlotRect(int slot) {
+  float dy = (slot >= 1) ? HINT_OFF : 0.f;   // 第 0 行（cosplay）之后让出小字位置
+  return RectF(RXL, ROW_Y0 + slot * ROW_STEP + dy, RW - RXL, ROW_H);
 }
+// 兼容旧调用：ROW_SCRN / ROW_RES 都落到第 2 槽（并排，左右各半）；
+// ROW_LANG 落到第 3 槽。其余按自身下标。
+static RectF RowRect(int i) {
+  int slot = (i == ROW_SCRN || i == ROW_RES) ? 2 : (i == ROW_LANG ? 3 : i);
+  RectF r = RowSlotRect(slot);
+  if (i == ROW_SCRN) { r.Width = (r.Width - 8.f) / 2.f; return r; }        // 左半
+  if (i == ROW_RES)  { RectF l = RowSlotRect(slot);                       // 右半
+                       l.X += (l.Width + 8.f) / 2.f;
+                       l.Width = (l.Width - 8.f) / 2.f; return l; }
+  return r;
+}
+// 逻辑行数（5）：cosplay / 影片字幕 / 显示模式 / 分辨率 / 语言模式
+// （显示模式与分辨率并排占同一槽位，但各自是独立的下拉行）
+static const int ROW_COUNT = 5;
+// 各行的选项个数（下标 = ROW_* 常量）
+static const int ROW_ITEM_N[ROW_COUNT] = { OUTFIT_N, 3, SCRN_N, RES_N, LANGMODE_N };
 // cosplay 那行下方的小字位置
 static RectF RowHintRect() { return RectF(RXL + 4.f, ROW_Y0 + ROW_H + 5.f, RW - RXL, 12.f); }
 // 主按钮的位置（RowBox 要拿它判断"向下弹会不会压住按钮"，故提前声明）
@@ -800,6 +973,10 @@ static volatile LONG g_checking = 0;      // 0 空闲 / 1 查询中（防重复�
 // 「已是最新」「查不到」这类正常结果直接显示在按钮上、几秒后自动恢复，**不弹窗**。
 static std::wstring g_checkMsg;           // 非空时按钮显示它
 static const UINT_PTR TIMER_CHECKMSG = 1; // 用它定时清掉 g_checkMsg
+// ★ 「已是最新」常驻（2026-10-01 用户指定）：启动自动检查若判定已是最新，
+//   按钮就停在这个字样上，不再几秒后回到「检查更新」—— 否则玩家看不出查过没有。
+//   与 g_checkMsg 分开：g_checkMsg 是临时闪显（检查失败/升级完成），会被定时器清掉。
+static std::wstring g_idleMsg;            // 常驻文案（"已是最新 vX.Y"），空 = 无
 
 // 查到有新版本后的常驻状态（直到本版升级才消失）：
 static std::wstring g_newVer;             // 远程版本号（如 "v1.3"），空 = 没有新版本
@@ -1749,26 +1926,49 @@ static void Paint(HDC hdc) {
       DrawTxtW(gr, OPT_HINT[i], F(11), C_MUTED, r.X + 32, r.Y + 19, RW - (r.X + 32));
     }
 
-    // ── 4 个设置行：cosplay 模式 / 影片字幕 / 显示模式 / 分辨率 ──
+    // ── 设置组：先画组标签（与顶部「选项」同款，12px 灰）──
+    // 分组靠"标签 + 更大的组间间隔"，不画线不加框（见 Section2LabelRect 注释）。
+    DrawTxt(gr, L"设置", F(12), C_MUTED, RXL, Section2LabelRect().Y);
+
+    // ── 设置行：cosplay / 影片字幕 / 显示模式|分辨率（并排各半）/ 语言模式 ──
     // 收起态 = 「标签 ……… 当前值 ▸」；点行头展开该项的选项列表。
-    // 全屏时分辨率那行淡一档（它不生效），但仍可点开 ——
+    // 全屏时分辨率那格淡一档（它不生效），但仍可点开 ——
     // 玩家常要先选好分辨率再切回窗口模式。
     {
-      // 第 2 行「显示模式」与第 3 行「分辨率」是两个独立下拉，
-      // 但语义上是一组（原版 Screen Setting 里就是 SCREEN MODE + RESOLUTION），
-      // 所以分成 4 行后仍挨在一起，中间不加分隔线。
-      const wchar_t* vals[ROW_N] = {
-        OUTFIT_LABEL[st.outfit], SUBS_LABEL[st.subs],
-        SCRN_LABEL[st.scrn], RES_LABEL[st.res]
-      };
-      const wchar_t* names[ROW_N] = { L"cosplay 模式", L"影片字幕", L"显示模式", L"分辨率" };
-      for (int i = 0; i < ROW_N; i++) {
-        bool dim = (i == ROW_RES && st.scrn == 1);
-        DrawSettingRow(gr, RowRect(i), names[i], vals[i],
-                       st.hot == ID_ROW + i, st.openRow == i, dim);
+      // 显示模式与分辨率**并排**（2026-10-01 用户指定：各缩一半、放同一行），
+      // 语言模式独占下面一行。
+      // （斑马纹已撤：改用行间渐隐线分割，见下方 DrawRowSeparator）
+      DrawSettingRow(gr, RowRect(ROW_OUTFIT), L"cosplay 模式",
+                     OUTFIT_LABEL[st.outfit], st.hot == ID_ROW + ROW_OUTFIT,
+                     st.openRow == ROW_OUTFIT, false);
+      DrawSettingRow(gr, RowRect(ROW_SUBS), L"影片字幕",
+                     SUBS_LABEL[st.subs], st.hot == ID_ROW + ROW_SUBS,
+                     st.openRow == ROW_SUBS, false);
+      // 显示模式/分辨率：经典两列（左格贴左、右格贴右，见 DrawSettingRowCompact）
+      DrawSettingRowCompact(gr, RowRect(ROW_SCRN), L"显示模式",
+                            SCRN_LABEL[st.scrn], st.hot == ID_ROW + ROW_SCRN,
+                            st.openRow == ROW_SCRN, false, /*alignRight=*/false);
+      DrawSettingRowCompact(gr, RowRect(ROW_RES), L"分辨率",
+                            RES_LABEL[st.res], st.hot == ID_ROW + ROW_RES,
+                            st.openRow == ROW_RES, st.scrn == 1, /*alignRight=*/true);
+      DrawSettingRow(gr, RowRect(ROW_LANG), L"语言模式",
+                     LANGMODE_LABEL[st.langMode], st.hot == ID_ROW + ROW_LANG,
+                     st.openRow == ROW_LANG, false);
+      // 行间轻量分隔线（极淡短刻度，只做分组暗示，不画满框）——
+      // 画在行与行之间的空隙里；展开下拉时不画，免得和弹层打架。
+      if (st.openRow < 0) {
+        DrawRowSeparator(gr, RowRect(ROW_OUTFIT));
+        DrawRowSeparator(gr, RowRect(ROW_SUBS));
+        DrawRowSeparator(gr, RowSlotRect(2));       // 显示模式|分辨率 那一槽
+      }
+      // 行间分隔线（渐隐线，见 DrawRowSeparator）——展开下拉时不画，免得和弹层打架
+      if (st.openRow < 0) {
+        DrawRowSeparator(gr, RowRect(ROW_OUTFIT));
+        DrawRowSeparator(gr, RowRect(ROW_SUBS));
+        DrawRowSeparator(gr, RowSlotRect(2));       // 显示模式|分辨率 那一槽
       }
       // cosplay 那行下方的小字 —— 只有这一行有（用户 2026-09-24 指定）。
-      // 其余三行（影片字幕/显示模式/分辨率）看字面就懂，不解释。
+      // 其余行看字面就懂，不解释。
       DrawTxtW(gr, OUTFIT_HINT, F(11), C_MUTED,
                RowHintRect().X, RowHintRect().Y, RW - RXL);
     }
@@ -1809,7 +2009,8 @@ static void Paint(HDC hdc) {
       swprintf(upd, 32, L"更新中 %d%%", g_updPct);
       const wchar_t* txt = (g_checking != 0) ? L"检查中…"
                         : updating ? upd
-                        : (!g_checkMsg.empty() ? g_checkMsg.c_str() : L"检查更新");
+                        : (!g_checkMsg.empty() ? g_checkMsg.c_str()
+                        : (!g_idleMsg.empty() ? g_idleMsg.c_str() : L"检查更新"));
       DrawTxtW(gr, txt, F(11), busy ? C_MUTED : C_DIM, cr.X, cr.Y + 5, cr.Width, 1);
       // 小红点：查出有新版本后常亮，升级完成即熄
       if (!g_newVer.empty()) {
@@ -1847,6 +2048,8 @@ static void Paint(HDC hdc) {
       DrawRowItems(gr, ROW_SCRN, SCRN_N, SCRN_LABEL, st.scrn, st.hot);
     else if (st.openRow == ROW_RES)
       DrawRowItems(gr, ROW_RES, RES_N, RES_LABEL, st.res, st.hot);
+    else if (st.openRow == ROW_LANG)
+      DrawRowItems(gr, ROW_LANG, LANGMODE_N, LANGMODE_LABEL, st.langMode, st.hot);
   }
   BitBlt(hdc, 0, 0, pw, ph, mem, 0, 0, SRCCOPY);
   SelectObject(mem, old); DeleteObject(bmp); DeleteDC(mem);
@@ -1918,6 +2121,10 @@ static void LaunchGame() {
   }
   SaveConfig();
   ApplyDxvk(st.on[OPT_DXVK]);
+  // 语言模式：确保磁盘状态与所选模式一致（玩家可能绕过启动器改过文件）
+  if (!LangModeMatches(st.langMode == 1)) {
+    ApplyLangMode(st.langMode == 1);
+  }
   const wchar_t* lang = DetectLang();   // 跟随玩家原本的版本（存档目录随之）
 
   // Steam 版必须先开 Steam 客户端，否则游戏会弹英文模态框
@@ -1951,9 +2158,8 @@ static int HitTest(int px, int py) {
     return x >= r.X && x <= r.GetRight() && y >= r.Y && y <= r.GetBottom();
   };
   // 展开的选项列表优先判定：它盖在别的控件上，命中判定也必须先于它们
-  if (st.openRow >= 0) {
-    static const int rowN[ROW_N] = { OUTFIT_N, 3, SCRN_N, RES_N };
-    int n = rowN[st.openRow];
+  if (st.openRow >= 0 && st.openRow < ROW_COUNT) {
+    int n = ROW_ITEM_N[st.openRow];
     for (int k = 0; k < n; k++)
       if (in(RowItemRect(st.openRow, n, k))) return ID_ROWITEM + st.openRow * 10 + k;
   }
@@ -1961,10 +2167,19 @@ static int HitTest(int px, int py) {
   if (in(StartRect())) return ID_START;
   if (in(CheckRect())) return ID_CHECK;
   if (in(GithubRect())) return ID_GITHUB;
-  for (int i = 0; i < ROW_N; i++) if (in(RowRect(i))) return ID_ROW + i;
+  // 行头命中：显示模式/分辨率并排 —— 命中区 = **内容胶囊**（与绘制同一个矩形），
+  // 所以鼠标只有落在"文字那一块"才算命中，两个半格之间的空白不算（用户要求框与文案一致）
+  if (in(CompactContentRect(RowRect(ROW_SCRN), L"显示模式", SCRN_LABEL[st.scrn], false)))
+    return ID_ROW + ROW_SCRN;
+  if (in(CompactContentRect(RowRect(ROW_RES), L"分辨率", RES_LABEL[st.res], true)))
+    return ID_ROW + ROW_RES;
+  for (int i = 0; i < ROW_COUNT; i++) {
+    if (i == ROW_SCRN || i == ROW_RES) continue;
+    if (in(RowRect(i))) return ID_ROW + i;
+  }
+  // ★ 复选框：只有**方块本身**可点（2026-10-01 用户指定），不再整行可点
   for (int i = 0; i < OPT_COUNT; i++) {
-    RectF r = OptRect(i);
-    if (x >= r.X - 4 && x <= r.X + r.Width && y >= r.Y - 2 && y <= r.Y + 40) return i;
+    if (in(OptBoxRect(i))) return i;
   }
   return -1;
 }
@@ -1999,6 +2214,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         g_remoteVer = (r->status == 3) ? r->remote.version : L"";
         g_newDeltaSize = (r->status == 3) ? r->remote.deltas[r->deltaIdx].size : 0;
         g_delta = (r->status == 3 && r->arms) ? r->remote.deltas[r->deltaIdx] : DeltaInfo();
+        g_idleMsg.clear();                  // 有新版本 → 不再显示「已是最新」
         if (r->arms) {
           if (r->status == 3) {
             std::wstring q = L"发现新版本 " + r->latest + L"（增量 "
@@ -2016,9 +2232,10 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
       } else if (r->status == 1) {
         g_newVer.clear(); g_newUrl.clear(); g_newDeltaSize = 0;
         g_delta = DeltaInfo();
+        // 「已是最新」常驻按钮（不再 4 秒后消失）—— 手动检查弹窗、自动检查只常驻
+        g_idleMsg = L"已是最新 v" + g_dispVer;
         if (r->arms)
-          MessageBoxW(h, (L"已是最新 v" + g_dispVer).c_str(),
-                      L"检查更新", MB_OK | MB_ICONINFORMATION);
+          MessageBoxW(h, g_idleMsg.c_str(), L"检查更新", MB_OK | MB_ICONINFORMATION);
       } else {
         if (r->arms)
           MessageBoxW(h, L"检查失败", L"检查更新", MB_OK | MB_ICONWARNING);
@@ -2037,9 +2254,10 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
     g_updRun = 0;
     if (r) {
       if (r->ok) {
-        // 结果显示在按钮上（几秒后回「检查更新」），左下角版本号跟着走
+        // 结果显示在按钮上（几秒后回常驻文案），左下角版本号跟着走
         g_checkMsg = L"已更新到 " + r->ver + L" ✔";
         SetTimer(h, TIMER_CHECKMSG, 5000, nullptr);
+        g_idleMsg = L"已是最新 v" + r->ver;   // 更新完即最新（定时器只清 g_checkMsg）
         g_delta = DeltaInfo();
         g_dispVer = r->ver;
         g_newDeltaSize = 0;
@@ -2088,7 +2306,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
       bool saveNow = false;
       if (id >= 0 && id < OPT_COUNT) { st.on[id] = !st.on[id]; InvalidateRect(h, nullptr, FALSE); saveNow = true; }
       // 点行头：展开/收起该项的选项（手风琴 —— 同时只开一行，免得撑破窗口）
-      else if (id >= ID_ROW && id < ID_ROW + ROW_N) {
+      else if (id >= ID_ROW && id < ID_ROW + ROW_COUNT) {
         int r = id - ID_ROW;
         st.openRow = (st.openRow == r) ? -1 : r;
         InvalidateRect(h, nullptr, FALSE);
@@ -2100,6 +2318,11 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         else if (r == ROW_SUBS && k < 3) { st.subs = k; saveNow = true; }
         else if (r == ROW_SCRN && k < SCRN_N) { st.scrn = k; SaveScreenCfg(); }
         else if (r == ROW_RES && k < RES_N) { st.res = k; SaveScreenCfg(); }
+        else if (r == ROW_LANG && k < LANGMODE_N) {
+          // 语言模式：切换 dinput8.dll 的启用/停用（游戏在跑会失败并提示）
+          bool wantNative = (k == 1);
+          if (ApplyLangMode(wantNative)) { st.langMode = k; saveNow = true; }
+        }
         st.openRow = -1;
         InvalidateRect(h, nullptr, FALSE);
       }
