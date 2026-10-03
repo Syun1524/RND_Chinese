@@ -66,7 +66,7 @@ static const int RIGHT_W = 425;   // 右栏固定宽度（放选项）
 
 // 产品版本。⚠ 改版本要同步三处：这里、成品ing/setup/src/RNDZhSetup.cpp 的 VER、
 // 成品ing/setup/build/build_installer.py 的 VERSION（决定包文件名）。
-static const wchar_t* VER = L"1.7";
+static const wchar_t* VER = L"1.8";
 // 产品标题（用户要求结尾带版本号）。窗口标题用这一份（游戏窗口标题不再改写）。
 static const std::wstring APP_TITLE =
     std::wstring(L"ROBOTICS;NOTES DaSH 简体中文 AI人工精校版 v") + VER;
@@ -437,6 +437,74 @@ static void SaveScreenCfg() {
   f.write((const char*)&dm, 4);
   f.write((const char*)&rs, 4);
   f.flush();
+}
+
+// ── config.dat 缺失时补一份默认的（2026-10-03）──
+//
+// ★ 为什么必须补：config.dat 是**原版 MAGES launcher.exe** 在第一次「Start Game」
+//   时创建的（文件里是它自己的 Screen Setting：显示模式/分辨率/窗口坐标/影片品质）。
+//   我们的链路 Steam → boot.bat → RNDZhLauncher.exe → Game.exe **完全绕过了那个
+//   启动器**，而本启动器对 config.dat 历来是「只改不造」（SaveScreenCfg 里那句
+//   `if (!st.scrnOk) return;`）。于是「没跑过一次原版游戏就装补丁」的玩家
+//   —— 新电脑、重装系统、清过存档 —— 存档目录里没有 config.dat，
+//   Game.exe 启动时报 **「There is an error importing setup files.」**
+//   （内部键 LANG_LAUNCHER_ERROR；同一资源块的简中/日文版分别是
+//   「无法读取配置文件。」/「設定ファイルの読込みに失敗しました。」）。
+//   CoZ 的安装说明因此要求「至少先从 Steam 启动一次游戏」；我们把那条删掉之后
+//   就只剩这条路兜底。
+//
+// ★ 默认值取最保守的一组（**窗口 + 1024*576**）：宁可小、不可黑屏 ——
+//   分辨率写高了玩家显示器不支持就进不去游戏，而本启动器的「画面」行
+//   本来就是给这种情况留的救急入口。
+//   实测本机两份 config.dat 都是 108 字节（日文旧格式曾是 76 字节，
+//   游戏自己会升级），这里直接写 108 字节的当前格式。
+//   +0x04 起 40 字节是控制器 GUID：全 0 = 未配置，游戏会走默认键位。
+static const long kCfgSize = 108;        // 当前格式的完整长度
+static const long kOffWidth = 0x2C, kOffHeight = 0x30;
+static const long kOffWinX = 0x3C, kOffWinY = 0x40;
+static const long kOffMovieQuality = 0x44, kOffLanguage = 0x48;
+
+// 返回 true = 现在文件确实可用（本来就存在，或刚补成功）。
+static bool EnsureConfigDat() {
+  std::wstring p = ConfigDatPath();
+  if (p.empty()) return false;
+
+  {  // 已存在且够大 → 什么都不做
+    std::ifstream f(p, std::ios::binary);
+    if (f) {
+      f.seekg(0, std::ios::end);
+      if ((long)f.tellg() >= kCfgSize) return true;
+    }
+  }
+
+  // 目录可能整条都不存在（全新机器连 My Games 都没有）
+  std::wstring dir = p;
+  size_t s = dir.find_last_of(L'\\');
+  if (s != std::wstring::npos) EnsureDir(dir.substr(0, s));
+
+  std::vector<unsigned char> buf((size_t)kCfgSize, 0);
+  auto put = [&](long off, unsigned v) { memcpy(&buf[(size_t)off], &v, 4); };
+  put(kOffWidth,  1024u);      // 窗口宽
+  put(kOffHeight, 576u);       // 窗口高
+  put(kOffDisplayMode, 0u);    // 0 = 窗口（不要全屏：全屏档位不匹配会黑屏）
+  put(kOffResolution, 0u);     // 0 = 1024*576
+  put(kOffWinX, 80u);          // 起始窗口位置（原版给的是居中偏左上）
+  put(kOffWinY, 60u);
+  put(kOffMovieQuality, 0u);
+  put(kOffLanguage, 0u);
+
+  {
+    std::ofstream f(p, std::ios::binary | std::ios::trunc);
+    if (!f) return false;
+    f.write((const char*)buf.data(), (std::streamsize)buf.size());
+    f.flush();
+    if (!f) return false;
+  }
+
+  // 写完立刻回读校验：读不回来就当没写成功，删掉别留半成品害人
+  LoadScreenCfg();
+  if (!st.scrnOk) { DeleteFileW(p.c_str()); return false; }
+  return true;
 }
 
 // 写配置：整份重写，未知键原样带上。
@@ -2127,6 +2195,12 @@ static void LaunchGame() {
   }
   const wchar_t* lang = DetectLang();   // 跟随玩家原本的版本（存档目录随之）
 
+  // config.dat 兜底：这份文件历来由原版 MAGES launcher.exe 首次启动时创建，
+  // 而我们的链路绕过了它 —— 没跑过原版就装补丁的玩家会缺这个文件，
+  // Game.exe 随后弹「There is an error importing setup files.」。见 EnsureConfigDat。
+  // 失败不拦：也许是只读盘/权限问题，让玩家自己从 Steam 走一次原版即可。
+  EnsureConfigDat();
+
   // Steam 版必须先开 Steam 客户端，否则游戏会弹英文模态框
   // （"You need to execute Steam system..."）且主窗口根本不出来。
   // 检测不到进程时不拦 —— 免得误伤（比如改名版 Steam）。
@@ -2352,18 +2426,22 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR cmdLine, int) {
   //   --selftest-update                无窗口跑一次 检查→下载→应用，结果写
   //                                    %TEMP%\rndzh_upd_selftest.json，退出码 0/1/2
   //   --apply-update <tmpDir> <7z名>   UAC 提权子进程：应用增量后立即退出（不建窗口）
+  //   --selftest-configdat             无窗口验证 config.dat 兜底逻辑（见 EnsureConfigDat），
+  //                                    结果写 %TEMP%\rndzh_cfg_selftest.json，退出码 0/1
   int argc = 0;
   LPWSTR* argv = CommandLineToArgvW(cmdLine, &argc);
   // ⚠ wWinMain 的 lpCmdLine 已被 CRT 去掉程序名，所以 CommandLineToArgvW 的
   //   结果里没有 argv[0]，必须从 i=0 遍历 —— 从 i=1 开始会把「--update-base」
   //   本身跳过、URL 落在偶数位全部漏掉（本轮自测踩过：参数从未生效）。
-  bool selftest = false;
+  bool selftest = false, cfgSelftest = false;
   for (int i = 0; argv && i < argc; i++) {
     if (!wcscmp(argv[i], L"--update-base") && i + 1 < argc) {
       g_updBase = argv[++i];
       if (!g_updBase.empty() && g_updBase.back() != L'/') g_updBase.push_back(L'/');
     } else if (!wcscmp(argv[i], L"--selftest-update")) {
       selftest = true;
+    } else if (!wcscmp(argv[i], L"--selftest-configdat")) {
+      cfgSelftest = true;
     } else if (!wcscmp(argv[i], L"--apply-update") && i + 2 < argc) {
       int rc = RunApplyChild(argv[i + 1], argv[i + 2]);
       if (argv) LocalFree(argv);
@@ -2371,6 +2449,32 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR cmdLine, int) {
     }
   }
   if (argv) LocalFree(argv);
+
+  if (cfgSelftest) {
+    // 无窗口验证 config.dat 兜底：跑 EnsureConfigDat，把结果落盘供测试脚本断言。
+    // 只读游戏目录、只写存档目录里的 config.dat，不拉起游戏、不建窗口。
+    g_dir = ExeDir();
+    std::wstring path = ConfigDatPath();
+    std::wstring before;
+    { std::ifstream f(path, std::ios::binary); before = f ? L"exists" : L"missing"; }
+    bool ok = EnsureConfigDat();
+    std::wstring after;
+    long sz = 0;
+    { std::ifstream f(path, std::ios::binary | std::ios::ate);
+      if (f) { sz = (long)f.tellg(); after = L"exists"; } else after = L"missing"; }
+    std::wstring js = L"{\n  \"path\": \"" + path + L"\",\n"
+                      L"  \"before\": \"" + before + L"\",\n"
+                      L"  \"after\": \"" + after + L"\",\n"
+                      L"  \"size\": " + std::to_wstring(sz) + L",\n"
+                      L"  \"ok\": " + (ok ? L"true" : L"false") + L",\n"
+                      L"  \"scrnOk\": " + (st.scrnOk ? L"true" : L"false") + L",\n"
+                      L"  \"scrn\": " + std::to_wstring(st.scrn) + L",\n"
+                      L"  \"res\": " + std::to_wstring(st.res) + L"\n}\n";
+    wchar_t tmp[MAX_PATH] = { 0 };
+    GetTempPathW(MAX_PATH, tmp);
+    WriteFileAll(std::wstring(tmp) + L"rndzh_cfg_selftest.json", WideToUtf8(js));
+    ExitProcess(ok ? 0 : 1);
+  }
 
   g_dir = ExeDir();
   g_dispVer = LocalVer();                    // 左下角显示当前补丁版本（无 version.txt 退 VER）

@@ -15,6 +15,7 @@
 #include <shellapi.h>
 #include <tlhelp32.h>
 #include <commctrl.h>
+#include <wincrypt.h>     // MD5（Game.exe 版本识别）
 #include <string>
 #include <vector>
 #include <map>
@@ -27,6 +28,7 @@
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
 #pragma comment(lib, "ole32.lib")
+#pragma comment(lib, "advapi32.lib")   // Crypto*（MD5）
 
 using namespace Gdiplus;
 
@@ -36,7 +38,7 @@ using namespace Gdiplus;
 static const int WIN_W = 480, WIN_H = 268;
 // 产品版本。⚠ 改版本要同步三处：这里、launcher/RNDZhLauncher.cpp 的 VER、
 // 成品ing/setup/build/build_installer.py 的 VERSION（决定包文件名）。
-static const wchar_t* VER = L"1.7";
+static const wchar_t* VER = L"1.8";
 static const Color
   C_BG      (255, 255, 255, 255),   // 窗口底
   C_PANEL   (255, 245, 246, 248),   // 顶部标题条
@@ -65,6 +67,7 @@ static bool g_done = false, g_failed = false;
 static bool g_cleanupOnExit = false;  // 关窗后再清 SFX 临时目录（不能在 UI 线程上同步删）
 static int g_hot = -1;
 static std::wstring g_gameVer;     // 一行状态提示（如「已找到游戏（日文版）」）
+static std::wstring g_verWarn;     // 游戏本体构建没登记过时的警告（只提示不阻止）
 // 目录框用原生 EDIT 子控件：插入符、选区、剪贴板、输入法全部自带。
 // 之前手绘输入框只能处理 ASCII 按键，打中文/粘贴都不行。
 static const int ID_EDIT_DIR = 1001;   // 目录 EDIT 控件 ID
@@ -186,6 +189,80 @@ static std::wstring DetectLangFrom(const std::wstring& gameDir) {
 
 static bool ValidGameDir(const std::wstring& d) {
   return Exists(Join(d, L"Game.exe")) && Exists(Join(d, L"script.cpk"));
+}
+
+// ── 游戏本体版本识别（2026-10-03）──
+//
+// ★ 为什么加：补丁的 LanguageBarrier 靠 gamedef.json 里的 **SigScan 特征码**定位
+//   游戏内部函数。特征码是按特定 Game.exe 构建写的，Steam 一更新游戏本体就可能
+//   对不上。SigScan 本身支持 `pattern` 写成数组逐个回退（见 SigScan.cpp），
+//   但**只有个别签名登记了备选**，覆盖不了"任何版本"。
+//   此前安装器只查 Game.exe + script.cpk 是否存在（ValidGameDir），
+//   游戏换了构建照样硬装，装完出问题玩家也不知道原因。
+//
+// ★ 只警告不阻止（用户 2026-10-03 拍板）：认不出的版本仍允许安装 ——
+//   补丁对多版本有一定容错，硬拦会把能用的情况也挡掉；
+//   但要让玩家在装之前就看见"这个版本我们没测过"，出问题时能对得上号。
+//
+// ★ 基准值取自本机三份干净副本（Steam 正本 / 日文副本 / 英文副本的 Game.exe
+//   md5 完全一致，实测 445f776c2e605ddaa78557df652c5318）。将来实测通过新构建
+//   就往这个表里追加一行，并在注释里记上日期与来源。
+struct KnownGameBuild { const wchar_t* md5; const wchar_t* note; };
+static const KnownGameBuild kKnownGameBuilds[] = {
+  { L"445f776c2e605ddaa78557df652c5318", L"2024-09 版（本补丁实测通过）" },
+};
+
+static bool Md5OfFile(const std::wstring& path, std::wstring& hexOut) {
+  hexOut.clear();
+  HCRYPTPROV hProv = 0;
+  if (!CryptAcquireContextW(&hProv, nullptr, MS_DEF_PROV, PROV_RSA_FULL,
+                            CRYPT_VERIFYCONTEXT)) return false;
+  HCRYPTHASH hHash = 0;
+  bool ok = CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash) != FALSE;
+  if (ok) {
+    HANDLE h = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                           OPEN_EXISTING, 0, nullptr);
+    ok = (h != INVALID_HANDLE_VALUE);
+    if (ok) {
+      BYTE buf[65536]; DWORD rd = 0;
+      for (;;) {
+        if (!ReadFile(h, buf, sizeof(buf), &rd, nullptr) || rd == 0) break;
+        if (!CryptHashData(hHash, buf, rd, 0)) { ok = false; break; }
+      }
+      CloseHandle(h);
+    }
+    if (ok) {
+      BYTE digest[16]; DWORD n = sizeof(digest);
+      if (CryptGetHashParam(hHash, HP_HASHVAL, digest, &n, 0)) {
+        wchar_t w[8];
+        for (int i = 0; i < 16; i++) {
+          wsprintfW(w, L"%02x", digest[i]);
+          hexOut += w;
+        }
+      } else ok = false;
+    }
+    CryptDestroyHash(hHash);
+  }
+  CryptReleaseContext(hProv, 0);
+  return ok && !hexOut.empty();
+}
+
+// 返回 true = 认得这个构建；false = 没登记过（调用方只提示、不拦）
+//
+// ★ 带缓存：RefreshDirHint 会被编辑框的每次按键触发（WM_APP+1），
+//   而 Game.exe 有 3.6 MB，每次敲键都算一遍 MD5 是白烧 CPU。
+//   目录没变就直接复用上次结果。
+static bool GameBuildKnown(const std::wstring& gameDir, std::wstring& md5Out) {
+  static std::wstring cachedDir, cachedMd5;
+  static bool cachedKnown = false;
+  if (gameDir == cachedDir) { md5Out = cachedMd5; return cachedKnown; }
+  cachedDir = gameDir;
+  cachedKnown = false;
+  if (!Md5OfFile(Join(gameDir, L"Game.exe"), cachedMd5)) { md5Out = cachedMd5; return false; }
+  for (auto& kb : kKnownGameBuilds)
+    if (cachedMd5 == kb.md5) { cachedKnown = true; break; }
+  md5Out = cachedMd5;
+  return cachedKnown;
 }
 
 // 玩家目录名里有分号（;）时，加载器怎么找本地 DLL —— 本补丁最重要的环境事实。
@@ -831,6 +908,10 @@ static void Paint(HDC hdc) {
       if (g_gameDir.empty()) hc = C_WARN;
       Txt(g, g_gameVer.c_str(), F(12), hc, HintRect().X, HintRect().Y);
     }
+    // 版本警告右对齐贴同一行右缘 —— 左边留给「已找到游戏…」，
+    // 两者互不遮挡（警告文案已压到最短，见 GameBuildKnown 的注释）。
+    if (!g_verWarn.empty())
+      TxtR(g, g_verWarn.c_str(), F(12), C_WARN, HintRect(), 2, 1);
 
     // 进度条（未开始时只显示状态文字，不画空槽，避免界面看起来"半成品"）
     if (g_pct >= 0) {
@@ -946,15 +1027,24 @@ static LRESULT CALLBACK EditSubclass(HWND h, UINT m, WPARAM w, LPARAM l,
 // 校验并刷新目录框下方那行提示。文本刻意保持简短 ——
 // 玩家只需要知道"找到了没有"，不需要知道存档目录叫什么。
 static void RefreshDirHint() {
-  if (g_gameDir.empty()) { g_gameVer.clear(); return; }
+  if (g_gameDir.empty()) { g_gameVer.clear(); g_verWarn.clear(); return; }
   if (!ValidGameDir(g_gameDir)) {
     g_gameVer = L"这里没有 Game.exe，请选择游戏根目录";
+    g_verWarn.clear();
     return;
   }
   std::wstring lg = DetectLangFrom(g_gameDir);
   g_gameVer = (lg == L"EN") ? L"已找到游戏（英文版）" : L"已找到游戏（日文版）";
   if (Exists(Join(g_gameDir, L"languagebarrier\\patchdef.json")))
     g_gameVer += L"，将覆盖旧补丁";
+
+  // 游戏本体构建识别（只警告不阻止，理由见 GameBuildKnown 的注释）。
+  // 单独存一份文案：提示行只有一行宽度，塞不下「已找到…＋版本警告」两句。
+  g_verWarn.clear();
+  std::wstring md5;
+  if (!GameBuildKnown(g_gameDir, md5))
+    g_verWarn = L"⚠ 未识别的游戏版本，可能不兼容（游戏更新后请等补丁跟进）";
+
   // 注意：目录名含分号导致的兼容处理**不要在这里提示**。
   // 那是我们的实现细节，玩家既看不懂"分号片段"也不知道分子目录是干什么的；
   // 而且现在安装器会自动处理好，根本不需要玩家知情（详见 SemicolonFragments）。
@@ -1204,6 +1294,57 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
     std::wstring lower = cl;
     for (auto& c : lower) c = (wchar_t)towlower(c);
 
+    // 自检模式（/selftest-ver）：无窗口验证「游戏本体构建识别」（见 GameBuildKnown）。
+    //   RNDZhSetup.exe /selftest-ver <游戏目录>
+    // 结果写 D:\rndzh_ver_selftest.json，退出码 0 = 认得 / 1 = 没登记过 / 2 = 参数错。
+    // 只读 Game.exe，不装任何文件 —— 专供自动化回归用。
+    //
+    // ⚠ 必须放在 /selftest 分支**之前**：下面那条用的是子串匹配
+    //   （`lower.find(L"/selftest")`），而 "/selftest-ver" 含 "/selftest"，
+    //   顺序反了就会被它先截走、这个分支永远不执行（实测踩过）。
+    if (lower.find(L"/selftest-ver") != std::wstring::npos) {
+      int argc = 0;
+      LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+      std::wstring d;
+      // 不能只看 argv[1]：提权转发（Start-Process -Verb RunAs）下命令行可能
+      // 被 UAC 重新拼装。改为**扫全部参数，取第一个看起来像目录的**。
+      for (int i = 1; argv && i < argc; i++) {
+        std::wstring cand = argv[i];
+        if (!cand.empty() && cand.back() == L'"') cand.pop_back();
+        if (!cand.empty() && cand[0] == L'"') cand.erase(0, 1);
+        if (!cand.empty() && cand[0] == L'/') continue;      // 跳过开关本身
+        for (auto& c : cand) if (c == L'/') c = L'\\';
+        while (!cand.empty() && cand.back() == L'\\') cand.pop_back();
+        if (cand.find(L':') != std::wstring::npos) { d = cand; break; }
+      }
+      if (argv) LocalFree(argv);
+      bool okDir = !d.empty() && ValidGameDir(d);
+      std::wstring md5;
+      bool known = okDir && GameBuildKnown(d, md5);
+      std::wstring js = L"{\n  \"dir\": \"" + d + L"\",\n"
+                        L"  \"valid\": " + (okDir ? L"true" : L"false") + L",\n"
+                        L"  \"gameExeMd5\": \"" + md5 + L"\",\n"
+                        L"  \"known\": " + (known ? L"true" : L"false") + L"\n}\n";
+      // ★ 固定写到 D:\（而不是 %TEMP%）：本程序带 requireAdministrator 清单，
+      //   提权后 %TEMP% 变成管理员账户的目录，自动化脚本读不到。
+      //   与既有的 /selftest 一样落在盘根，测试侧固定路径读。
+      //   用 WideCharToMultiByte 转 UTF-8（不要 std::wofstream —— 默认 locale
+      //   遇到非 ASCII 就截断）。
+      std::string u8;
+      int n = WideCharToMultiByte(CP_UTF8, 0, js.c_str(), (int)js.size(),
+                                  nullptr, 0, nullptr, nullptr);
+      if (n > 0) {
+        u8.resize((size_t)n);
+        WideCharToMultiByte(CP_UTF8, 0, js.c_str(), (int)js.size(),
+                            &u8[0], n, nullptr, nullptr);
+      }
+      std::ofstream out("D:\\rndzh_ver_selftest.json",
+                        std::ios::binary | std::ios::trunc);
+      out.write(u8.data(), (std::streamsize)u8.size());
+      GdiplusShutdown(tk);
+      return !okDir ? 2 : (known ? 0 : 1);
+    }
+
     // 自检模式（/selftest）：不开窗口，把语言判定与路径规范化跑一遍并写结果。
     // 提权窗口无法被自动化截图/点击（UIPI），所以把"能不能正确判定"这件事
     // 做成可脚本验证的纯逻辑测试，避免只能靠人眼看。
@@ -1284,6 +1425,12 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
         }
         g_gameDir = d;
         g_gameVer = L"(silent) 指定目录";
+        // 静默模式也走一遍版本识别：不认得的构建要在日志/界面上留痕，
+        // 否则玩家事后报「装完就崩」我们无从判断是不是版本不匹配。
+        g_verWarn.clear();
+        std::wstring md5;
+        if (!GameBuildKnown(g_gameDir, md5))
+          g_verWarn = L"⚠ 未识别的游戏版本，可能不兼容（游戏更新后请等补丁跟进）";
       }
       if (argv) LocalFree(argv);
       bool ok = !g_gameDir.empty() && RunInstall();
@@ -1297,6 +1444,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
     RefreshDirHint();
   } else {
     g_gameVer = L"未自动找到游戏，请点「浏览…」或直接把游戏文件夹拖进来";
+    g_verWarn.clear();
   }
 
   WNDCLASSEXW wc{ sizeof(wc) };
