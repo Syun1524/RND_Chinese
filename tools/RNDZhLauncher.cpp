@@ -66,7 +66,7 @@ static const int RIGHT_W = 425;   // 右栏固定宽度（放选项）
 
 // 产品版本。⚠ 改版本要同步三处：这里、成品ing/setup/src/RNDZhSetup.cpp 的 VER、
 // 成品ing/setup/build/build_installer.py 的 VERSION（决定包文件名）。
-static const wchar_t* VER = L"1.8";
+static const wchar_t* VER = L"1.9";
 // 产品标题（用户要求结尾带版本号）。窗口标题用这一份（游戏窗口标题不再改写）。
 static const std::wstring APP_TITLE =
     std::wstring(L"ROBOTICS;NOTES DaSH 简体中文 AI人工精校版 v") + VER;
@@ -1490,14 +1490,21 @@ static bool Run7zExtract(const std::wstring& exe7z, const std::wstring& arc,
 
 // ── 应用增量 ──
 // 把解包出的 payload 覆盖进游戏目录。返回 0 = 成功；失败时 err 给出原因，
-// 调用方据 backup 目录回滚（半途失败绝不留混合版本）。
+// 调用方据 applied（本次真正落盘的文件）回滚（半途失败绝不留混合版本）。
+// ★ 两段式：先把整份元数据安检完、再备份、最后覆盖。元数据不合法时游戏目录
+//   一个字节都不碰 —— 旧版把安检与备份交织在一个循环里，中止时已备份一半，
+//   而回滚按全量清单走，把「没来得及备份」当成「本次新增」删掉，误删玩家原文件
+//   （2026-10-03 实测：卸载汉化.exe / 安装说明.txt 被删）。
 static int ApplyPayload(const DeltaInfo& d, const std::wstring& newVer,
-                        const std::wstring& tmpDir, std::wstring& err) {
+                        const std::wstring& tmpDir, std::wstring& err,
+                        std::vector<std::wstring>& applied) {
   std::wstring payload = tmpDir + L"\\payload";
   std::wstring backup  = tmpDir + L"\\backup";
-  // 0) 安检 + 备份将被覆盖的原文件
-  for (auto& f : d.files) {
+  // 0) 安检：整份元数据验完再动手
+  for (auto& f : d.files)
     if (!SafeRelPath(f.path)) { err = L"增量元数据含非法路径：" + f.path; return 1; }
+  // 0b) 备份将被覆盖的原文件
+  for (auto& f : d.files) {
     std::wstring dest = g_dir + L"\\" + NativeRel(f.path);
     if (FileExists(dest)) {
       std::wstring bk = backup + L"\\" + NativeRel(f.path);
@@ -1518,12 +1525,18 @@ static int ApplyPayload(const DeltaInfo& d, const std::wstring& newVer,
       std::wstring nw = g_dir + L"\\RNDZhLauncher.new.exe";
       if (!CopyFileW(src.c_str(), nw.c_str(), FALSE)) { err = L"写入 RNDZhLauncher.new.exe 失败"; return 2; }
       std::string hx;
-      if (!Md5File(nw, hx) || hx != f.md5) { err = L"校验失败：RNDZhLauncher.new.exe"; return 2; }
+      if (!Md5File(nw, hx) || hx != f.md5) {
+        DeleteFileW(nw.c_str());            // 半成品 .new 不能留（下次检查会再次增量）
+        err = L"校验失败：RNDZhLauncher.new.exe";
+        return 2;
+      }
       continue;
     }
     std::wstring dest = g_dir + L"\\" + NativeRel(f.path);
     std::wstring ddir = DirPart(dest);
     if (!ddir.empty()) EnsureDir(ddir);
+    // ★ 动手前就记账：复制中途失败（磁盘满等）会把目标写成半成品，同样必须回滚
+    applied.push_back(f.path);
     if (!CopyFileW(src.c_str(), dest.c_str(), FALSE)) { err = L"覆盖失败：" + f.path; return 2; }
     std::string hx;
     if (!Md5File(dest, hx) || hx != f.md5) { err = L"校验失败：" + f.path; return 2; }
@@ -1541,13 +1554,16 @@ static int ApplyPayload(const DeltaInfo& d, const std::wstring& newVer,
                     WideToUtf8(newVer) + "\r\n")) { err = L"写 version.txt 失败"; return 3; }
   return 0;
 }
-// 覆盖失败后的回滚：有备份的恢复原文件，没备份的（新增文件）删掉
-static void Rollback(const DeltaInfo& d, const std::wstring& tmpDir) {
+// 覆盖失败后的回滚：只回滚 applied 里真正落盘过的文件 ——
+// 有备份的恢复原文件，没备份的（本次新增）删掉。
+// ★ 绝不能按 d.files 全量走：没覆盖过的文件既没备份、也不是新增，
+//   全量回滚会把玩家原文件当新增删掉（2026-10-03 事故的次生伤害）。
+static void Rollback(const std::vector<std::wstring>& applied,
+                     const std::wstring& tmpDir) {
   std::wstring backup = tmpDir + L"\\backup";
-  for (auto& f : d.files) {
-    if (_wcsicmp(f.path.c_str(), L"RNDZhLauncher.exe") == 0) continue;  // 本体由改名逻辑自回滚
-    std::wstring bk = backup + L"\\" + NativeRel(f.path);
-    std::wstring dest = g_dir + L"\\" + NativeRel(f.path);
+  for (auto& p : applied) {
+    std::wstring bk = backup + L"\\" + NativeRel(p);
+    std::wstring dest = g_dir + L"\\" + NativeRel(p);
     if (FileExists(bk)) CopyFileW(bk.c_str(), dest.c_str(), FALSE);
     else DeleteFileW(dest.c_str());
   }
@@ -1806,14 +1822,15 @@ static UpdDone* RunUpdateCore() {
     // 3) 应用：写不进游戏目录就 UAC 自提权，由 --apply-update 子进程完成同样的应用流程
     g_updRun = 3;
     if (CanWriteGameDir()) {
-      int rc = ApplyPayload(g_delta, g_remoteVer, g_updTmpDir, r->err);
+      std::vector<std::wstring> applied;
+      int rc = ApplyPayload(g_delta, g_remoteVer, g_updTmpDir, r->err, applied);
       g_diagStage = 100 + rc;              // 自测诊断：应用阶段返回码
-      if (rc != 0) { Rollback(g_delta, g_updTmpDir); break; }
+      if (rc != 0) { Rollback(applied, g_updTmpDir); break; }
       if (DeltaHasLauncher(g_delta)) {
         // 本体落位必须在这里做（提权路径由子进程做）：先把 .new 备好，
         // 成功后靠「改名让位」换上 —— 漏了这步，重启拉起的还是旧本体。
         std::wstring e2;
-        if (!FinalizeSelfUpdate(e2)) { Rollback(g_delta, g_updTmpDir); r->err = e2; break; }
+        if (!FinalizeSelfUpdate(e2)) { Rollback(applied, g_updTmpDir); r->err = e2; break; }
       }
       r->selfUpdated = DeltaHasLauncher(g_delta);
       r->ok = true;                        // ★ 应用内路径的成功出口（曾漏掉 → 恒报失败）
@@ -1882,8 +1899,9 @@ static int RunApplyChild(const std::wstring& tmpDir, const std::wstring& deltaFi
     const DeltaInfo* d = nullptr;
     for (auto& x : ru.deltas) if (x.file == deltaFile) { d = &x; break; }
     if (!d) { err = L"update.json 里没有增量 " + deltaFile; break; }
-    int rc = ApplyPayload(*d, ru.version, tmpDir, err);
-    if (rc != 0) { Rollback(*d, tmpDir); code = rc; break; }
+    std::vector<std::wstring> applied;
+    int rc = ApplyPayload(*d, ru.version, tmpDir, err, applied);
+    if (rc != 0) { Rollback(applied, tmpDir); code = rc; break; }
     if (DeltaHasLauncher(*d)) {
       if (!FinalizeSelfUpdate(err)) { code = 5; break; }
     }

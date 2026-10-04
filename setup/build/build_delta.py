@@ -21,10 +21,14 @@
     boot.bat                     语言 token 按安装而异，安装器重写，增量无权碰
     RNDZhSetup.exe               不进游戏目录
     languagebarrier/version.txt  启动器应用增量后自己写（写进包会固化旧版本号）
+    Game.exe / 卸载汉化.exe      ★ 启动器 SafeRelPath 的受保护文件（永不覆盖/删除）
+                                 —— 卸载器源码没改，但每次发版重编会改 PE 时间戳、
+                                 md5 随变，2026-10-03 就因此被算进差量、被 v1.6
+                                 启动器整包拒收（报「增量元数据含非法路径」）。
 
 门禁（任一触发即退出，不写盘）：
     基线快照缺 md5 字段 / 删除清单含受保护文件 / 某基线零差异 /
-    打包后 `7zr t` 不过 / --version 与补丁包 version.txt 不一致
+    受保护文件被算进变化集 / 打包后 `7zr t` 不过 / --version 与补丁包 version.txt 不一致
 """
 import argparse
 import hashlib
@@ -42,7 +46,18 @@ SEVENZR = os.path.join(HERE, 'sdk', '7zr.exe')
 DEFAULT_PKG = os.path.join(ROOT, '成品ing', '补丁包')
 DEFAULT_OUT = os.path.join(ROOT, '成品ing')
 
-FORBID = {'boot.bat', 'RNDZhSetup.exe', 'languagebarrier/version.txt'}
+# ★ 受保护文件：必须与启动器 tools/RNDZhLauncher.cpp 的 SafeRelPath() 名单**完全一致**。
+#   启动器在应用增量前逐条安检 files[]，命中即整包拒绝（「增量元数据含非法路径」）。
+#   名单不一致就会出现「打包端打进去了、玩家端永远装不上」的静默死锁。
+#   check_delta_metadata.py 有一道门禁专门核对两边名单。
+FORBID = {'boot.bat', 'RNDZhSetup.exe', 'languagebarrier/version.txt',
+          'Game.exe', '卸载汉化.exe'}
+
+# 受保护文件里「本该逐版不变」的那些：一旦 md5 变了就该有人看一眼。
+#   · Game.exe     —— 游戏本体，不该进包
+#   · 卸载汉化.exe —— 源码几乎不动；变了通常是无意重编（2026-10-03 事故的起点）
+# 不含 RNDZhSetup.exe：它每版都随版本号重编，告警会退化成噪音。
+FORBID_STABLE = ['Game.exe', '卸载汉化.exe']
 
 
 def log(*a):
@@ -100,17 +115,29 @@ def main():
             sys.exit('补丁包 version.txt=%s 与 --version %s 不一致（先跑 build_installer.py）'
                      % (cur, args.version))
 
-    cur = {p: h for p, h in walk_pkg(args.pkg).items() if p not in FORBID}
-    log('当前补丁包：%d 文件（不含排除项）' % len(cur))
+    cur_all = walk_pkg(args.pkg)                       # 含受保护文件（只用于对比告警）
+    cur = {p: h for p, h in cur_all.items() if p not in FORBID}
+    log('当前补丁包：%d 文件（不含 %d 个排除项）' % (len(cur), len(cur_all) - len(cur)))
 
     deltas = []
     for base_ver, mpath in zip(args.bases, args.manifests):
-        base = {p: h for p, h in load_snapshot(mpath).items() if p not in FORBID}
+        base_all = load_snapshot(mpath)
+        base = {p: h for p, h in base_all.items() if p not in FORBID}
+        # 受保护文件变了 → 显式告警。这些文件按设计逐版不变（卸载器/游戏本体），
+        # md5 变了通常意味着「发版时顺手重编了」——它进不了增量包（上面已排除），
+        # 但也绝不能让它悄悄溜进「变化集」而无人知晓（2026-10-03 事故就是这样开始的）。
+        for p in FORBID_STABLE:
+            if p in base_all and p in cur_all and base_all[p] != cur_all[p]:
+                log('⚠ 受保护文件 %s 与基线 v%s 不同（不进增量包；'
+                    '确认是有意重编，或检查是否误改）' % (p, base_ver))
         changed = sorted(p for p in cur if p not in base or base[p] != cur[p])
         deleted = sorted(p for p in base if p not in cur)
         prot = [p for p in deleted if p in FORBID]
         if prot:
             sys.exit('★ 删除清单含受保护文件：%s' % prot)
+        bad = [p for p in changed if p in FORBID]
+        if bad:
+            sys.exit('★ 受保护文件被算进变化集（不该发生，先查 walk/过滤）：%s' % bad)
         if not changed and not deleted:
             sys.exit('基线 v%s 与当前零差异，无需增量包' % base_ver)
 
