@@ -123,6 +123,27 @@ static std::unordered_map<void*, CriManaModState_t*> stateMap;
 
 uint32_t RENDER_TARGET_SURF_ID = 199;
 
+// Release one subtitle state and everything it owns. Used both by the stop
+// hook and when the same player object starts a new movie, so the two paths
+// cannot drift apart.
+static void releaseState(CriManaModState_t* state) {
+  if (!state) return;
+  if (state->csri) csri_close(state->csri);
+  if (state->stagingTexture) state->stagingTexture->Release();
+  delete state;
+}
+
+// Drop whatever state a player object already had. A player can be told to
+// play twice without an intervening stop; without this the old state stays in
+// the map and keeps drawing the previous movie's subtitles over the new one
+// (and leaks).
+static void dropStateFor(void* pThis) {
+  auto it = stateMap.find(pThis);
+  if (it == stateMap.end()) return;
+  releaseState(it->second);
+  stateMap.erase(it);
+}
+
 typedef int(__thiscall* MgsMovieCPlayerPlayProc)(void* pThis, int a2, int a3,
                                                  char* movieFileName);
 static MgsMovieCPlayerPlayProc gameExeMgsMovieCPlayerPlay = NULL;
@@ -218,49 +239,130 @@ bool criManaModInit() {
 
 static __m128i MaskFF000000 = _mm_set1_epi32(0xFFFFFF00);
 
+// Create the staging texture and parse the subtitle script for one player.
+// Returns true only when the state is fully usable; on any failure the state
+// is dropped so the movie plays with no subtitle layer instead of crashing
+// later (csri_render on a NULL instance is an access violation).
+static bool startSubtitle(void* pThis, const std::string& subFileName) {
+  if (subFileName.empty()) return false;
+
+  std::stringstream ssSubPath;
+  ssSubPath << "languagebarrier\\subs\\" << subFileName;
+  std::string subPath = ssSubPath.str();
+  std::stringstream logstr;
+  logstr << "Using sub track " << subPath << " if available.";
+  LanguageBarrierLog(logstr.str());
+
+  std::ifstream in(subPath, std::ios::in | std::ios::binary);
+  if (!in.good()) return false;
+  in.seekg(0, std::ios::end);
+  std::streampos endPos = in.tellg();
+  if (endPos <= 0) return false;
+  std::string sub((size_t)endPos, 0);
+  in.seekg(0, std::ios::beg);
+  in.read(&sub[0], sub.size());
+  in.close();
+
+  CriManaModState_t* state = new CriManaModState_t;
+
+  ID3D11Texture2D* renderTarget =
+      lb::SurfaceWrapper::getTexPtr(surfaceArray, RENDER_TARGET_SURF_ID, 0);
+  if (!gameExePMgsD3D11State || !gameExePMgsD3D11State->pid3d11deviceC ||
+      !gameExePMgsD3D11State->pid3d11devicecontext18 || !renderTarget) {
+    LanguageBarrierLog("Subtitle: no D3D11 device / render target, skipping.");
+    delete state;
+    return false;
+  }
+
+  D3D11_TEXTURE2D_DESC desc;
+  memset(&desc, 0, sizeof(D3D11_TEXTURE2D_DESC));
+  renderTarget->GetDesc(&desc);
+  desc.Usage = D3D11_USAGE_STAGING;
+  desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
+  desc.BindFlags = 0;
+
+  HRESULT hr = gameExePMgsD3D11State->pid3d11deviceC->CreateTexture2D(
+      &desc, 0, &state->stagingTexture);
+  if (FAILED(hr) || !state->stagingTexture) {
+    std::stringstream s;
+    s << "Subtitle: CreateTexture2D failed (0x" << std::hex << hr
+      << "), skipping subtitle track.";
+    LanguageBarrierLog(s.str());
+    delete state;
+    return false;
+  }
+
+  state->csri =
+      csri_open_mem(csri_renderer_default(), &sub[0], sub.size(), NULL);
+  if (!state->csri) {
+    // A malformed script makes csri_open_mem return NULL; drawing through it
+    // would fault inside the renderer.
+    LanguageBarrierLog(
+        "Subtitle: csri_open_mem failed, skipping subtitle track.");
+    state->stagingTexture->Release();
+    delete state;
+    return false;
+  }
+
+  // Replace any previous state for this player (a second Play without a Stop
+  // would otherwise leave the old script drawing over the new movie).
+  dropStateFor(pThis);
+  stateMap.emplace(pThis, state);
+  return true;
+}
+
 void drawSubs(bool deferred) {
   for (const auto& kv : stateMap) {
     auto state = kv.second;
-    if (!state->keepLastFrame) {
-      if (deferred) {
-        ID3D11CommandList* pCommandList;
-        ID3D11DeviceContext* test =
-            (&gameExePMgsD3D11State->pid3d11deferredcontext1)
-                [*(uint32_t*)&gameExePMgsD3D11State->gap0];
-        HRESULT hr = test->FinishCommandList(1, &pCommandList);
+    if (!state || state->keepLastFrame) continue;
+    if (!state->csri || !state->stagingTexture) continue;
+    if (!gameExePMgsD3D11State || !gameExePMgsD3D11State->pid3d11devicecontext18)
+      continue;
+
+    ID3D11Texture2D* renderTarget =
+        lb::SurfaceWrapper::getTexPtr(surfaceArray, RENDER_TARGET_SURF_ID, 0);
+    if (!renderTarget) continue;
+
+    if (deferred) {
+      ID3D11CommandList* pCommandList = NULL;
+      ID3D11DeviceContext* test =
+          (&gameExePMgsD3D11State->pid3d11deferredcontext1)
+              [*(uint32_t*)&gameExePMgsD3D11State->gap0];
+      if (!test) continue;
+      HRESULT hr = test->FinishCommandList(1, &pCommandList);
+      if (SUCCEEDED(hr) && pCommandList) {
         gameExePMgsD3D11State->pid3d11devicecontext18->ExecuteCommandList(
             pCommandList, 0);
         pCommandList->Release();
       }
-
-      gameExePMgsD3D11State->pid3d11devicecontext18->CopyResource(
-          state->stagingTexture, lb::SurfaceWrapper::getTexPtr(
-                                     surfaceArray, RENDER_TARGET_SURF_ID, 0));
-
-      D3D11_MAPPED_SUBRESOURCE rsc;
-      memset(&rsc, 0, sizeof(D3D11_MAPPED_SUBRESOURCE));
-      HRESULT hr = gameExePMgsD3D11State->pid3d11devicecontext18->Map(
-          state->stagingTexture, 0, D3D11_MAP_READ_WRITE, 0, &rsc);
-
-      uint8_t* imagePtr = (uint8_t*)rsc.pData;
-      csri_frame frame;
-      frame.planes[0] = imagePtr;
-      frame.strides[0] = rsc.RowPitch;
-      frame.pixfmt = CSRI_F_BGR_;
-      csri_fmt format = {
-          frame.pixfmt,
-          lb::SurfaceWrapper::width(surfaceArray, RENDER_TARGET_SURF_ID),
-          lb::SurfaceWrapper::height(surfaceArray, RENDER_TARGET_SURF_ID)};
-      if (csri_request_fmt(state->csri, &format) == 0) {
-        csri_render(state->csri, &frame, state->time);
-      }
-
-      gameExePMgsD3D11State->pid3d11devicecontext18->Unmap(
-          state->stagingTexture, 0);
-      gameExePMgsD3D11State->pid3d11devicecontext18->CopyResource(
-          lb::SurfaceWrapper::getTexPtr(surfaceArray, RENDER_TARGET_SURF_ID, 0),
-          state->stagingTexture);
     }
+
+    gameExePMgsD3D11State->pid3d11devicecontext18->CopyResource(
+        state->stagingTexture, renderTarget);
+
+    D3D11_MAPPED_SUBRESOURCE rsc;
+    memset(&rsc, 0, sizeof(D3D11_MAPPED_SUBRESOURCE));
+    HRESULT hr = gameExePMgsD3D11State->pid3d11devicecontext18->Map(
+        state->stagingTexture, 0, D3D11_MAP_READ_WRITE, 0, &rsc);
+    if (FAILED(hr) || !rsc.pData) continue;
+
+    csri_frame frame;
+    memset(&frame, 0, sizeof(frame));
+    frame.pixfmt = CSRI_F_BGR_;
+    frame.planes[0] = (unsigned char*)rsc.pData;
+    frame.strides[0] = rsc.RowPitch;
+    csri_fmt format = {
+        frame.pixfmt,
+        lb::SurfaceWrapper::width(surfaceArray, RENDER_TARGET_SURF_ID),
+        lb::SurfaceWrapper::height(surfaceArray, RENDER_TARGET_SURF_ID)};
+    if (csri_request_fmt(state->csri, &format) == 0) {
+      csri_render(state->csri, &frame, state->time);
+    }
+
+    gameExePMgsD3D11State->pid3d11devicecontext18->Unmap(
+        state->stagingTexture, 0);
+    gameExePMgsD3D11State->pid3d11devicecontext18->CopyResource(
+        renderTarget, state->stagingTexture);
   }
 }
 
@@ -286,40 +388,7 @@ int __fastcall mgsMovieCPlayerPlayByIdHook(void* pThis, void* dummy, int a2,
     subFileName =
         config["patch"]["fmv"]["subs"][movieFileName].get<std::string>();
 
-  if (!subFileName.empty()) {
-    std::stringstream ssSubPath;
-    ssSubPath << "languagebarrier\\subs\\" << subFileName;
-    std::string subPath = ssSubPath.str();
-    std::stringstream logstr;
-    logstr << "Using sub track " << subPath << " if available.";
-    LanguageBarrierLog(logstr.str());
-
-    std::ifstream in(subPath, std::ios::in | std::ios::binary);
-    if (in.good()) {
-      in.seekg(0, std::ios::end);
-      std::string sub(in.tellg(), 0);
-      in.seekg(0, std::ios::beg);
-      in.read(&sub[0], sub.size());
-
-      CriManaModState_t* state = new CriManaModState_t;
-      stateMap.emplace(pThis, state);
-
-      D3D11_TEXTURE2D_DESC desc;
-      memset(&desc, 0, sizeof(D3D11_TEXTURE2D_DESC));
-      lb::SurfaceWrapper::getTexPtr(surfaceArray, RENDER_TARGET_SURF_ID, 0)
-          ->GetDesc(&desc);
-      desc.Usage = D3D11_USAGE_STAGING;
-      desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
-      desc.BindFlags = 0;
-
-      gameExePMgsD3D11State->pid3d11deviceC->CreateTexture2D(
-          &desc, 0, &state->stagingTexture);
-
-      state->csri =
-          csri_open_mem(csri_renderer_default(), &sub[0], sub.size(), NULL);
-    }
-    in.close();
-  }
+  if (!subFileName.empty()) startSubtitle(pThis, subFileName);
 
   return gameExeMgsMovieCPlayerPlayByIdReal(pThis, a2, id);
 }
@@ -333,66 +402,24 @@ int __fastcall mgsMovieCPlayerPlayHook(void* pThis, void* dummy, int a2, int a3,
     subFileName =
         config["patch"]["fmv"]["subs"][movieFileName].get<std::string>();
 
-  if (!subFileName.empty()) {
-    std::stringstream ssSubPath;
-    ssSubPath << "languagebarrier\\subs\\" << subFileName;
-    std::string subPath = ssSubPath.str();
-    std::stringstream logstr;
-    logstr << "Using sub track " << subPath << " if available.";
-    LanguageBarrierLog(logstr.str());
-
-    std::ifstream in(subPath, std::ios::in | std::ios::binary);
-    if (in.good()) {
-      in.seekg(0, std::ios::end);
-      std::string sub(in.tellg(), 0);
-      in.seekg(0, std::ios::beg);
-      in.read(&sub[0], sub.size());
-
-      CriManaModState_t* state = new CriManaModState_t;
-      stateMap.emplace(pThis, state);
-
-      D3D11_TEXTURE2D_DESC desc;
-      memset(&desc, 0, sizeof(D3D11_TEXTURE2D_DESC));
-      lb::SurfaceWrapper::getTexPtr(surfaceArray, RENDER_TARGET_SURF_ID, 0)
-          ->GetDesc(&desc);
-      desc.Usage = D3D11_USAGE_STAGING;
-      desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
-      desc.BindFlags = 0;
-
-      gameExePMgsD3D11State->pid3d11deviceC->CreateTexture2D(
-          &desc, 0, &state->stagingTexture);
-
-      state->csri =
-          csri_open_mem(csri_renderer_default(), &sub[0], sub.size(), NULL);
-    }
-    in.close();
-  }
+  if (!subFileName.empty()) startSubtitle(pThis, subFileName);
 
   return gameExeMgsMovieCPlayerPlayReal(pThis, a2, a3, movieFileName);
 }
 
 int __fastcall mgsMovieCPlayerStopHook(void* pThis) {
-  if (stateMap.count(pThis) == 0) return gameExeMgsMovieCPlayerStopReal(pThis);
-
-  CriManaModState_t* state = stateMap[pThis];
-
-  if (state->csri) {
-    csri_close(state->csri);
-  }
-  if (state->stagingTexture) {
-    state->stagingTexture->Release();
-  }
-  delete state;
-  stateMap.erase(pThis);
-
+  dropStateFor(pThis);
   return gameExeMgsMovieCPlayerStopReal(pThis);
 }
 
 int __fastcall mgsMovieCPlayerRenderHook(void* pThis) {
-  if (stateMap.count(pThis) == 0)
+  auto it = stateMap.find(pThis);
+  if (it == stateMap.end()) return gameExeMgsMovieCPlayerRenderReal(pThis);
+
+  CriManaModState_t* state = it->second;
+  if (!state || state->csri == NULL)
     return gameExeMgsMovieCPlayerRenderReal(pThis);
 
-  CriManaModState_t* state = stateMap[pThis];
   CriManaFrameInfo* frameInfo;
   if (VideoPlayerObjVariant) {
     MgsMoviePlayerRNDObj_t* obj = (MgsMoviePlayerRNDObj_t*)pThis;
@@ -402,15 +429,17 @@ int __fastcall mgsMovieCPlayerRenderHook(void* pThis) {
     frameInfo = &obj->criManaFrameInfo;
   }
 
-  if (state->csri == NULL) return gameExeMgsMovieCPlayerRenderReal(pThis);
-
-  double time = ((double)frameInfo->framerate_d * (double)frameInfo->frame_no) /
-                (double)frameInfo->framerate_n;
-
-  state->keepLastFrame = frameInfo->frame_no == state->lastFrameNum;
-
-  state->lastFrameNum = frameInfo->frame_no;
-  state->time = time;
+  // The object layout is reconstructed by hand, so treat the timing fields as
+  // untrusted: a zero denominator would divide by zero, and garbage would
+  // drive the subtitle clock far off. Keep the previous time in that case.
+  if (frameInfo->framerate_n != 0) {
+    double time = ((double)frameInfo->framerate_d *
+                   (double)frameInfo->frame_no) /
+                  (double)frameInfo->framerate_n;
+    state->keepLastFrame = frameInfo->frame_no == state->lastFrameNum;
+    state->lastFrameNum = frameInfo->frame_no;
+    state->time = time;
+  }
 
   return gameExeMgsMovieCPlayerRenderReal(pThis);
 }

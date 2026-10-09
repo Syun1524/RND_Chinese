@@ -23,6 +23,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import struct
 import sys
 
@@ -36,11 +37,17 @@ REPO_DLL = os.path.join(ROOT, "..", "GitHub", "RND_Chinese", "LanguageBarrier_ch
                         "LanguageBarrier", "dinput8-Release", "dinput8.dll")
 PKG_LB = os.path.join(ROOT, "成品ing", "补丁包", "languagebarrier")
 
-# 守卫的完整字节序列（test ecx,ecx / je / test ebx,ebx / jcc / test esi,esi / je / cmp [esi],0 / je）
-GUARD_PREFIX = bytes.fromhex('85c90f84')
-GUARD_JG = bytes.fromhex('85c90f84bc03000085db7f1185f60f84b0030000803e000f84a7030000')
-GUARD_JNS = bytes.fromhex('85c90f84bc03000085db791185f60f84b0030000803e000f84a7030000')
-GUARD_JGE = bytes.fromhex('85c90f84bc03000085db7d1185f60f84b0030000803e000f84a7030000')
+# 守卫的字节骨架（test ecx,ecx / je / test ebx,ebx / jcc / test esi,esi / je / cmp [esi],0 / je）。
+# ⚠ 不要写死 rel32：那是**相对偏移**，随编译器版本与函数长度变化。
+#   v142 版发布 DLL 是 `... 85 db 79 11 ...`，v143 重编后同一逻辑是
+#   `... 85 db 79 11 ...` 但四条跳转的 rel32 各差 1（bc/b0/a7 → bd/b1/a8）。
+#   所以用正则匹配「骨架 + 任意 rel32」，只在 jcc 那个字节上区分 jg / jns / jge。
+GUARD_RE = re.compile(
+    rb"\x85\xc9\x0f\x84.{4}"          # test ecx,ecx ; je
+    rb"\x85\xdb(?P<jcc>[\x7f\x79\x7d])."  # test ebx,ebx ; jg/jns/jge rel8
+    rb"\x85\xf6\x0f\x84.{4}"          # test esi,esi ; je
+    rb"\x80\x3e\x00\x0f\x84.{4}",     # cmp byte [esi],0 ; je
+    re.DOTALL)
 
 
 def check_source(path):
@@ -62,16 +69,15 @@ def check_dll(path):
     if not os.path.exists(path):
         return ["DLL 不存在: %s" % path]
     data = open(path, "rb").read()
-    n_jg = data.count(GUARD_JG)
-    n_jns = data.count(GUARD_JNS)
-    n_jge = data.count(GUARD_JGE)
-    total_ok = n_jns + n_jge
-    if n_jg:
+    hits = list(GUARD_RE.finditer(data))
+    bad = [h for h in hits if h.group("jcc") == b"\x7f"]
+    good = [h for h in hits if h.group("jcc") in (b"\x79", b"\x7d")]
+    if bad:
         errs.append("%s: 守卫仍是 jg（fileId > 0），共 %d 处 —— fileId 0 会被跳过"
-                    % (os.path.basename(path), n_jg))
-    if total_ok != 1:
-        errs.append("%s: 期望恰好 1 处 jns/jge 守卫，实际 jns=%d jge=%d"
-                    % (os.path.basename(path), n_jns, n_jge))
+                    % (os.path.basename(path), len(bad)))
+    if len(good) != 1:
+        errs.append("%s: 期望恰好 1 处 jns/jge 守卫，实际 %d 处（总命中 %d）"
+                    % (os.path.basename(path), len(good), len(hits)))
     return errs
 
 

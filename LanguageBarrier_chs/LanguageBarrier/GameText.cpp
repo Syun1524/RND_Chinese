@@ -1486,7 +1486,8 @@ int __cdecl dialogueLayoutRelatedHook(int unk0, int* unk1, int* unk2, int unk3,
             uint32_t currentChar =                                             \
                 page->glyphCol[i] +                                            \
                 page->glyphRow[i] * TextRendering::Get().GLYPHS_PER_ROW;       \
-            wchar_t cChar = TextRendering::Get().fullCharMap[currentChar];     \
+            wchar_t cChar = TextRendering::Get().getCharForGlyphId(            \
+                (int)currentChar);                                             \
             const auto glyphInfo =                                             \
                 TextRendering::Get()                                           \
                     .getFont(page->glyphDisplayHeight[i] * 1.5f, false)        \
@@ -1688,9 +1689,11 @@ void semiTokeniseSc3String(char* sc3string, std::list<StringWord_t>& words,
         if (!TextRendering::Get().enabled) {
           glyphWidth = (baseGlyphSize * widths[glyphId]) / FONT_CELL_WIDTH;
         } else {
-          glyphWidth = fontData->glyphData
-                           .glyphMap[TextRendering::Get().fullCharMap[glyphId]]
-                           .advance;
+          // The id comes straight out of the text stream, so it can name a
+          // glyph the charset does not have. getGlyphInfo already resolves
+          // unknown ids to the missing-glyph fallback; a raw subscript into
+          // the map would instead insert junk or throw.
+          glyphWidth = fontData->getGlyphInfo(glyphId, Regular)->advance;
         }
         const std::wstring& charMap = TextRendering::Get().fullCharMap;
         const wchar_t curChar =
@@ -2913,8 +2916,18 @@ float addCharacter(ProcessedSc3String_t* result, int baseGlyphSize, int glyphId,
                    int yOffset, int currentColor, int lineHeight,
                    const MultiplierData* mData) {
   int i = result->length;
+  // The arrays in ProcessedSc3String_t are fixed at
+  // MAX_PROCESSED_STRING_LENGTH; a string longer than that (a long mail, or a
+  // translated line that outgrew the original) would write past the struct.
+  // Stop measuring instead of overflowing.
+  if (i < 0 || i >= (int)lb::MAX_PROCESSED_STRING_LENGTH) return 0.0f;
+  // `widths` is only TOTAL_NUM_FONT_CELLS long while a glyph id is 15 bits, so
+  // an id past the table would read outside it. The ids in the shipped text are
+  // all in range; this only contains a malformed one.
+  if (glyphId < 0 || glyphId >= (int)lb::TOTAL_NUM_FONT_CELLS) return 0.0f;
   const auto& fontData = TextRendering::Get().getFont(baseGlyphSize, false);
-  char character = TextRendering::Get().fullCharMap[glyphId];
+  const std::wstring& charMap = TextRendering::Get().fullCharMap;
+  char character = glyphId < (int)charMap.length() ? charMap[glyphId] : L' ';
   result->text[i] = character;
   if (curLinkNumber != NOT_A_LINK) {
     result->linkCharCount++;
@@ -3318,6 +3331,10 @@ int __cdecl getSc3StringDisplayWidthHook(char* sc3string,
   bool insideRubyText = false;
   if (UseNewTextSystem)
     fontData = TextRendering::Get().getFont(baseGlyphSize, true);
+  // Every path must move sc3string forward. A control byte that matched no
+  // branch used to leave the pointer where it was, so a string carrying any
+  // such byte (e.g. the bare 0x09/0x0A/0x0B ruby markers, or 0x00) looped
+  // forever on the game's thread -- a hang that reads as a freeze/crash.
   while (i <= maxCharacters && (c = *sc3string) != -1) {
     if (c == 4) {
       sc3.pc = sc3string + 1;
@@ -3336,15 +3353,19 @@ int __cdecl getSc3StringDisplayWidthHook(char* sc3string,
           if (TextRendering::Get().enabled) {
             int adv = fontData->getGlyphInfo(glyphId, Regular)->advance;
             result += adv;
-          } else {
+          } else if (glyphId < (int)sizeof(TextRendering::Get().originalWidth)) {
             result += TextRendering::Get().originalWidth[glyphId];
           }
-        } else {
+        } else if (glyphId < (int)sizeof(widths) / (int)sizeof(widths[0])) {
           result += (baseGlyphSize * widths[glyphId]) / FONT_CELL_WIDTH;
         }
         i++;
       }
       sc3string += 2;
+    } else {
+      // Single-byte control (line break, link markers, ...): not measured,
+      // but it still has to be consumed.
+      sc3string++;
     }
   }
   return result;

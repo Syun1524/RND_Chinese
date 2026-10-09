@@ -840,10 +840,15 @@ int __cdecl pokecomARMainHook() {
     int mouseY = InputObject->scaledMouseY;
 
     bool dontMoveThisFrame = false;
+    // scrWork[6374] selects the window frame; a value outside the table would
+    // read off the end of PokecomWindowCoords. The table has one 16-byte entry
+    // per frame, and the game only ever uses a handful.
+    int windowIndex = gameExeScrWork[6374];
+    if (windowIndex < 0 || windowIndex > 64) windowIndex = 0;
     auto pokecomWidth = *(signed __int16*)((char*)PokecomWindowCoords +
-                                           (16 * gameExeScrWork[6374]) + 12);
+                                           (16 * windowIndex) + 12);
     auto pokecomHeight = *(signed __int16*)((char*)PokecomWindowCoords +
-                                            (16 * gameExeScrWork[6374]) + 14);
+                                            (16 * windowIndex) + 14);
     auto pokecomX = (gameExeScrWork[6402] + gameExeScrWork[6378] + 960) -
                     (pokecomWidth / 2);
     auto pokecomY = (gameExeScrWork[6403] + gameExeScrWork[6379] + 540) -
@@ -856,6 +861,12 @@ int __cdecl pokecomARMainHook() {
       for (int i = 0; i < *ARNumDisplayedGeoTags; i++) {
         float x, y;
         int id = ARDisplayedGeoTags[i];
+        // The geotag tables are indexed by tag id and by the id->slot map; a
+        // stale or out-of-range id (which happens while the list is being
+        // rebuilt) would index past them. Skip the entry for this frame.
+        if (id < 0 || id >= *ARNumberOfGeoTags) continue;
+        int slot = ARSomeGeoTagArr[id];
+        if (slot < 0) continue;
         int xyzCnt = 4 * id;
         // Oh shit, here we go again
         gameExeGetScreenCoords(1, &x, &y, ARGeoTagsXYZCoords[xyzCnt],
@@ -870,14 +881,12 @@ int __cdecl pokecomARMainHook() {
         screenY = (screenY * pokecomScaleY) + pokecomY;
 
         int textWidth;
-        if (ARSomeGeoTagArr2[ARSomeGeoTagArr[id]]) {
+        if (ARSomeGeoTagArr2[slot]) {
           textWidth = gameExeCountSC3Characters(
               gameExeGetSC3StringByID(13, *ARSomeGeoTagData + 200), 100, 0);
         } else {
           textWidth = getSc3StringDisplayWidthHook(
-              (char*)gameExeGetSC3StringByID(
-                  13, ARSomeGeoTagArr3[ARSomeGeoTagArr[id]]),
-              0, 22);
+              (char*)gameExeGetSC3StringByID(13, ARSomeGeoTagArr3[slot]), 0, 22);
         }
         textWidth *= 2;
 
@@ -904,7 +913,9 @@ int __cdecl pokecomARMainHook() {
         *InputMask |= PAD1A;
     }
 
-    int axisMultiplier = gameExeScrWork[SW_AR_ANGLE_C] / IruoSensitivity;
+    // iruoSensitivity is config-supplied; a 0 there would divide by zero.
+    int sensitivity = IruoSensitivity > 0 ? IruoSensitivity : 500;
+    int axisMultiplier = gameExeScrWork[SW_AR_ANGLE_C] / sensitivity;
     if ((InputObject->mouseButtonsHeld & MouseLeftClick) &&
         !dontMoveThisFrame) {
       gameExeScrWork[SW_AR_ELV] -= InputObject->mouseYAxis * axisMultiplier;

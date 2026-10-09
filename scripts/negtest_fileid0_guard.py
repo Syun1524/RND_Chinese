@@ -72,11 +72,14 @@ def main():
                         lambda: run_check_source(p)))
 
     # ---------- B. DLL 守卫退回 jg ----------
+    # 用正则定位：rel32 随编译器变，不能写死整串字节
     print("\n[3] DLL 守卫退回 jg 应 CAUGHT")
     data = bytearray(open(gate.PKG_DLL, "rb").read())
-    off = bytes(data).find(gate.GUARD_JNS)
-    assert off >= 0, "找不到 jns 守卫，测试用例失效"
-    data[off + 10] = 0x7f                      # jns -> jg
+    hits = list(gate.GUARD_RE.finditer(bytes(data)))
+    assert len(hits) == 1, "找不到唯一守卫，测试用例失效（命中 %d）" % len(hits)
+    off = hits[0].start("jcc")
+    assert bytes(data[off:off + 1]) in (b"\x79", b"\x7d"), "守卫不是 jns/jge，用例失效"
+    data[off] = 0x7f                           # jns/jge -> jg
     p = os.path.join(TMP, "dinput8_jg.dll")
     open(p, "wb").write(bytes(data))
     results.append(case("DLL: 守卫退回 jg（fileId > 0）",
@@ -85,8 +88,8 @@ def main():
     # ---------- B2. DLL 守卫被抹成恒真/恒假 ----------
     print("\n[4] DLL 守卫被改成 nop 应 CAUGHT")
     data = bytearray(open(gate.PKG_DLL, "rb").read())
-    off = bytes(data).find(gate.GUARD_JNS)
-    data[off + 10] = 0x90                      # jns -> nop
+    off = list(gate.GUARD_RE.finditer(bytes(data)))[0].start("jcc")
+    data[off] = 0x90                           # jns -> nop
     p = os.path.join(TMP, "dinput8_nop.dll")
     open(p, "wb").write(bytes(data))
     results.append(case("DLL: 守卫改成 nop", lambda: run_check_dll(p)))
